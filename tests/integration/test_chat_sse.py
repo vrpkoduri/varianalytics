@@ -148,3 +148,30 @@ class TestChatSSE:
         """DELETE unknown conversation should return 404."""
         response = self.client.delete("/api/v1/chat/conversations/nonexistent")
         assert response.status_code == 404
+
+    def test_agent_error_emits_error_and_done(self) -> None:
+        """If agent raises, SSE stream should have error + done (not hang)."""
+        # Post a message — the agent may error if computation service is down
+        r = self.client.post(
+            "/api/v1/chat/messages",
+            json={"message": "What is the variance for a nonexistent account?"},
+        )
+        assert r.status_code == 201
+        cid = r.json()["conversation_id"]
+
+        # Consume SSE stream
+        with self.client.stream("GET", f"/api/v1/chat/stream/{cid}") as response:
+            assert response.status_code == 200
+
+            events = []
+            event_type = ""
+            for line in response.iter_lines():
+                if line.startswith("event: "):
+                    event_type = line[len("event: "):]
+                elif line.startswith("data: "):
+                    data = json.loads(line[len("data: "):])
+                    events.append({"type": event_type, "data": data})
+
+        # Verify stream terminates (has 'done' event) — no hang
+        event_types = [e["type"] for e in events]
+        assert "done" in event_types, "Stream must terminate with 'done' event"

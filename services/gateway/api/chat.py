@@ -86,7 +86,18 @@ async def _run_agent(
             review_store=review_store,
             llm_client=llm_client,
         )
-        await orchestrator.handle_message(message, context, ctx)
+        try:
+            await asyncio.wait_for(
+                orchestrator.handle_message(message, context, ctx),
+                timeout=60.0,  # 60-second SLA for agent response
+            )
+        except asyncio.TimeoutError:
+            logger.error("Agent timed out after 60s for message: %s", message[:100])
+            await ctx.emit_error(
+                "The analysis is taking longer than expected. Please try a simpler question.",
+                code="AGENT_TIMEOUT",
+            )
+            await ctx.emit_done()
 
     except Exception as exc:
         logger.exception("Error in agent processing: %s", exc)

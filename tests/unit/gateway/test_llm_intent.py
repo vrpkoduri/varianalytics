@@ -201,3 +201,56 @@ class TestUIContextMerging:
 
         assert entities.bu_id == "marsh"
         assert entities.period_id == "2026-06"
+
+
+# ---------------------------------------------------------------------------
+# Defensive guards — tool_calls parsing
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestLLMIntentGuards:
+
+    @pytest.mark.asyncio
+    async def test_llm_returns_no_tool_calls_fallback(self):
+        """If LLM response has no tool_calls, fall back to keyword."""
+        client = _make_llm_client()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.tool_calls = None  # No tool calls
+        client.complete = AsyncMock(return_value=mock_response)
+
+        classifier = LLMIntentClassifier(client)
+        intent, entities = await classifier.classify("How did revenue do?")
+
+        # Keyword classifier should catch "revenue"
+        assert intent == Intent.REVENUE_OVERVIEW
+
+    @pytest.mark.asyncio
+    async def test_llm_returns_invalid_intent_value_fallback(self):
+        """If LLM returns intent not in enum, use GENERAL."""
+        client = _make_llm_client()
+        client.complete = AsyncMock(
+            return_value=_make_tool_call_response({"intent": "unknown_xyz"})
+        )
+
+        classifier = LLMIntentClassifier(client)
+        intent, entities = await classifier.classify("Something unusual")
+
+        assert intent == Intent.GENERAL
+
+    @pytest.mark.asyncio
+    async def test_llm_returns_malformed_arguments_fallback(self):
+        """If LLM returns non-JSON arguments, fall back to keyword."""
+        client = _make_llm_client()
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock()]
+        mock_response.choices[0].message.tool_calls = [MagicMock()]
+        mock_response.choices[0].message.tool_calls[0].function.arguments = "not valid json"
+        client.complete = AsyncMock(return_value=mock_response)
+
+        classifier = LLMIntentClassifier(client)
+        intent, entities = await classifier.classify("Show the P&L statement")
+
+        # Keyword classifier should catch "P&L"
+        assert intent == Intent.PL_SUMMARY

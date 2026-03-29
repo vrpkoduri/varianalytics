@@ -6,6 +6,7 @@ Used by ToolExecutor in the agent pipeline.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any, Optional
 
@@ -50,7 +51,13 @@ class ComputationClient:
             cleaned = {k: v for k, v in (params or {}).items() if v is not None}
             resp = await self._client.get(path, params=cleaned)
             if resp.status_code == 200:
-                return resp.json()
+                try:
+                    return resp.json()
+                except (json.JSONDecodeError, ValueError) as e:
+                    raise ComputationServiceError(
+                        f"Malformed JSON response from {path}: {e}",
+                        status_code=resp.status_code,
+                    ) from e
             if resp.status_code == 404:
                 return None
             resp.raise_for_status()

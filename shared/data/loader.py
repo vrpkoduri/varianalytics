@@ -47,10 +47,15 @@ class DataLoader:
         if not file_path.exists():
             raise FileNotFoundError(f"Table file not found: {file_path}")
 
-        if format == "parquet":
-            return pd.read_parquet(file_path)
-        else:
-            return pd.read_csv(file_path)
+        try:
+            if format == "parquet":
+                return pd.read_parquet(file_path)
+            else:
+                return pd.read_csv(file_path)
+        except Exception as e:
+            raise FileNotFoundError(
+                f"Failed to read {file_path}: {e}"
+            ) from e
 
     def table_exists(self, table_name: str, format: str = "parquet") -> bool:
         """Check if a table file exists."""

@@ -4,6 +4,7 @@ Supports Claude (Anthropic) and Azure OpenAI. Config-driven model routing.
 Graceful fallback when no API key is configured.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -164,14 +165,19 @@ class LLMClient:
             )
 
             async for chunk in response:
+                if not chunk.choices:
+                    continue  # Guard: skip empty choices
                 delta = chunk.choices[0].delta
                 content = getattr(delta, "content", None)
                 if content:
                     yield content
 
+        except asyncio.TimeoutError:
+            logger.error("LLM streaming timed out for task=%s model=%s", task, self.get_model(task))
+            yield "\n\n[Response timed out. Please try again.]"
         except Exception as exc:
             logger.error("LLM streaming failed for task=%s: %s", task, exc)
-            yield f"LLM streaming error: {exc}"
+            yield f"\n\n[Error generating response: {exc}]"
 
     # ------------------------------------------------------------------
     # Internal helpers

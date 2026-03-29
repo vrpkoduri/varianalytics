@@ -138,8 +138,12 @@ class DataService:
         ]
         for name in table_names:
             if self._loader.table_exists(name):
-                self._tables[name] = self._loader.load_table(name)
-                logger.info("Loaded table %s: %d rows", name, len(self._tables[name]))
+                try:
+                    self._tables[name] = self._loader.load_table(name)
+                    logger.info("Loaded table %s: %d rows", name, len(self._tables[name]))
+                except Exception as e:
+                    logger.error("Failed to load table %s: %s", name, e)
+                    self._tables[name] = pd.DataFrame()
             else:
                 logger.warning("Table %s not found, skipping", name)
                 self._tables[name] = pd.DataFrame()

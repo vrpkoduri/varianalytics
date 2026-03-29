@@ -4,6 +4,7 @@ Uses actual parquet data from data/output/.
 """
 
 import math
+import shutil
 
 import pytest
 
@@ -333,3 +334,30 @@ class TestDimensionLookups:
         p = periods[0]
         assert "period_id" in p
         assert "fiscal_year" in p
+
+
+# ------------------------------------------------------------------
+# Corrupted / missing file resilience
+# ------------------------------------------------------------------
+
+
+@pytest.mark.unit
+def test_dataservice_survives_missing_table(tmp_path):
+    """DataService starts with empty table if parquet file is corrupted or missing."""
+    # Copy actual data directory
+    shutil.copytree("data/output", tmp_path / "output")
+
+    # Corrupt one file
+    corrupt_path = tmp_path / "output" / "fact_netting_flags.parquet"
+    corrupt_path.write_bytes(b"this is not a parquet file")
+
+    # DataService should still init, with netting flags as empty DataFrame
+    DataService.reset_instance()
+    ds = DataService(data_dir=str(tmp_path / "output"))
+
+    # The corrupted table should be empty, not crash
+    netting = ds._table("fact_netting_flags")
+    assert netting.empty
+
+    # Other tables should be fine
+    assert len(ds.get_business_units()) == 5

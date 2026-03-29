@@ -214,3 +214,24 @@ async def test_server_error_raises_error():
         await client.get_summary_cards(period_id="2026-03")
 
     await client.close()
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+async def test_malformed_json_raises_computation_error():
+    """If computation service returns invalid JSON, raise ComputationServiceError."""
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=b"<html>Internal Error</html>",
+            headers={"content-type": "text/html"},
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = _client_with_transport(transport)
+
+    with pytest.raises(ComputationServiceError, match="Malformed JSON"):
+        await client.get_summary_cards(period_id="2025-12")
+
+    await client.close()

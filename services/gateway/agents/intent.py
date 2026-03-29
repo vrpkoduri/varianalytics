@@ -439,11 +439,23 @@ class LLMIntentClassifier:
                 return self._fallback.classify(message, ui_context)
 
             # Parse function call result
-            choice = response.choices[0]
-            tool_call = choice.message.tool_calls[0]
-            args = json.loads(tool_call.function.arguments)
+            choice = response.choices[0] if response.choices else None
+            if not choice or not getattr(choice.message, 'tool_calls', None):
+                logger.warning("LLM returned no tool calls, falling back to keyword")
+                return self._fallback.classify(message, ui_context)
 
-            intent = Intent(args.get("intent", "general"))
+            tool_call = choice.message.tool_calls[0]
+            try:
+                args = json.loads(tool_call.function.arguments)
+            except (json.JSONDecodeError, TypeError, AttributeError) as e:
+                logger.warning("LLM returned malformed arguments: %s", e)
+                return self._fallback.classify(message, ui_context)
+
+            try:
+                intent = Intent(args.get("intent", "general"))
+            except ValueError:
+                logger.warning("LLM returned unknown intent: %s", args.get("intent"))
+                intent = Intent.GENERAL
             entities = ExtractedEntities(
                 period_id=args.get("period_id"),
                 bu_id=args.get("bu_id"),

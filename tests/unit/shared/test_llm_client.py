@@ -177,3 +177,42 @@ class TestStream:
             chunks.append(chunk)
         assert len(chunks) == 1
         assert "error" in chunks[0].lower()
+
+    @pytest.mark.asyncio
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test", "LLM_PROVIDER": "anthropic"}, clear=True)
+    @patch("litellm.acompletion")
+    async def test_stream_empty_choices_handled(self, mock_acompletion):
+        """If LLM stream chunk has empty choices, skip without crash."""
+
+        async def _stream_with_empty():
+            # Chunk with empty choices (should be skipped)
+            empty_chunk = MagicMock()
+            empty_chunk.choices = []
+            yield empty_chunk
+            # Normal chunk
+            normal_chunk = MagicMock()
+            normal_chunk.choices = [MagicMock()]
+            normal_chunk.choices[0].delta.content = "Hello"
+            yield normal_chunk
+
+        mock_acompletion.return_value = _stream_with_empty()
+
+        client = LLMClient()
+        collected: list[str] = []
+        async for chunk in client.stream("chat_response", [{"role": "user", "content": "hi"}]):
+            collected.append(chunk)
+
+        assert collected == ["Hello"]
+
+    @pytest.mark.asyncio
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test", "LLM_PROVIDER": "anthropic"}, clear=True)
+    @patch("litellm.acompletion", side_effect=RuntimeError("Connection reset"))
+    async def test_stream_exception_yields_error_message(self, _mock):
+        """If LLM stream raises exception, yield error message."""
+        client = LLMClient()
+        chunks = []
+        async for chunk in client.stream("chat_response", [{"role": "user", "content": "hi"}]):
+            chunks.append(chunk)
+        assert len(chunks) == 1
+        assert "error" in chunks[0].lower()
+        assert "Connection reset" in chunks[0]
