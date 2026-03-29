@@ -191,3 +191,45 @@ class TestFullPipeline:
         # All should be AI_DRAFT
         for entry in review_status:
             assert entry["status"] == "AI_DRAFT"
+
+    def test_pipeline_all_10_calculated_accounts_present(
+        self, pipeline_context: dict
+    ) -> None:
+        """All 10 calculated account IDs should appear in material variances.
+
+        The engine resolves calculated rows (Gross Revenue, Total COR, Gross
+        Profit, Total OpEx, EBITDA, Operating Income, Total NonOp, PBT,
+        Net Income, Total P&L) in dependency order after rollup.
+        """
+        material = pipeline_context.get("material_variances", pd.DataFrame())
+        assert not material.empty, "material_variances should not be empty"
+
+        expected_calc_accounts = {
+            "acct_gross_revenue", "acct_total_cor", "acct_gross_profit",
+            "acct_total_opex", "acct_ebitda", "acct_operating_income",
+            "acct_total_nonop", "acct_pbt", "acct_net_income", "acct_total_pl",
+        }
+        present_accounts = set(material["account_id"].unique())
+        missing = expected_calc_accounts - present_accounts
+        assert len(missing) == 0, (
+            f"Missing calculated accounts in material variances: {missing}"
+        )
+
+    def test_pipeline_netting_cross_account_check_fires(
+        self, pipeline_context: dict
+    ) -> None:
+        """Netting flags should include at least 1 cross_account check.
+
+        The synthetic data has offsetting APAC advisory/consulting variances
+        that should trigger the cross-account netting detection.
+        """
+        netting_flags = pipeline_context.get("netting_flags", pd.DataFrame())
+        assert not netting_flags.empty, "netting_flags should not be empty"
+
+        cross_account = netting_flags[
+            netting_flags["check_type"].str.contains("cross_account", case=False)
+        ]
+        assert len(cross_account) >= 1, (
+            f"Expected at least 1 cross_account netting flag, "
+            f"got {len(cross_account)}"
+        )
