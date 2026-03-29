@@ -4,6 +4,9 @@ import { Badge } from '@/components/common/Badge'
 import { SearchBar } from '@/components/common/SearchBar'
 import { Sparkline } from '@/components/charts/Sparkline'
 import { formatCurrency, formatPercent } from '@/utils/formatters'
+import { useModal } from '@/context/ModalContext'
+import { MOCK_MODAL_DATA } from '@/mocks/modalData'
+import type { VarianceDetail } from '@/context/ModalContext'
 import type { MockVariance } from '@/mocks/dashboardData'
 
 type SortCol = 'account' | 'bu' | 'variance' | 'variancePct' | 'status'
@@ -34,7 +37,35 @@ const edgeBadgeVariant: Record<string, 'teal' | 'amber' | 'coral' | 'purple'> = 
   synth: 'purple',
 }
 
+// Build a fallback VarianceDetail from a MockVariance row
+function toVarianceDetail(v: MockVariance): VarianceDetail {
+  return {
+    id: v.id,
+    account: v.account,
+    bu: v.bu,
+    geo: v.geo,
+    variance: v.variance,
+    variancePct: v.variancePct,
+    favorable: v.favorable,
+    type: v.type,
+    status: v.status,
+    sparkData: v.sparkData,
+    decomposition: [],
+    correlations: [],
+    hypotheses: [],
+    narratives: { detail: v.narrative, midlevel: v.narrative, summary: v.narrative, board: v.narrative },
+    isEdited: false,
+    isSynthesized: false,
+    isNew: v.edgeBadge === 'New',
+    noBudget: v.edgeBadge === 'No budget',
+    noPriorYear: false,
+    edgeBadge: v.edgeBadge,
+    narrative: v.narrative,
+  }
+}
+
 export function VarianceTable({ variances, searchQuery, onSearchChange }: VarianceTableProps) {
+  const { openModal } = useModal()
   const [sortCol, setSortCol] = useState<SortCol>('variance')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
@@ -158,6 +189,7 @@ export function VarianceTable({ variances, searchQuery, onSearchChange }: Varian
                 <tr
                   key={v.id}
                   className="border-b border-border/50 hover:bg-[rgba(0,168,199,.03)] cursor-pointer transition-colors"
+                  onClick={() => openModal(MOCK_MODAL_DATA[v.id] ?? toVarianceDetail(v))}
                 >
                   <td className="py-2 px-2">
                     <div className="flex items-center gap-1.5">
