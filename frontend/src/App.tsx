@@ -5,10 +5,12 @@ import { GlobalFiltersProvider } from '@/context/GlobalFiltersContext';
 import { ReviewStatsProvider } from '@/context/ReviewStatsContext';
 import AppLayout from '@/components/layout/AppLayout';
 import AppRouter from '@/Router';
+import { GlobalBackground } from '@/components/layout/GlobalBackground';
 
 export default function App() {
   return (
     <ThemeProvider>
+      <GlobalBackground />
       <UserProvider>
         <GlobalFiltersProvider>
           <ReviewStatsProvider>

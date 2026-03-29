@@ -27,8 +27,10 @@ export function useSSE({
   onError,
 }: UseSSEOptions): UseSSEResult {
   const [isConnected, setIsConnected] = useState(false);
-  const [lastEvent, setLastEvent] = useState<SSEEvent | null>(null);
-  const [error, setError] = useState<Event | null>(null);
+  const [lastEvent, _setLastEvent] = useState<SSEEvent | null>(null);
+  const [error, _setError] = useState<Event | null>(null);
+  // TODO: Wire setLastEvent and setError in SSE connect logic (Step 11)
+  void _setLastEvent; void _setError;
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const disconnect = useCallback(() => {

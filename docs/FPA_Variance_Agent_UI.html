@@ -1,0 +1,989 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 24L16 4L28 24' stroke='%2300A8C7' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+<title>Marsh Vantage — Variance Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  --bg:#030B1A;--sf:#0A1628;--cd:#0F1D32;--cd2:#132440;--bd:#1A2A42;--bd2:#243552;
+  --tx:#E8EDF5;--t2:#8B9AB5;--t3:#5A6B84;
+  --cb:#002C77;--cbL:#003A99;--tl:#00A8C7;--tlL:#00BCDB;--mb:#016D9E;--ml:#A7E2F0;
+  --gd:#E3A547;--gdS:rgba(227,165,71,.1);--em:#2DD4A8;--emS:rgba(45,212,168,.08);
+  --cr:#F97066;--crS:rgba(249,112,102,.08);--am:#FBBF24;--amS:rgba(251,191,36,.08);
+  --pr:#A78BFA;--prS:rgba(167,139,250,.08);
+  --gA:#002C77;--gB:#00A8C7;--hd:rgba(0,20,55,.92);--rh:rgba(0,44,119,.06);--ov:rgba(0,0,0,.55);
+  --ft:'DM Sans',sans-serif;--se:'Playfair Display',Georgia,serif;
+  --glass:rgba(15,29,50,.65);--glassBd:rgba(0,168,199,.12);--glassBlur:blur(16px)
+}
+[data-theme=light]{
+  --bg:#F4F7FC;--sf:#FFFFFF;--cd:#FFFFFF;--cd2:#F0F4FA;--bd:#D4DCE8;--bd2:#B8C4D6;
+  --tx:#0A1628;--t2:#5A6B84;--t3:#8B9AB5;
+  --cbL:#002C77;--tlL:#00A8C7;
+  --gd:#BF8700;--gdS:rgba(191,135,0,.06);--em:#0D9373;--emS:rgba(13,147,115,.06);
+  --cr:#CF222E;--crS:rgba(207,34,46,.06);--am:#9A6700;--amS:rgba(154,103,0,.06);
+  --pr:#8250DF;--prS:rgba(130,80,223,.06);
+  --gA:#002C77;--gB:#00A8C7;--hd:rgba(255,255,255,.95);--rh:rgba(0,44,119,.03);--ov:rgba(0,0,0,.2);
+  --glass:rgba(255,255,255,.7);--glassBd:rgba(0,44,119,.08);--glassBlur:blur(12px)
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--ft);background:var(--bg);color:var(--tx);font-size:13px;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(0,44,119,.15) 0%,transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(0,168,199,.08) 0%,transparent 50%);pointer-events:none;z-index:0}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:var(--tl)}
+@keyframes fu{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes si{from{transform:translateX(100%)}to{transform:translateX(0)}}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes expandIn{from{opacity:0;max-height:0;padding-top:0;padding-bottom:0}to{opacity:1;max-height:600px;padding-top:14px;padding-bottom:16px}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+@keyframes glow{0%,100%{filter:drop-shadow(0 0 8px rgba(0,168,199,.2))}50%{filter:drop-shadow(0 0 16px rgba(0,168,199,.4))}}
+@keyframes headerGrad{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-60px) rotate(720deg);opacity:0}}
+.fu{animation:fu .45s cubic-bezier(.22,1,.36,1) both}
+.d0{animation-delay:0s}.d1{animation-delay:.05s}.d2{animation-delay:.1s}.d3{animation-delay:.15s}.d4{animation-delay:.2s}.d5{animation-delay:.25s}.d6{animation-delay:.3s}.d7{animation-delay:.35s}
+/* === HEADER === */
+.hdr{position:sticky;top:0;z-index:200;display:flex;flex-direction:column}
+.hdr-main{background:linear-gradient(135deg,var(--cb),#001A4D,var(--cb));background-size:200% 200%;animation:headerGrad 8s ease infinite;padding:0 24px;height:58px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,168,199,.25);box-shadow:0 2px 20px rgba(0,0,0,.3)}
+.hdr-ctx{background:rgba(0,26,77,.35);backdrop-filter:blur(8px);padding:0 24px;height:40px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,168,199,.08)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo svg{width:30px;height:30px;filter:drop-shadow(0 0 6px rgba(0,168,199,.3))}
+.logo-text{font-family:var(--se);font-size:18px;font-weight:700;color:#fff;letter-spacing:.3px}
+.logo-vantage{font-family:var(--se);font-size:18px;font-weight:400;color:rgba(255,255,255,.85);letter-spacing:.2px;margin-left:4px}
+.logo-sub{display:block;font-size:8.5px;font-weight:600;color:rgba(167,226,240,.55);letter-spacing:2.5px;text-transform:uppercase;margin-top:1px}
+.tabs{display:flex;gap:2px;background:rgba(255,255,255,.06);border-radius:7px;padding:3px;border:1px solid rgba(255,255,255,.08)}
+.tab{padding:6px 16px;border-radius:5px;font-size:12px;font-weight:600;border:none;cursor:pointer;font-family:var(--ft);background:0;color:rgba(255,255,255,.4);transition:.2s}
+.tab.on{background:linear-gradient(135deg,var(--tl),var(--mb));color:#fff;box-shadow:0 2px 10px rgba(0,168,199,.35)}
+.tab:hover:not(.on){color:rgba(255,255,255,.7);background:rgba(255,255,255,.04)}
+/* Persona pills */
+.per-pills{display:flex;gap:6px;align-items:center}
+.per-pill{display:flex;align-items:center;gap:6px;padding:4px 14px 4px 8px;border-radius:20px;border:1px solid rgba(255,255,255,.06);cursor:pointer;transition:.2s}
+.per-pill:hover{border-color:rgba(0,168,199,.2);background:rgba(0,168,199,.04)}
+.per-pill.on{background:linear-gradient(135deg,rgba(0,168,199,.18),rgba(0,168,199,.08));border-color:rgba(0,168,199,.25)}
+.per-pill .per-icon{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;font-size:10px;color:rgba(255,255,255,.25)}
+.per-pill.on .per-icon{background:rgba(0,168,199,.2);color:var(--tl)}
+.per-pill .per-label{font-size:11px;font-weight:500;color:rgba(255,255,255,.3)}
+.per-pill.on .per-label{font-weight:600;color:var(--tl)}
+/* Context controls */
+.ctl{display:flex;gap:2px;background:rgba(255,255,255,.03);border-radius:5px;padding:1px;border:1px solid rgba(255,255,255,.06)}
+.ctl b{padding:3px 9px;border-radius:4px;font-size:10px;font-weight:600;border:none;cursor:pointer;font-family:var(--ft);background:0;color:rgba(255,255,255,.3);transition:.15s}
+.ctl b.on{background:rgba(0,168,199,.15);color:var(--tl)}
+.ctl-vs{font-size:10px;color:rgba(167,226,240,.3);padding:0 2px}
+.bell{position:relative;width:30px;height:30px;border-radius:7px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:rgba(255,255,255,.5);transition:.15s}
+.bell:hover{background:rgba(255,255,255,.08);color:#fff}
+.bell i{position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--cr);border:1.5px solid var(--cb);animation:pulse 2s infinite;font-style:normal}
+.notif-drop{position:absolute;top:38px;right:0;width:300px;background:var(--glass);backdrop-filter:var(--glassBlur);border:1px solid var(--glassBd);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.4);z-index:300;animation:slideDown .2s ease;overflow:hidden}
+.notif-drop .ni{padding:10px 14px;border-bottom:1px solid var(--bd);font-size:10px;color:var(--t2);display:flex;align-items:flex-start;gap:8px;cursor:pointer;transition:.1s}
+.notif-drop .ni:hover{background:var(--rh)}
+.notif-drop .ni:last-child{border-bottom:0}
+.notif-drop .nd{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.clock{font-size:8px;color:rgba(255,255,255,.35);font-weight:500;letter-spacing:.3px}
+/* === LAYOUT === */
+.main{display:flex;height:calc(100vh - 98px);position:relative;z-index:1}
+/* === TREE SIDEBAR === */
+.tree{width:210px;border-right:1px solid var(--bd);background:var(--sf);overflow-y:auto;flex-shrink:0;padding:10px;font-size:11px;transition:.25s}
+.tree.closed{width:0;padding:0;border:0;overflow:hidden}
+.tree h6{font-size:7px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:1.2px;margin:10px 0 4px;padding:0 4px;cursor:default;display:flex;align-items:center;justify-content:space-between}
+.tn{padding:4px 6px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:3px;transition:.12s;font-size:10px;color:var(--t2);font-weight:500}
+.tn:hover{background:rgba(0,168,199,.06);color:var(--tx)}
+.tn.on{background:rgba(0,168,199,.1);color:var(--tl);font-weight:600}
+.tn .chv{width:14px;text-align:center;font-size:8px;color:var(--t3);flex-shrink:0;transition:transform .15s}
+.tn .chv.open{transform:rotate(90deg)}
+.tn .lf{width:14px}
+.tn .cnt{font-size:7px;color:var(--t3);margin-left:auto;padding:1px 5px;background:var(--cd);border-radius:8px}
+.tn .vcnt{font-size:7px;color:var(--tl);margin-left:auto;padding:1px 4px;background:rgba(0,168,199,.1);border-radius:6px;font-weight:700}
+/* === CONTENT === */
+.content{flex:1;padding:20px 24px;max-width:1300px;overflow-y:auto}
+body.meeting .hdr,.tree{transition:.25s}body.meeting .hdr,body.meeting .tree{display:none}
+body.meeting .main{height:100vh}body.meeting .content{max-width:100%;padding:24px 40px}
+/* === GLASS CARDS === */
+.cd{background:var(--glass);backdrop-filter:var(--glassBlur);border:1px solid var(--glassBd);border-radius:14px;position:relative;overflow:hidden;transition:.2s}
+.cd:hover{border-color:rgba(0,168,199,.2)}
+.cl:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.12)}
+.st{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--gA),var(--gB));opacity:.6}
+/* === PILLS & BADGES === */
+.pl{display:inline-block;padding:2px 8px;border-radius:16px;font-size:9px;font-weight:600;letter-spacing:.2px;white-space:nowrap}
+.bi{width:3px;height:24px;border-radius:2px;flex-shrink:0}
+.ii{display:inline-flex;align-items:center;justify-content:center;width:12px;height:12px;border-radius:50%;border:1px solid var(--bd);font-size:7px;color:var(--t3);cursor:help;margin-left:3px;font-weight:700;vertical-align:middle;transition:.15s}
+.ii:hover{border-color:var(--tl);color:var(--tl);background:rgba(0,168,199,.08)}
+.edge-badge{font-size:7px;font-weight:700;padding:1px 5px;border-radius:4px;margin-left:3px}
+/* === BUTTONS === */
+.bt{padding:5px 12px;border-radius:6px;font-size:9px;font-weight:600;border:1px solid var(--bd);background:0;color:var(--t2);cursor:pointer;font-family:var(--ft);transition:.2s}
+.bt:hover{border-color:var(--tl);color:var(--tx)}
+.bp{border:0;background:linear-gradient(135deg,var(--cb),var(--tl));color:#fff;box-shadow:0 2px 8px rgba(0,168,199,.2)}.bp:hover{opacity:.9;box-shadow:0 4px 12px rgba(0,168,199,.3)}
+.bg{display:flex;gap:4px;align-items:center}
+/* === BREADCRUMB === */
+.bc{display:flex;gap:4px;align-items:center;font-size:10px;margin-bottom:12px;flex-wrap:wrap}
+.bc a{color:var(--t3);cursor:pointer;font-weight:500}.bc a:hover{color:var(--tl)}.bc s{color:var(--t3);font-size:8px;text-decoration:none}.bc em{font-style:normal;font-weight:600}
+/* === PROGRESS === */
+.prog{height:5px;background:var(--bd);border-radius:3px;overflow:hidden}.prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--cb),var(--tl));transition:width .6s ease}
+/* === KPI CARDS === */
+.kg{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+@media(max-width:1100px){.kg{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.kg{grid-template-columns:repeat(2,1fr)}}
+.kp{padding:16px 18px}.kp h6{font-size:8px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+.kp strong{font-size:28px;font-weight:700;font-family:var(--se);letter-spacing:-.5px;display:block;line-height:1;animation:glow 3s ease infinite}
+.kp small{display:flex;align-items:center;gap:4px;margin-top:8px;font-size:10px}
+.kp .period-comp{display:flex;gap:4px;margin-top:6px}
+.kp .period-comp span{font-size:8px;color:var(--t3);padding:2px 5px;background:var(--cd2);border-radius:4px}
+/* === EXEC SUMMARY === */
+.exec-sum{padding:16px 20px;margin-bottom:16px;border-left:3px solid var(--tl);font-size:12px;line-height:1.8;color:var(--t2)}
+.exec-sum b{color:var(--tx)}
+.exec-sum .badge{display:inline-block;font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px;letter-spacing:.5px;margin-right:4px}
+/* === TABLE === */
+.tw{overflow:hidden;margin-bottom:16px}
+.th2{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd)}
+.tb{width:100%;border-collapse:collapse}
+.tb th{padding:8px 12px;text-align:left;font-size:8px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--bd);cursor:pointer;user-select:none;transition:.12s}
+.tb th:hover{color:var(--tlL)}.tb th.r{text-align:right}.tb th.c{text-align:center}
+.tb th .sort-arrow{font-size:7px;margin-left:2px;opacity:.4}
+.tb th.sorted .sort-arrow{opacity:1;color:var(--tl)}
+.tb td{padding:10px 12px;border-bottom:1px solid var(--bd);font-size:11px}
+.tb tr:last-child td{border-bottom:0}
+.tb tbody tr{cursor:pointer;transition:.12s}.tb tbody tr:hover{background:var(--rh)}
+.tb td.r{text-align:right}.tb td.c{text-align:center}
+.tf{padding:10px 16px;border-top:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--t3)}
+.search-bar{width:190px;padding:5px 10px 5px 28px;border-radius:6px;border:1px solid var(--bd);background:var(--cd);color:var(--tx);font-size:10px;font-family:var(--ft);outline:0;transition:.2s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235A6B84' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:8px center}
+.search-bar:focus{border-color:var(--tl);background-color:var(--sf);box-shadow:0 0 0 2px rgba(0,168,199,.1)}
+/* === P&L === */
+.pr{display:grid;grid-template-columns:minmax(230px,2fr) 70px 70px 70px 65px 50px 50px;border-bottom:1px solid var(--bd);transition:.12s;cursor:pointer;align-items:center}
+.pr:hover{background:var(--rh)}.pr.pcl{background:var(--cd2)}.pr.pmj{border-bottom:2px solid var(--bd2);background:var(--sf)}
+.pc{padding:7px 10px;font-size:10px}.pc.r{text-align:right}.pc.c{text-align:center}
+/* === HEATMAP === */
+.ht{width:100%;border-collapse:separate;border-spacing:3px;font-size:10px}
+.ht th{font-size:7px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.5px;text-align:center;padding:5px 2px}
+.ht .bn{font-weight:600;padding:7px 4px;font-size:10px;cursor:pointer;white-space:nowrap}.ht .bn:hover{color:var(--tl)}
+.ht .hc{text-align:center;padding:8px 2px;border-radius:6px;cursor:pointer;transition:.15s;font-size:10px;font-weight:500}.ht .hc:hover{opacity:.8;transform:scale(1.02)}
+/* === MODAL === */
+.mo{position:fixed;inset:0;background:var(--ov);backdrop-filter:blur(6px);z-index:500;display:flex;justify-content:flex-end;animation:fi .15s ease}
+.mp{width:500px;max-width:92vw;height:100vh;background:var(--sf);border-left:1px solid var(--glassBd);overflow-y:auto;animation:si .25s cubic-bezier(.22,1,.36,1);box-shadow:-8px 0 32px rgba(0,0,0,.2)}
+.mh{position:sticky;top:0;z-index:10;background:var(--sf);padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between}
+.mx{width:24px;height:24px;border-radius:6px;border:1px solid var(--bd);background:0;color:var(--t3);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:.15s}.mx:hover{background:var(--crS);color:var(--cr)}
+.mb{padding:12px 16px}
+.s2{font-size:8px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.9px;margin:12px 0 6px;display:flex;align-items:center;gap:3px}
+.nb{font-size:11px;line-height:1.8;color:var(--t2);padding:10px 12px;background:var(--cd);border-radius:8px;border:1px solid var(--bd)}
+.dc{display:flex;gap:5px;flex-wrap:wrap}
+.di{flex:1;min-width:65px;padding:8px 10px;background:var(--cd);border:1px solid var(--bd);border-radius:8px}
+.di small{font-size:8px;color:var(--t3);display:block;margin-bottom:2px;font-weight:600}.di b{font-size:11px;font-weight:600}
+.db{height:3px;background:var(--bd);border-radius:2px;margin-top:4px;overflow:hidden}
+.df{height:100%;border-radius:2px}
+.hp{padding:8px 10px;background:var(--cd);border:1px solid var(--bd);border-radius:8px;margin-bottom:4px;display:flex;gap:8px;align-items:flex-start}
+.hp i{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:5px;font-style:normal}
+.nar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.nar-badge{font-size:8px;padding:2px 8px;border-radius:10px;font-weight:600}
+.nar-edit{width:100%;min-height:80px;padding:10px 12px;background:var(--cd);border:1.5px solid var(--tl);border-radius:8px;color:var(--tx);font-size:11px;line-height:1.8;font-family:var(--ft);resize:vertical;outline:0}
+.corr-card{padding:8px 10px;background:var(--cd);border:1px solid var(--bd);border-radius:8px;margin-bottom:4px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:.12s}
+.corr-card:hover{border-color:var(--tl)}
+[data-rvtog]:hover,[data-modal]:hover{background:var(--rh)}
+.exp{border-top:1px solid var(--bd);padding:12px 16px 14px 44px;animation:expandIn .25s ease both;overflow:hidden}
+.fn{text-align:center;margin-top:18px;font-size:9px;color:var(--t3);letter-spacing:.5px;padding-bottom:14px}
+.spark{display:inline-block;vertical-align:middle}
+/* === SLA === */
+.sla{font-size:7px;font-weight:700;padding:2px 6px;border-radius:10px;letter-spacing:.3px}
+.sla-green{background:rgba(45,212,168,.12);color:var(--em)}.sla-amber{background:rgba(251,191,36,.12);color:var(--am)}.sla-red{background:rgba(249,112,102,.12);color:var(--cr)}
+/* === BATCH === */
+.batch-bar{padding:10px 16px;background:rgba(0,168,199,.08);border:1px solid rgba(0,168,199,.15);border-radius:8px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;animation:slideDown .2s ease}
+.rv-check{width:15px;height:15px;border-radius:4px;border:1.5px solid var(--bd2);background:var(--cd);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.12s;font-size:8px;color:transparent}
+.rv-check.checked{background:var(--tl);border-color:var(--tl);color:#fff}
+/* === CHAT === */
+.chat-pill{display:inline-block;padding:5px 12px;font-size:9px;border-radius:16px;background:var(--cd);border:1px solid var(--bd);color:var(--t2);cursor:pointer;transition:.2s;margin:2px;font-weight:500}
+.chat-pill:hover{border-color:var(--tl);color:var(--tl);background:rgba(0,168,199,.06)}
+.stream-cursor{display:inline-block;width:2px;height:13px;background:var(--tl);animation:blink .8s infinite;vertical-align:middle;margin-left:1px}
+/* === REPORTS === */
+.report-tabs{display:flex;gap:1px;background:var(--cd);border-radius:6px;padding:2px;border:1px solid var(--bd);margin-bottom:14px}
+.report-tab{padding:5px 14px;border-radius:5px;font-size:9px;font-weight:600;cursor:pointer;background:0;color:var(--t3);border:none;font-family:var(--ft);transition:.15s}
+.report-tab.on{background:rgba(0,168,199,.15);color:var(--tl)}
+.report-tab:hover:not(.on){color:var(--t2)}
+/* === METRICS BAR === */
+.metrics-bar{display:flex;gap:16px;padding:8px 14px;background:var(--glass);backdrop-filter:var(--glassBlur);border:1px solid var(--glassBd);border-radius:10px;margin-bottom:12px;font-size:9px}
+.metrics-bar .metric{display:flex;align-items:center;gap:4px}.metric b{color:var(--tl);font-weight:700}.metric span{color:var(--t3)}
+/* === TIMESTAMP === */
+.ts-bar{display:flex;gap:12px;align-items:center;font-size:8px;color:var(--t3);margin-bottom:8px;padding:4px 0}
+.ts-bar .ts-dot{width:5px;height:5px;border-radius:50%;background:var(--em);animation:pulse 2s infinite}
+/* === CONFETTI === */
+.confetti-piece{position:fixed;width:6px;height:6px;border-radius:2px;animation:confetti .8s ease-out forwards;z-index:999;pointer-events:none}
+/* === PRINT === */
+@media print{
+  body::before,.hdr,.tree,.bell,.ctl,.tabs,.bt,.search-bar,.chat-pill,.rv-check,.batch-bar{display:none!important}
+  .main{display:block!important;height:auto!important}
+  .content{padding:0!important;max-width:100%!important}
+  .cd{border:1px solid #ddd!important;backdrop-filter:none!important;background:#fff!important;break-inside:avoid}
+  .kp strong{animation:none!important;filter:none!important}
+  *{color:#000!important;background:transparent!important}
+  .fn::after{content:' — Printed from Marsh Vantage';font-weight:600}
+}
+/* === MARSH FOOTER === */
+.marsh-footer{padding:16px 24px;border-top:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;font-size:8px;color:var(--t3)}
+.marsh-footer .mf-logo{font-family:var(--se);font-weight:700;color:var(--tl);font-size:10px}
+/* === DESIGN UPGRADE: 31 IMPROVEMENTS === */
+/* #4: Noise texture overlay */
+body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.03'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.4}
+/* #1: Page transitions */
+.content{transition:opacity .15s ease}
+.content.fading{opacity:.3}
+/* #2: Button micro-interactions */
+.bt{transition:all .2s cubic-bezier(.22,1,.36,1)}
+.bt:hover{transform:translateY(-1px)}
+.bt:active{transform:translateY(0) scale(.98)}
+.bp{transition:all .2s cubic-bezier(.22,1,.36,1)}
+.bp:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,168,199,.3)}
+.bp:active{transform:translateY(0) scale(.97);box-shadow:0 2px 8px rgba(0,168,199,.2)}
+/* #3: Scrollbar refinement */
+::-webkit-scrollbar{width:3px;transition:width .2s}
+::-webkit-scrollbar:hover{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,168,199,.15);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,168,199,.4)}
+/* #5: KPI sparkline watermark */
+.kp{position:relative;overflow:hidden}
+.kp .kp-watermark{position:absolute;bottom:0;right:0;width:70%;height:60%;opacity:.06;pointer-events:none}
+/* #8: Heatmap cell glow */
+.ht .hc{transition:all .15s ease}
+.ht .hc:hover{box-shadow:inset 0 0 12px rgba(255,255,255,.08);transform:scale(1.04);z-index:1}
+/* #9: Table row left border hover */
+.tb tbody tr{border-left:3px solid transparent;transition:all .15s ease}
+.tb tbody tr:hover{border-left-color:var(--tl);background:var(--rh);box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.tb td:first-child{padding-left:14px}
+/* #10: Alert animated border */
+@keyframes borderPulse{0%,100%{opacity:.6}50%{opacity:1}}
+.alert-pulse{animation:borderPulse 2s ease infinite}
+/* #11: Section spacing */
+.section-gap{margin-bottom:22px}
+/* #12: P&L alternating rows */
+.pr:nth-child(even){background:rgba(0,168,199,.01)}
+/* #13: Calculated row dramatic treatment */
+.pr.pmj{background:linear-gradient(90deg,rgba(0,168,199,.04),transparent);border-bottom:2px solid rgba(0,168,199,.15);padding:2px 0}
+/* #15: Smoother expand */
+.exp{animation:expandIn .3s cubic-bezier(.22,1,.36,1) both}
+/* #16: Agent avatar breathing */
+@keyframes breathe{0%,100%{box-shadow:0 0 0 0 rgba(0,168,199,.3)}50%{box-shadow:0 0 0 6px rgba(0,168,199,0)}}
+.agent-avatar.thinking{animation:breathe 1.5s ease infinite}
+/* #17: Message bubble depth */
+.chat-agent{border-left:2px solid var(--tl);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.chat-user{box-shadow:0 2px 8px rgba(0,0,0,.06)}
+/* #18: Typing indicator */
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-4px)}}
+.typing-dot{width:5px;height:5px;border-radius:50%;background:var(--tl);display:inline-block;animation:typingBounce 1.2s ease infinite}
+.typing-dot:nth-child(2){animation-delay:.15s}
+.typing-dot:nth-child(3){animation-delay:.3s}
+/* #19: Input focus glow */
+input:focus,textarea:focus{border-color:var(--tl)!important;box-shadow:0 0 0 3px rgba(0,168,199,.1)!important}
+/* #22: SLA red pulse */
+.sla-red{animation:borderPulse 1.5s ease infinite}
+/* #26: Modal number glow */
+.modal-num-fav{text-shadow:0 0 20px rgba(45,212,168,.3)}
+.modal-num-unfav{text-shadow:0 0 20px rgba(249,112,102,.3)}
+/* #27: Decomposition bar animate */
+@keyframes barSlide{from{width:0}to{width:var(--bar-w,100%)}}
+.df-anim{animation:barSlide .5s cubic-bezier(.22,1,.36,1) both}
+/* #30: Donut chart */
+.donut-ring{fill:none;stroke-linecap:round;transition:stroke-dashoffset .6s ease}
+/* #31: Tree spring */
+.tn .chv{transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+
+/* === REPORT PREVIEW OVERLAY === */
+.rpt-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);z-index:600;display:flex;flex-direction:column;animation:fi .2s ease}
+.rpt-toolbar{height:48px;background:#002C77;display:flex;align-items:center;justify-content:space-between;padding:0 24px;flex-shrink:0}
+.rpt-toolbar-left{display:flex;align-items:center;gap:12px}
+.rpt-toolbar-title{font-family:var(--se);font-size:14px;font-weight:600;color:#fff}
+.rpt-toolbar-badge{font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(0,168,199,.2);color:#00A8C7}
+.rpt-toolbar-actions{display:flex;gap:6px}
+.rpt-toolbar-btn{padding:5px 14px;border-radius:5px;font-size:10px;font-weight:600;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.7);cursor:pointer;font-family:var(--ft);transition:.2s}
+.rpt-toolbar-btn:hover{background:rgba(255,255,255,.08);color:#fff}
+.rpt-toolbar-btn.primary{background:linear-gradient(135deg,#00A8C7,#016D9E);border:0;color:#fff;box-shadow:0 2px 8px rgba(0,168,199,.3)}
+.rpt-toolbar-close{width:32px;height:32px;border-radius:6px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.5);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.rpt-toolbar-close:hover{background:rgba(249,112,102,.15);color:#F97066}
+.rpt-scroll{flex:1;overflow-y:auto;padding:32px;display:flex;flex-direction:column;align-items:center;gap:24px}
+/* Paper page */
+.rpt-page{width:800px;min-height:1000px;background:#fff;border-radius:4px;box-shadow:0 8px 40px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.05);padding:0;overflow:hidden;color:#1a1a2e;font-family:'DM Sans',sans-serif;font-size:11px;line-height:1.7}
+.rpt-page *{color:#1a1a2e}
+/* Marsh header stripe */
+.rpt-header{background:#002C77;padding:20px 40px;display:flex;align-items:center;justify-content:space-between}
+.rpt-header-logo{font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:700;color:#fff;letter-spacing:.3px}
+.rpt-header-logo span{font-weight:400;color:rgba(255,255,255,.8)}
+.rpt-header-meta{text-align:right;color:rgba(255,255,255,.6);font-size:9px;line-height:1.5}
+.rpt-header-meta b{color:#fff}
+/* Report body */
+.rpt-body{padding:32px 40px}
+.rpt-title{font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:700;color:#002C77;margin-bottom:4px}
+.rpt-subtitle{font-size:11px;color:#5a6b84;margin-bottom:20px}
+.rpt-section{margin-bottom:20px}
+.rpt-section-title{font-family:'Playfair Display',Georgia,serif;font-size:13px;font-weight:700;color:#002C77;border-bottom:2px solid #002C77;padding-bottom:4px;margin-bottom:10px}
+/* KPI row in report */
+.rpt-kpis{display:flex;gap:12px;margin-bottom:20px}
+.rpt-kpi{flex:1;padding:12px 14px;background:#f4f7fc;border-radius:8px;border-left:3px solid #002C77}
+.rpt-kpi-label{font-size:8px;font-weight:700;color:#00A8C7;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.rpt-kpi-value{font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:700;color:#002C77}
+.rpt-kpi-delta{font-size:10px;font-weight:600;margin-top:2px}
+.rpt-kpi-delta.pos{color:#0D9373}
+.rpt-kpi-delta.neg{color:#CF222E}
+/* Table in report */
+.rpt-table{width:100%;border-collapse:collapse;font-size:10px;margin-bottom:16px}
+.rpt-table th{padding:6px 10px;text-align:left;font-size:8px;font-weight:700;color:#002C77;text-transform:uppercase;letter-spacing:.6px;border-bottom:2px solid #002C77;background:#f4f7fc}
+.rpt-table th.r{text-align:right}
+.rpt-table td{padding:7px 10px;border-bottom:1px solid #e8edf5;font-size:10px}
+.rpt-table td.r{text-align:right}
+.rpt-table tr:last-child td{border-bottom:none}
+.rpt-table .fav{color:#0D9373;font-weight:600}
+.rpt-table .unfav{color:#CF222E;font-weight:600}
+/* Narrative block */
+.rpt-narrative{padding:12px 16px;background:#f4f7fc;border-radius:8px;border-left:3px solid #00A8C7;margin-bottom:12px;font-size:11px;line-height:1.8;color:#3a3a5e}
+.rpt-narrative b{color:#002C77}
+/* Risk flag */
+.rpt-risk{padding:10px 14px;background:#fef2f2;border-radius:8px;border-left:3px solid #CF222E;margin-bottom:12px;font-size:10px;color:#7f1d1d}
+.rpt-risk b{color:#CF222E}
+/* Footer */
+.rpt-footer{padding:12px 40px;border-top:1px solid #e8edf5;display:flex;justify-content:space-between;font-size:8px;color:#8b9ab5;margin-top:auto}
+.rpt-footer b{color:#002C77}
+/* Cover page */
+.rpt-cover{display:flex;flex-direction:column;justify-content:center;align-items:center;min-height:1000px;text-align:center;background:linear-gradient(180deg,#002C77 0%,#001A4D 100%);padding:60px}
+.rpt-cover *{color:#fff}
+.rpt-cover-logo{font-family:'Playfair Display',Georgia,serif;font-size:36px;font-weight:700;margin-bottom:8px}
+.rpt-cover-logo span{font-weight:400;color:rgba(255,255,255,.8)}
+.rpt-cover-line{width:80px;height:2px;background:linear-gradient(90deg,#00A8C7,#A7E2F0);margin:16px auto;border-radius:1px}
+.rpt-cover-title{font-family:'Playfair Display',Georgia,serif;font-size:28px;font-weight:700;margin-bottom:8px}
+.rpt-cover-sub{font-size:13px;color:rgba(255,255,255,.6);margin-bottom:40px}
+.rpt-cover-meta{font-size:10px;color:rgba(255,255,255,.4);line-height:2}
+.rpt-cover-conf{margin-top:40px;padding:6px 16px;border:1px solid rgba(255,255,255,.2);border-radius:4px;font-size:9px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,.3);text-transform:uppercase}
+/* Board narrative */
+.rpt-board-section{margin-bottom:24px}
+.rpt-board-h2{font-family:'Playfair Display',Georgia,serif;font-size:16px;font-weight:700;color:#002C77;margin-bottom:8px}
+.rpt-board-para{font-size:11.5px;line-height:2;color:#2a2a4a;margin-bottom:12px}
+.rpt-board-callout{float:right;width:180px;margin:0 0 12px 20px;padding:12px 14px;background:#f4f7fc;border-radius:8px;border-top:3px solid #002C77;font-size:10px}
+.rpt-board-callout b{display:block;font-family:'Playfair Display',Georgia,serif;font-size:18px;color:#002C77;margin-bottom:2px}
+
+
+/* Chart.js custom tooltip */
+.chartjs-tooltip{background:rgba(10,22,40,.92)!important;backdrop-filter:blur(12px);border:1px solid rgba(0,168,199,.2);border-radius:8px;padding:8px 12px;font-family:'DM Sans',sans-serif;font-size:10px;color:#E8EDF5;box-shadow:0 4px 16px rgba(0,0,0,.3);pointer-events:none}
+.chartjs-tooltip b{color:#00A8C7;font-weight:700}
+</style></head>
+<body data-theme="dark">
+<div class="hdr">
+<div class="hdr-main">
+<div class="logo">
+<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 24L16 4L28 24" stroke="url(#mg)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 16L16 6L22 16" stroke="url(#mg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity=".45"/><defs><linearGradient id="mg" x1="4" y1="24" x2="28" y2="4"><stop stop-color="#00A8C7"/><stop offset="1" stop-color="#A7E2F0"/></linearGradient></defs></svg>
+<div><div><span class="logo-text">Marsh</span><span class="logo-vantage">Vantage</span></div><span class="logo-sub">Variance Intelligence</span></div>
+</div>
+<div class="tabs" id="tabs"></div>
+<div style="display:flex;align-items:center;gap:12px">
+<div class="bell" data-bell>&#x1F514;<i></i><div id="notifDrop"></div></div>
+<div class="ctl" id="tt"></div>
+<span class="clock" id="clock" style="font-size:11px;color:rgba(255,255,255,.3);font-weight:500"></span>
+</div>
+</div>
+<div class="hdr-ctx">
+<div class="per-pills" id="per"></div>
+<div style="display:flex;align-items:center;gap:6px">
+<div class="ctl" id="timeAgg"></div>
+<span class="ctl-vs">vs</span>
+<div class="ctl" id="base2"></div>
+</div>
+<button class="bt" data-meeting style="font-size:10px;padding:4px 12px;color:rgba(255,255,255,.35);border-color:rgba(255,255,255,.08);border-radius:5px">&#x26F6; Focus</button>
+</div>
+</div>
+<div class="main"><div class="tree" id="tree"></div><div class="content" id="app"></div></div>
+<div id="modal"></div>
+<div id="confetti-container"></div>
+
+<script>
+// === STATE ===
+let V='dash',P='analyst',TH='dark',BASE='bud',TAGG='mtd',MEETING=false,NOTIF_OPEN=false,SORT_COL=null,SORT_DIR='desc',SEARCH_Q='',HEATMAP_FILTER=null,RPT_TAB='list';
+let DIM_FILTER=null;
+const BU_HOME='Marsh';
+const BUS=['Marsh','Mercer','Marsh Re','Oliver Wyman','Marsh Corporate'];
+
+// === HELPERS ===
+const PN={analyst:'Detail',director:'Mid-level',cfo:'Summary',bu:'Mid-level'};
+const PL2={analyst:'FP&A Analyst',director:'Director',cfo:'CFO',bu:'BU Leader'};
+const D=()=>TH==='dark';
+const G=()=>({g:D()?'#2DD4A8':'#0D9373',r:D()?'#F97066':'#CF222E',a:D()?'#FBBF24':'#9A6700',p:D()?'#A78BFA':'#8250DF',gd:D()?'#E3A547':'#BF8700',tl:D()?'#00A8C7':'#016D9E',cb:D()?'#002C77':'#002C77',tx:D()?'#5A6B84':'#8B9AB5',gr:D()?'rgba(255,255,255,.04)':'rgba(0,0,0,.04)'});
+const F=n=>{let a=Math.abs(n);return(n<0?'-':'')+(a>=1e6?'$'+(a/1e6).toFixed(1)+'M':a>=1e3?'$'+Math.round(a/1e3)+'K':'$'+a)};
+const FP=n=>(n>0?'+':'')+n.toFixed(1)+'%';
+const PL3=(l,bg,c)=>'<span class="pl" style="background:'+bg+';color:'+c+'">'+l+'</span>';
+const II=t=>'<span class="ii" title="'+t.replace(/"/g,'&#34;')+'">i</span>';
+function SM(st){const c=G();const m={draft:{l:'AI draft',bg:D()?'rgba(255,255,255,.05)':'rgba(0,0,0,.04)',c:D()?'#8B9AB5':'#5A6B84'},reviewed:{l:'Reviewed',bg:D()?'rgba(227,165,71,.1)':'rgba(191,135,0,.06)',c:c.gd},approved:{l:'Approved',bg:D()?'rgba(45,212,168,.1)':'rgba(13,147,115,.06)',c:c.g},autoclosed:{l:'Auto-closed',bg:D()?'rgba(167,139,250,.08)':'rgba(130,80,223,.06)',c:c.p}};return m[st]||m.draft}
+function TM(tp){const c=G();return{material:{c:c.gd},netted:{c:c.p},trending:{c:c.a}}[tp]||{c:c.gd}}
+function spark(data,color){const w=48,h=16,mx=Math.max(...data.map(Math.abs))||1;const pts=data.map((v,i)=>(i/(data.length-1)*w)+','+(h/2-v/mx*(h/2-1))).join(' ');return '<svg class="spark" width="'+w+'" height="'+h+'"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round"/></svg>';}
+function countUp(el,target,prefix,suffix){prefix=prefix||'';suffix=suffix||'';const dur=700;const t0=performance.now();function step(t){const p=Math.min((t-t0)/dur,1);const eased=1-Math.pow(1-p,3);el.textContent=prefix+Math.round(target*eased).toLocaleString()+suffix;if(p<1)requestAnimationFrame(step);}requestAnimationFrame(step);}
+function slaClass(hrs){return hrs<12?'sla-green':hrs<24?'sla-amber':'sla-red'}
+function slaLabel(hrs){return hrs<1?'<1h':hrs<24?Math.round(hrs)+'h':Math.round(hrs/24)+'d'}
+function greeting(){const h=new Date().getHours();return h<12?'Good morning':h<17?'Good afternoon':'Good evening'}
+function updateClock(){const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});}
+setInterval(updateClock,30000);setTimeout(updateClock,100);
+let REFRESH_MIN=2;setInterval(()=>{REFRESH_MIN++;const el=document.getElementById('refreshTimer');if(el)el.textContent=REFRESH_MIN+'m ago';},60000);
+function fireConfetti(){const c=document.getElementById('confetti-container');const colors=['#00A8C7','#2DD4A8','#E3A547','#A78BFA','#A7E2F0'];for(let i=0;i<20;i++){const p=document.createElement('div');p.className='confetti-piece';p.style.left=Math.random()*100+'vw';p.style.top='60vh';p.style.background=colors[Math.floor(Math.random()*colors.length)];p.style.animationDelay=Math.random()*.3+'s';c.appendChild(p);setTimeout(()=>p.remove(),1200);}}
+// #1: Page transition
+function transitionRender(){const ct=document.getElementById('app');ct.classList.add('fading');setTimeout(()=>{render();ct.classList.remove('fading');},150);}
+// #5: KPI sparkline watermark SVG
+function kpiWatermark(data,color){const w=80,h=30,mx=Math.max(...data.map(Math.abs))||1;const pts=data.map((v,i)=>(i/(data.length-1)*w)+','+(h-v/mx*(h-4)-2)).join(' ');return '<svg class="kp-watermark" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="1.5" stroke-linecap="round"/></svg>';}
+// #30: Donut chart SVG
+function donutChart(approved,reviewed,draft,size){const total=approved+reviewed+draft||1;const r=size/2-3;const circ=2*Math.PI*r;const seg1=approved/total*circ;const seg2=reviewed/total*circ;const seg3=draft/total*circ;return '<svg width="'+size+'" height="'+size+'" viewBox="0 0 '+size+' '+size+'" style="transform:rotate(-90deg)"><circle cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" fill="none" stroke="var(--bd)" stroke-width="4"/><circle class="donut-ring" cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" stroke="var(--em)" stroke-width="4" stroke-dasharray="'+seg1+' '+circ+'" stroke-dashoffset="0"/><circle class="donut-ring" cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" stroke="var(--gd)" stroke-width="4" stroke-dasharray="'+seg2+' '+circ+'" stroke-dashoffset="-'+seg1+'"/><circle class="donut-ring" cx="'+size/2+'" cy="'+size/2+'" r="'+r+'" stroke="var(--t3)" stroke-width="4" stroke-dasharray="'+seg3+' '+circ+'" stroke-dashoffset="-'+(seg1+seg2)+'"/></svg>';}
+// #14: Radial gauge SVG
+function radialGauge(pct,label,delta,color){const r=22;const circ=2*Math.PI*r;const fill=pct/100*circ;return '<div style="text-align:center"><svg width="54" height="54" viewBox="0 0 54 54" style="transform:rotate(-90deg)"><circle cx="27" cy="27" r="'+r+'" fill="none" stroke="var(--bd)" stroke-width="3"/><circle cx="27" cy="27" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="3" stroke-dasharray="'+fill+' '+circ+'" stroke-linecap="round" class="donut-ring"/></svg><div style="margin-top:-38px;position:relative;font-size:10px;font-weight:700;font-family:var(--se)">'+pct+'%</div><div style="font-size:7px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.6px;margin-top:10px">'+label+'</div><div style="font-size:8px;color:var(--em);font-weight:600">'+delta+'</div></div>';}
+
+function filterByPersona(vars){
+  if(P==='cfo') return vars.filter(v=>v.st==='approved');
+  if(P==='bu') return vars.filter(v=>(v.bu===BU_HOME||v.bu==='All')&&(v.st==='reviewed'||v.st==='approved'));
+  return vars;
+}
+const GEO_MATCH={global:null,americas:['Americas'],us:['US NE','US West','US Midwest','US South','Americas'],us_ne:['US NE'],emea:['EMEA','UK','Europe'],uk:['UK'],apac:['APAC','Australia','Singapore','Japan','India']};
+function getDescendants(dim,id){const hi=HIER[dim];if(!hi)return[id];const node=hi.nodes[id];if(!node||!node.ch)return[id];let all=[id];node.ch.forEach(cid=>{all=all.concat(getDescendants(dim,cid));});return all;}
+function filterByDim(vars){
+  if(!DIM_FILTER)return vars;
+  if(DIM_FILTER.dim==='bu'){if(DIM_FILTER.id==='All')return vars;return vars.filter(v=>v.bu===DIM_FILTER.name||v.bu==='All');}
+  if(DIM_FILTER.dim==='geo'){const nodeIds=getDescendants('geo',DIM_FILTER.id);const geoVals=new Set();nodeIds.forEach(nid=>{const m=GEO_MATCH[nid];if(m)m.forEach(v=>geoVals.add(v));});if(geoVals.size===0)return vars;return vars.filter(v=>geoVals.has(v.g)||v.g==='Global');}
+  return vars;
+}
+
+// === DATA ===
+const TEXP=new Set(['global','all_seg','all_lob','all_cc']);
+const HIER={
+geo:{label:'Geography',root:'global',nodes:{
+  global:{n:'Global',ch:['americas','emea','apac']},americas:{n:'Americas',ch:['us','canada','latam']},us:{n:'United States',ch:['us_ne','us_w','us_mw','us_s']},us_ne:{n:'US Northeast'},us_w:{n:'US West'},us_mw:{n:'US Midwest'},us_s:{n:'US South'},canada:{n:'Canada'},latam:{n:'Latin America'},
+  emea:{n:'EMEA',ch:['uk','cont_eu','me']},uk:{n:'UK & Ireland'},cont_eu:{n:'Cont. Europe',ch:['germany','france','nordics']},germany:{n:'Germany'},france:{n:'France'},nordics:{n:'Nordics'},me:{n:'Middle East'},
+  apac:{n:'APAC',ch:['anz','singapore','japan','india','china']},anz:{n:'Australia & NZ'},singapore:{n:'Singapore'},japan:{n:'Japan'},india:{n:'India'},china:{n:'Gr. China'}
+}},
+seg:{label:'Segment',root:'all_seg',nodes:{
+  all_seg:{n:'All Segments',ch:['commercial','consumer','specialty','govt']},commercial:{n:'Commercial',ch:['large_corp','mid_mkt','small']},large_corp:{n:'Large Corporate'},mid_mkt:{n:'Mid-Market'},small:{n:'Small Business'},consumer:{n:'Consumer'},
+  specialty:{n:'Specialty',ch:['aviation','marine','energy','construction']},aviation:{n:'Aviation'},marine:{n:'Marine'},energy:{n:'Energy'},construction:{n:'Construction'},govt:{n:'Government'}
+}},
+lob:{label:'Line of Business',root:'all_lob',nodes:{
+  all_lob:{n:'All LOB',ch:['risk_adv','consulting','reinsurance','wealth','dna']},risk_adv:{n:'Risk Advisory',ch:['pc','fin_lines']},pc:{n:'Property & Casualty'},fin_lines:{n:'Financial Lines'},
+  consulting:{n:'Consulting',ch:['mgmt_con','strategy','ops']},mgmt_con:{n:'Mgmt Consulting'},strategy:{n:'Strategy'},ops:{n:'Operations'},reinsurance:{n:'Reinsurance'},wealth:{n:'Wealth Mgmt'},dna:{n:'Data & Analytics'}
+}},
+cc:{label:'Cost Center',root:'all_cc',nodes:{
+  all_cc:{n:'All Cost Centers',ch:['client_ops','corp_fn','tech_cc','exec']},client_ops:{n:'Client-Facing',ch:['sales','svc_del','claims']},sales:{n:'Sales'},svc_del:{n:'Service Delivery'},claims:{n:'Claims'},
+  corp_fn:{n:'Corporate',ch:['fin_cc','hr_cc','legal']},fin_cc:{n:'Finance'},hr_cc:{n:'HR'},legal:{n:'Legal'},tech_cc:{n:'Technology',ch:['infra','dev','security']},infra:{n:'Infrastructure'},dev:{n:'Development'},security:{n:'Security'},exec:{n:'Executive Office'}
+}}};
+
+const VARS=[
+{a:'Advisory & Brokerage Fees',bu:'Marsh',g:'APAC',v:6900,p:15.3,tp:'material',st:'approved',f:1,sp:[2,3,5,8,12,15],edited:0,sla:6,isNew:0,noBud:0,noPY:0,synth:0,nr:{detail:'Advisory fees +$6.9K (+15.3%) YTD in APAC. Volume-driven: 12 extra engagements in Singapore/Australia. Pipeline 3.4x — sustainable into Q3.',midlevel:'APAC advisory +15.3%. Strong new business. Pipeline supports continued performance.',summary:'Advisory strong +15.3% APAC. New client wins driving growth.',board:'APAC advisory demonstrating strong growth trajectory.'},dc:[{l:'Volume',v:4200,p:61},{l:'Price',v:1800,p:26},{l:'Mix',v:-900,p:13},{l:'FX',v:800,p:12}],hy:[{t:'Accelerated deal closures in Singapore',c:'High',fb:0},{t:'New client wins in Australia',c:'High',fb:0}],corr:[{a:'Subcontractor Costs',p:21.9,f:false,hyp:'Advisory growth driving subcontractor demand',conf:78}]},
+{a:'Subcontractor Costs',bu:'Marsh',g:'UK',v:2300,p:21.9,tp:'material',st:'reviewed',f:0,sp:[4,8,12,15,18,22],edited:1,editedBy:'James Park',editedNr:'Subcontractors +$2.3K driven by J&J actuarial engagement. 3 WTW specialists at $45K/mo. CONFIRMED: normalizes Q3 as permanent hires onboard.',sla:18,isNew:0,noBud:0,noPY:0,synth:1,synthCount:3,nr:{detail:'Subcontractors +$2.3K from J&J specialized actuarial needs. Normalizes Q3.',midlevel:'Contractor overspend from specialized engagement. Temporary.',summary:'Contractors elevated. Normalizing Q3.',board:'Specialized resource costs above plan. Management expects normalization.'},dc:[{l:'Rate',v:800,p:35},{l:'Volume',v:1200,p:52},{l:'Mix',v:300,p:13}],hy:[{t:'Specialized resources for J&J engagement',c:'High',fb:1},{t:'Contractor rate increases above budget',c:'Medium',fb:-1}],corr:[{a:'Advisory & Brokerage Fees',p:15.3,f:true,hyp:'Revenue growth requiring specialist resources',conf:82}]},
+{a:'Technology & Infrastructure',bu:'Marsh Corporate',g:'US NE',v:2500,p:15.4,tp:'trending',st:'reviewed',f:0,sp:[1,1.5,1.8,2.1,2.4,15],edited:0,sla:36,isNew:0,noBud:0,noPY:0,synth:0,nr:{detail:'Tech above budget 4 months running. Cloud scaling and SaaS renewals driving +15.4%. If trend continues, projected YE impact is +$580K.',midlevel:'Tech costs trending above plan. Cloud and SaaS drivers.',summary:'Technology trend unfavorable. Monitoring.',board:'Technology investment running above plan due to cloud scaling.'},dc:[{l:'Cloud',v:1500,p:60},{l:'SaaS',v:700,p:28},{l:'Other',v:300,p:12}],hy:[{t:'Unplanned cloud infrastructure scaling',c:'High',fb:0},{t:'SaaS license cost increases above renewal rates',c:'Medium',fb:0},{t:'Shadow IT spend not in budget',c:'Low',fb:0}],proj:{ye:580,conf:'Medium'},corr:[{a:'D&A',p:-6.7,f:true,hyp:'Cloud spend delaying on-prem depreciation',conf:65}]},
+{a:'Consulting Fees',bu:'Oliver Wyman',g:'EMEA',v:-4600,p:-10,tp:'material',st:'draft',f:0,sp:[-1,-2,-3,-5,-7,-10],edited:0,sla:52,isNew:0,noBud:0,noPY:0,synth:0,nr:{detail:'Revenue shortfall from delayed EMEA engagements. Two F500 renewals slipped to July. Pipeline at 2.1x (below 2.5x threshold).',midlevel:'Consulting below plan EMEA. Pipeline thinning to 2.1x.',summary:'EMEA consulting soft. Pipeline watch.',board:'Consulting temporary softness in European markets.'},dc:[{l:'Volume',v:-3800,p:83},{l:'Price',v:-400,p:9},{l:'Mix',v:-400,p:9}],hy:[{t:'Client procurement delays pushing starts to Q3',c:'High',fb:0},{t:'Pipeline thinning in EMEA — structural?',c:'Medium',fb:0},{t:'Senior consultant attrition (2 in April)',c:'Low',fb:0}],corr:[]},
+{a:'Revenue (APAC net)',bu:'All',g:'APAC',v:400,p:.4,tp:'netted',st:'draft',f:1,sp:[1,0,-1,2,1,.4],edited:0,sla:8,isNew:0,noBud:0,noPY:0,synth:0,nr:{detail:'APAC on plan (+0.4%) but masks $11.5M opposing movements. Netting ratio 35.5x.',midlevel:'APAC netting detected. Advisory up, Consulting down.',summary:'APAC revenue masks significant offsets.',board:'APAC revenue mix shifting between LOBs.'},dc:[{l:'Advisory',v:6900,p:61},{l:'Consulting',v:-4200,p:37},{l:'Other',v:-2300,p:20}],hy:[{t:'Revenue mix shifting from consulting to advisory in APAC',c:'Medium',fb:0}],corr:[]},
+{a:'Reinsurance Commissions',bu:'Marsh Re',g:'Americas',v:3300,p:9.4,tp:'material',st:'approved',f:1,sp:[2,4,5,6,8,9],edited:0,sla:4,isNew:0,noBud:0,noPY:0,synth:0,nr:{detail:'Strong Jan 1 renewals with above-plan retention in property cat lines.',midlevel:'Reinsurance commissions above plan from strong renewals.',summary:'Reinsurance strong. Good retention.',board:'Reinsurance business performing well above plan.'},dc:[{l:'Volume',v:1800,p:55},{l:'Rate',v:1200,p:36},{l:'Mix',v:300,p:9}],hy:[{t:'Strong Jan 1 renewal season with above-plan retention',c:'High',fb:1}],corr:[]},
+{a:'Compensation & Benefits',bu:'Mercer',g:'Europe',v:2300,p:8.8,tp:'material',st:'draft',f:0,sp:[1.5,2,3,5,7,9],edited:0,sla:28,isNew:0,noBud:0,noPY:0,synth:0,nr:{detail:'Merit increases above plan (4.2% vs 3.0% budget). Accelerated hiring ahead of approved Q3 requisitions.',midlevel:'Comp above plan from merit and early hiring.',summary:'Compensation running above plan.',board:'Compensation reflecting labor market dynamics.'},dc:[{l:'Merit',v:1400,p:61},{l:'HC',v:600,p:26},{l:'Benefits',v:300,p:13}],hy:[{t:'Merit cycle 4.2% vs 3.0% budget',c:'High',fb:0},{t:'Hiring ahead of Q3 timeline',c:'Medium',fb:0}],corr:[{a:'Consulting Fees',p:-10,f:false,hyp:'Consulting decline may reduce variable comp pressure',conf:55}]},
+{a:'D&A',bu:'Marsh',g:'Global',v:-700,p:-6.7,tp:'material',st:'approved',f:1,sp:[-2,-3,-4,-5,-6,-7],edited:0,sla:2,isNew:0,noBud:0,noPY:0,synth:0,nr:{detail:'Favorable: delayed software capitalization pushing depreciation start to Q3. Known timing item.',midlevel:'D&A timing favorable. Software cap delayed.',summary:'D&A timing favorable.',board:'Depreciation below plan. Expected to normalize.'},dc:[{l:'Software',v:-500,p:71},{l:'Leasehold',v:-200,p:29}],hy:[{t:'Delayed software capitalization to Q3',c:'High',fb:1}],corr:[]},
+{a:'Digital Platform Revenue',bu:'Marsh',g:'Americas',v:820,p:4.2,tp:'material',st:'autoclosed',f:1,sp:[3,3.5,4,4.1,4.2,4.2],edited:0,sla:0,isNew:1,noBud:0,noPY:1,synth:0,nr:{detail:'New digital platform launched Q1. Revenue tracking to internal projections. No PY comparator available.',midlevel:'New digital revenue stream. Performing to plan.',summary:'Digital platform on track.',board:'New revenue stream performing.'},dc:[{l:'Subscriptions',v:520,p:63},{l:'Transaction',v:300,p:37}],hy:[{t:'New product ramp in line with launch projections',c:'High',fb:0}],corr:[]},
+{a:'Facilities & Office',bu:'Marsh Corporate',g:'UK',v:150,p:1.1,tp:'trending',st:'autoclosed',f:0,sp:[.2,.4,.5,.7,.9,1.1],edited:0,sla:0,isNew:0,noBud:1,noPY:0,synth:0,nr:{detail:'Facilities running slightly above plan. No formal budget line for this sub-category. Below materiality.',midlevel:'Facilities marginal. Below threshold.',summary:'Facilities immaterial.',board:'N/A'},dc:[{l:'Lease',v:100,p:67},{l:'Maintenance',v:50,p:33}],hy:[{t:'Organic cost drift, below materiality',c:'Low',fb:0}],corr:[]}
+];
+const NOTIFS=[{icon:'var(--am)',text:'Technology approaching materiality threshold (4 months)',time:'2m ago'},{icon:'var(--cr)',text:'5 variances awaiting review past SLA',time:'15m ago'},{icon:'var(--em)',text:'Data refreshed — Jun 2026 actuals loaded',time:'28m ago'},{icon:'#00A8C7',text:'Sarah Chen approved 3 variances',time:'1h ago'},{icon:'var(--pr)',text:'APAC netting ratio increased to 35.5x',time:'2h ago'}];
+const BATCH_CHECKED=new Set();
+const HT=[{b:'Marsh',v:[4.8,-1.2,2.1,-3.5,1.8]},{b:'Mercer',v:[-1.1,.8,-.5,4.2,-2.1]},{b:'Marsh Re',v:[3.2,-2.8,1.5,-1,0.3]},{b:'Oliver Wyman',v:[-3.1,1.4,-1.8,2.5,-.9]},{b:'Marsh Corporate',v:[.5,.2,-.3,-5.1,2.4]}];
+const HTCATS=['Rev','COGS','Comp','Tech','T&E'];
+const WF=[{n:'Budget',v:488,t:'b',s:0},{n:'Advisory',v:28,t:'p',s:488},{n:'Consult',v:-14,t:'n',s:516},{n:'Reinsure',v:12,t:'p',s:502},{n:'OthRev',v:8,t:'p',s:514},{n:'Comp',v:-18,t:'n',s:522},{n:'Tech',v:-9,t:'n',s:504},{n:'T&E',v:5,t:'p',s:495},{n:'Other',v:2,t:'p',s:500},{n:'Actual',v:521,t:'r',s:0}];
+const TR=[{m:'Jan',a:151,b:148},{m:'Feb',a:146,b:142},{m:'Mar',a:143,b:138},{m:'Apr',a:140,b:136},{m:'May',a:144,b:138},{m:'Jun',a:149,b:142},{m:'Jul',a:null,b:148},{m:'Aug',a:null,b:154},{m:'Sep',a:null,b:158},{m:'Oct',a:null,b:160},{m:'Nov',a:null,b:158},{m:'Dec',a:null,b:154}];
+const PA=[
+{i:'rev',n:'Revenue',d:0,ct:1,ch:['r1','r2','r3','r4','r5','r6'],a:1842,b:1803,sg:'n'},{i:'r1',n:'Advisory Fees',d:1,lf:1,pr:'rev',a:892,b:858,sg:'n',st:'approved',tp:'material'},{i:'r2',n:'Consulting Fees',d:1,lf:1,pr:'rev',a:412,b:445,sg:'n',st:'draft',tp:'material'},{i:'r3',n:'Reinsurance',d:1,lf:1,pr:'rev',a:325,b:298,sg:'n',st:'approved'},{i:'r4',n:'Investment Inc',d:1,lf:1,pr:'rev',a:128,b:122,sg:'n'},{i:'r5',n:'Data & Analytics',d:1,lf:1,pr:'rev',a:62,b:58,sg:'n'},{i:'r6',n:'Other Rev',d:1,lf:1,pr:'rev',a:23,b:22,sg:'n'},
+{i:'grev',n:'GROSS REVENUE',d:0,cl:1,a:1842,b:1803,sg:'n'},
+{i:'cor',n:'Cost of Revenue',d:0,ct:1,ch:['c1','c2','c3','c4'],a:542,b:528,sg:'i'},{i:'c1',n:'Direct Comp',d:1,lf:1,pr:'cor',a:318,b:305,sg:'i'},{i:'c2',n:'Subcontractors',d:1,lf:1,pr:'cor',a:125,b:108,sg:'i',st:'reviewed',tp:'material'},{i:'c3',n:'Direct Tech',d:1,lf:1,pr:'cor',a:68,b:72,sg:'i'},{i:'c4',n:'Other Direct',d:1,lf:1,pr:'cor',a:31,b:43,sg:'i'},
+{i:'tcor',n:'TOTAL COR',d:0,cl:1,a:542,b:528,sg:'i'},{i:'gp',n:'GROSS PROFIT',d:0,cl:1,mj:1,a:1300,b:1275,sg:'n'},
+{i:'opex',n:'OpEx',d:0,ct:1,ch:['o1','o2','o3','o4','o5','o6','o7'],a:779,b:787,sg:'i'},{i:'o1',n:'Comp & Ben',d:1,lf:1,pr:'opex',a:428,b:412,sg:'i',st:'draft',tp:'material'},{i:'o2',n:'Technology',d:1,lf:1,pr:'opex',a:98,b:85,sg:'i',st:'reviewed',tp:'trending'},{i:'o3',n:'Prof Svcs',d:1,lf:1,pr:'opex',a:52,b:58,sg:'i'},{i:'o4',n:'Occupancy',d:1,lf:1,pr:'opex',a:62,b:65,sg:'i'},{i:'o5',n:'T&E',d:1,lf:1,pr:'opex',a:38,b:42,sg:'i'},{i:'o6',n:'D&A',d:1,lf:1,pr:'opex',a:42,b:48,sg:'i',st:'approved',tp:'material'},{i:'o7',n:'Other',d:1,lf:1,pr:'opex',a:59,b:77,sg:'i'},
+{i:'top',n:'TOTAL OPEX',d:0,cl:1,a:779,b:787,sg:'i'},{i:'ebitda',n:'EBITDA',d:0,cl:1,mj:1,a:563,b:536,sg:'n'},{i:'oi',n:'OP INCOME',d:0,cl:1,mj:1,a:521,b:488,sg:'n'},{i:'ni',n:'NET INCOME',d:0,cl:1,mj:1,a:377,b:351,sg:'n'}
+];
+const PX=new Set(['rev','cor','opex']);const RX=new Set();
+
+// === RENDER HEADER ===
+function renderHdr(){
+  let t='';['dash','pl','chat','review','approve','reports'].forEach(v=>{const l={dash:'Dashboard',pl:'P&L',chat:'Chat',review:'Review',approve:'Approvals',reports:'Reports'}[v];t+='<button class="tab'+(V===v?' on':'')+'" data-nav="'+v+'">'+l+'</button>';});document.getElementById('tabs').innerHTML=t;
+  // Pill-style persona selector with role icons
+  const perIcons={analyst:'&#x25A6;',director:'&#x25C9;',cfo:'&#x25C8;',bu:'&#x25A3;'};
+  const perLabels={analyst:'Analyst',director:'Director',cfo:'CFO',bu:'BU Lead'};
+  let p='';['analyst','director','cfo','bu'].forEach(x=>{p+='<div class="per-pill'+(P===x?' on':'')+'" data-per="'+x+'"><span class="per-icon">'+perIcons[x]+'</span><span class="per-label">'+perLabels[x]+'</span></div>';});document.getElementById('per').innerHTML=p;
+  let ta='';['mtd','qtd','ytd'].forEach(x=>{ta+='<b class="'+(TAGG===x?'on':'')+'" data-tagg="'+x+'">'+x.toUpperCase()+'</b>';});document.getElementById('timeAgg').innerHTML=ta;
+  let b2='';['bud','fcast','py'].forEach(x=>{b2+='<b class="'+(BASE===x?'on':'')+'" data-base="'+x+'">'+(x==='bud'?'Budget':x==='fcast'?'Fcst':'PY')+'</b>';});document.getElementById('base2').innerHTML=b2;
+  let th='';['dark','light'].forEach(x=>{th+='<b class="'+(TH===x?'on':'')+'" data-th="'+x+'">'+(x==='dark'?'&#x25CF;':'&#x25CB;')+'</b>';});document.getElementById('tt').innerHTML=th;
+}
+
+// === RENDER TREE ===
+function renderTree(){
+  const tree=document.getElementById('tree');
+  if(V==='chat'){tree.classList.add('closed');return;}
+  tree.classList.remove('closed');
+  let h='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:11px;font-weight:700;font-family:var(--se)">Dimensions</span><button class="bt" style="font-size:7px;padding:2px 5px" data-tree-toggle>&#x2715;</button></div>';
+  const appr=VARS.filter(v=>v.st==='approved').length,rev=VARS.filter(v=>v.st==='reviewed').length,draft=VARS.filter(v=>v.st==='draft').length;
+  h+='<div style="margin-bottom:10px;padding:8px 10px;background:var(--cd);border-radius:8px;border:1px solid var(--bd);text-align:center">';
+  h+='<div style="font-size:7px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Close progress '+II('Shows the review lifecycle status across all material variances. Green=approved for reporting, Gold=analyst reviewed, Gray=AI draft pending review.')+'</div>';
+  h+='<div style="display:flex;align-items:center;gap:10px;justify-content:center">';
+  h+=donutChart(appr,rev,draft,48);
+  h+='<div style="text-align:left"><div style="font-size:8px;color:var(--em)">● '+appr+' approved</div><div style="font-size:8px;color:var(--gd)">● '+rev+' reviewed</div><div style="font-size:8px;color:var(--t3)">● '+draft+' draft</div></div></div></div>';
+  h+='<h6>Business unit</h6>';
+  const matCount=bu=>VARS.filter(v=>v.tp==='material'&&(bu==='All'||v.bu===bu)).length;
+  ['All',...BUS].forEach(bu=>{const mc=matCount(bu);const isAct=DIM_FILTER&&DIM_FILTER.dim==='bu'&&DIM_FILTER.name===bu;
+    h+='<div class="tn'+(isAct?' on':'')+'" data-drill-bu="'+bu+'"><span class="lf"></span>'+bu+(mc?'<span class="vcnt">'+mc+'</span>':'')+'</div>';});
+  ['geo','seg','lob','cc'].forEach(dim=>{const hi=HIER[dim];
+    h+='<h6>'+hi.label+' <span style="cursor:pointer;font-size:7px" data-texp-all="'+dim+'">expand</span></h6>';
+    function rn(id,depth){const node=hi.nodes[id];if(!node)return;const hasCh=node.ch&&node.ch.length>0;const isExp=TEXP.has(id);const isAct=DIM_FILTER&&DIM_FILTER.dim===dim&&DIM_FILTER.id===id;
+      // #21: Count material variances matching this node
+      let vcount=0;
+      if(dim==='geo'){const gids=getDescendants('geo',id);const gvals=new Set();gids.forEach(gid=>{const m=GEO_MATCH[gid];if(m)m.forEach(v=>gvals.add(v));});vcount=VARS.filter(v=>v.tp==='material'&&(gvals.has(v.g)||gvals.size===0)).length;}
+      h+='<div class="tn'+(isAct?' on':'')+'" style="padding-left:'+(6+depth*12)+'px" data-tnode="'+id+'" data-tdim="'+dim+'">';
+      if(hasCh)h+='<span class="chv'+(isExp?' open':'')+'">&#x25B8;</span>';else h+='<span class="lf"></span>';
+      h+=node.n;if(hasCh)h+='<span class="cnt">'+node.ch.length+'</span>';
+      if(dim==='geo'&&vcount>0)h+='<span class="vcnt">'+vcount+'</span>';
+      h+='</div>';
+      if(hasCh&&isExp){node.ch.forEach(cid=>rn(cid,depth+1));}
+    }rn(hi.root,0);});
+  tree.innerHTML=h;
+}
+
+// === EVENT DELEGATION ===
+document.addEventListener('click',function(e){
+  if(NOTIF_OPEN&&!e.target.closest('[data-bell]')){NOTIF_OPEN=false;document.getElementById('notifDrop').innerHTML='';return;}
+  const nav=e.target.closest('[data-nav]');if(nav){V=nav.dataset.nav;SEARCH_Q='';document.title={dash:'Dashboard',pl:'P&L',chat:'Chat',review:'Review Queue',approve:'Approvals',reports:'Reports'}[V]+' — Marsh Vantage';HEATMAP_FILTER=null;SORT_COL=null;DIM_FILTER=null;renderHdr();renderTree();transitionRender();return;}
+  const per=e.target.closest('[data-per]');if(per){P=per.dataset.per;chatHistory=[];chatStreaming=false;renderHdr();render();return;}
+  const th=e.target.closest('[data-th]');if(th){TH=th.dataset.th;document.body.dataset.theme=TH;renderHdr();renderTree();render();return;}
+  const bs=e.target.closest('[data-base]');if(bs){BASE=bs.dataset.base;renderHdr();render();return;}
+  const ta=e.target.closest('[data-tagg]');if(ta){TAGG=ta.dataset.tagg;renderHdr();render();return;}
+  const md=e.target.closest('[data-modal]');if(md){const idx=+md.dataset.modal;if(idx>=0)openModal(idx);return;}
+  const mc=e.target.closest('[data-close-modal]');if(mc){document.getElementById('modal').innerHTML='';return;}
+  const rptClose=e.target.closest('[data-close-rpt]');if(rptClose){document.getElementById('modal').innerHTML='';return;}
+  const rptPrev=e.target.closest('[data-rpt-preview]');if(rptPrev){openReport(rptPrev.dataset.rptPreview);return;}
+  const mo=e.target.closest('.mo');if(mo&&e.target===mo){document.getElementById('modal').innerHTML='';return;}
+  const pl=e.target.closest('[data-pltog]');if(pl){const id=pl.dataset.pltog;PX.has(id)?PX.delete(id):PX.add(id);render();return;}
+  const pe=e.target.closest('[data-plexp]');if(pe){PA.filter(r=>r.ct).forEach(r=>PX.add(r.i));render();return;}
+  const pc=e.target.closest('[data-plcol]');if(pc){PX.clear();render();return;}
+  const rv=e.target.closest('[data-rvtog]');if(rv&&!e.target.closest('.rv-check')){const i=+rv.dataset.rvtog;RX.has(i)?RX.delete(i):RX.add(i);render();return;}
+  const bl=e.target.closest('[data-bell]');if(bl){NOTIF_OPEN=!NOTIF_OPEN;const dd=document.getElementById('notifDrop');if(NOTIF_OPEN){let nh='<div class="notif-drop"><div style="padding:10px 14px;font-size:10px;font-weight:700;border-bottom:1px solid var(--bd);color:var(--tl)">Notifications</div>';NOTIFS.forEach(n=>{nh+='<div class="ni"><div class="nd" style="background:'+n.icon+'"></div><div style="flex:1"><div style="color:var(--tx)">'+n.text+'</div><div style="font-size:8px;color:var(--t3);margin-top:2px">'+n.time+'</div></div></div>';});nh+='</div>';dd.innerHTML=nh;}else{dd.innerHTML='';}return;}
+  const mt=e.target.closest('[data-meeting]');if(mt){MEETING=!MEETING;document.body.classList.toggle('meeting',MEETING);return;}
+  const tt2=e.target.closest('[data-tree-toggle]');if(tt2){document.getElementById('tree').classList.toggle('closed');return;}
+  const tn=e.target.closest('[data-tnode]');if(tn){const id=tn.dataset.tnode,dim=tn.dataset.tdim;const hi=HIER[dim];const node=hi&&hi.nodes[id];const hasCh=node&&node.ch&&node.ch.length>0;if(hasCh){TEXP.has(id)?TEXP.delete(id):TEXP.add(id);}if(DIM_FILTER&&DIM_FILTER.dim===dim&&DIM_FILTER.id===id){DIM_FILTER=null;}else{DIM_FILTER={dim:dim,id:id,name:node?node.n:id};}renderTree();render();return;}
+  const tea=e.target.closest('[data-texp-all]');if(tea){const dim=tea.dataset.texpAll;const hi=HIER[dim];Object.keys(hi.nodes).forEach(id=>{if(hi.nodes[id].ch)TEXP.add(id);});renderTree();return;}
+  const srt=e.target.closest('[data-sort]');if(srt){const col=srt.dataset.sort;if(SORT_COL===col)SORT_DIR=SORT_DIR==='desc'?'asc':'desc';else{SORT_COL=col;SORT_DIR='desc';}render();return;}
+  const hmd=e.target.closest('[data-hm]');if(hmd){HEATMAP_FILTER={bu:hmd.dataset.hmBu,cat:hmd.dataset.hmCat};render();return;}
+  const hmClear=e.target.closest('[data-hm-clear]');if(hmClear){HEATMAP_FILTER=null;render();return;}
+  const dimClear=e.target.closest('[data-dim-clear]');if(dimClear){DIM_FILTER=null;renderTree();render();return;}
+  const chk=e.target.closest('[data-rv-check]');if(chk){const i=+chk.dataset.rvCheck;BATCH_CHECKED.has(i)?BATCH_CHECKED.delete(i):BATCH_CHECKED.add(i);render();return;}
+  const batchAct=e.target.closest('[data-batch-review]');if(batchAct){BATCH_CHECKED.forEach(i=>{if(VARS[i])VARS[i].st='reviewed';});BATCH_CHECKED.clear();render();return;}
+  // Tier 3: Working status transitions
+  const stAct=e.target.closest('[data-st-action]');if(stAct){const idx=+stAct.dataset.stIdx;const action=stAct.dataset.stAction;const r=VARS[idx];if(r){if(action==='confirm'){r.st='reviewed';fireConfetti();}else if(action==='approve'){r.st='approved';fireConfetti();}else if(action==='escalate'){r.st='draft';}else if(action==='dismiss'){r.st='autoclosed';}document.getElementById('modal').innerHTML='';render();}return;}
+  // Tier 3: Hypothesis feedback
+  const hyFb=e.target.closest('[data-hy-fb]');if(hyFb){const vi=+hyFb.dataset.hyVi,hi2=+hyFb.dataset.hyHi,val=+hyFb.dataset.hyFb;if(VARS[vi]&&VARS[vi].hy[hi2])VARS[vi].hy[hi2].fb=val;openModal(vi);return;}
+  const cfoPrev=e.target.closest('[data-cfo-preview]');if(cfoPrev){const idx=+cfoPrev.dataset.cfoPreview;const r=VARS[idx];if(r){const nb=document.getElementById('cfo-preview-box');if(nb){nb.innerHTML='<div style="font-size:8px;font-weight:700;color:var(--tl);margin-bottom:3px">CFO SUMMARY VIEW</div>'+r.nr.summary;nb.style.display='block';}}return;}
+  // Fix #16: Approve all handler
+  const appAll=e.target.closest('[data-approve-all]');if(appAll){VARS.forEach(v=>{if(v.st==='reviewed')v.st='approved';});fireConfetti();render();return;}
+  // Fix #19: Narrative editor - separate save vs cancel
+  const narSave=e.target.closest('[data-nar-save]');if(narSave){const idx=+narSave.dataset.narSave;const el2=document.getElementById('nar-editor');if(el2){const newText=el2.querySelector('textarea').value;if(newText&&VARS[idx]){VARS[idx].edited=1;VARS[idx].editedBy=PL2[P];VARS[idx].editedNr=newText;}}openModal(idx);return;}
+  const narCancel=e.target.closest('[data-nar-cancel]');if(narCancel){const idx=+narCancel.dataset.narCancel;openModal(idx);return;}
+  const narToggle=e.target.closest('[data-nar-edit]');if(narToggle){const el2=document.getElementById('nar-editor');const nb2=document.getElementById('nar-display');if(el2&&nb2){el2.style.display='block';nb2.style.display='none';}return;}
+  const cp=e.target.closest('[data-chat-pill]');if(cp){const inp=document.getElementById('chatInput');if(inp){inp.value=cp.dataset.chatPill;sendChat();}return;}
+  const cs=e.target.closest('[data-chat-send]');if(cs){sendChat();return;}
+  const rt=e.target.closest('[data-rpt-tab]');if(rt){RPT_TAB=rt.dataset.rptTab;render();return;}
+  const dbu=e.target.closest('[data-drill-bu]');if(dbu){const bu=dbu.dataset.drillBu;if(DIM_FILTER&&DIM_FILTER.dim==='bu'&&DIM_FILTER.name===bu){DIM_FILTER=null;}else{DIM_FILTER={dim:'bu',id:bu,name:bu};}V='dash';HEATMAP_FILTER=null;renderHdr();renderTree();render();return;}
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'){document.getElementById('modal').innerHTML='';if(MEETING){MEETING=false;document.body.classList.remove('meeting');}}});
+document.addEventListener('input',function(e){if(e.target.id==='varSearch'){SEARCH_Q=e.target.value.toLowerCase();render();}if(e.target.id==='rvSearch'){document.getElementById('app').querySelectordocument.addEventListener('input',function(e){if(e.target.id==='varSearch'){SEARCH_Q=e.target.value.toLowerCase();render();}});document.addEventListener('input',function(e){if(e.target.id==='varSearch'){SEARCH_Q=e.target.value.toLowerCase();render();}});render();}});
+document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.id==='chatInput'){e.preventDefault();sendChat();}});
+
+// === MODAL (Tier 3: working editor, status transitions, hypothesis feedback) ===
+function openModal(idx){
+  const r=VARS[idx];if(!r)return;
+  const c=G(),vc=r.f?c.g:c.r,nl=PN[P].toLowerCase().replace('-level','').replace('mid','midlevel'),nr=r.edited&&r.editedNr?r.editedNr:(r.nr[nl]||r.nr.detail),origNr=r.nr[nl]||r.nr.detail,s=SM(r.st),t=TM(r.tp),cc2={High:c.g,Medium:c.a,Low:c.r};
+  let h='<div class="mo"><div class="mp"><div class="mh"><div>'+PL3(r.tp,t.c+'15',t.c)+' '+PL3(s.l,s.bg,s.c);
+  if(r.isNew)h+='<span class="edge-badge" style="background:var(--prS);color:var(--pr)">New</span>';
+  if(r.noBud)h+='<span class="edge-badge" style="background:var(--amS);color:var(--am)">No budget</span>';
+  if(r.noPY)h+='<span class="edge-badge" style="background:rgba(255,255,255,.06);color:var(--t3)">N/A PY</span>';
+  h+='<div style="font-size:14px;font-weight:700;font-family:var(--se);margin-top:5px">'+r.a+'</div><div style="font-size:9px;color:var(--t3)">'+r.bu+' · '+r.g+' · Jun 2026 · '+PL2[P]+' · '+TAGG.toUpperCase()+' vs '+{bud:'Budget',fcast:'Forecast',py:'PY'}[BASE]+'</div></div><button class="mx" data-close-modal>&times;</button></div><div class="mb">';
+  // Big number
+  h+='<div class="cd" style="padding:14px 16px;margin-bottom:10px"><div class="st"></div><div style="display:flex;align-items:baseline;gap:10px;margin-bottom:5px"><span class="'+(r.f?'modal-num-fav':'modal-num-unfav')+'" style="font-size:30px;font-weight:700;font-family:var(--se);color:'+vc+'" data-counter="'+Math.abs(r.v)+'" data-pre="'+(r.v>0?'+':'-')+'$" data-suf="K">$0K</span><span style="font-size:15px;font-weight:600;color:'+vc+'"><span style="font-size:10px">'+(r.f?'▲':'▼')+'</span> '+FP(r.p)+'</span>'+PL3(r.f?'Favorable':'Unfavorable',r.f?c.g+'15':c.r+'15',vc)+'</div>';
+  h+='<div style="display:flex;align-items:center;gap:5px"><span style="font-size:8px;color:var(--t3)">Confidence</span><div style="flex:1;height:4px;background:var(--bd);border-radius:2px;overflow:hidden"><div style="height:100%;width:85%;background:var(--tl);border-radius:2px"></div></div><span style="font-size:8px;font-weight:600;color:var(--tl)">85%</span></div>';
+  if(r.proj){h+='<div style="margin-top:8px;padding:7px 10px;background:var(--amS);border-radius:6px;border:1px solid rgba(251,191,36,.15);font-size:10px;color:var(--am)"><b>Projected YE impact:</b> +$'+r.proj.ye+'K if trend continues ('+r.proj.conf+' confidence) '+II('Year-end impact projected using linear extrapolation of the trailing 4-month trend. Confidence level (High/Medium/Low) based on R² of the trend line and seasonal adjustment.')+'</div>';}
+  h+='</div>';
+  // Decomposition
+  h+='<div class="s2">Decomposition '+II('Algebraic decomposition of the variance into constituent drivers. Revenue=Volume×Price×Mix×FX. COGS=Rate×Volume×Mix. OpEx=Rate×Volume×Timing×One-time. Percentages show each drivers contribution to the total.')+'</div><div class="dc">';
+  const mx=Math.max(...r.dc.map(d=>Math.abs(d.v)));
+  r.dc.forEach((d,di)=>{const dc=d.v>=0?c.g:c.r;const bw=Math.round(Math.abs(d.v)/mx*100);h+='<div class="di"><small>'+d.l+'</small><b style="color:'+dc+'">'+(d.v>0?'+':'')+F(d.v)+'</b><div class="db"><div class="df df-anim" style="--bar-w:'+bw+'%;background:'+dc+';animation-delay:'+(di*100)+'ms"></div></div></div>';});
+  h+='</div>';
+  // Correlations
+  if(r.corr&&r.corr.length>0){h+='<div class="s2">Correlated variances '+II('Pass 4 of the 5.5-pass engine scans all variance pairs for statistical correlation. Confidence score is cosine similarity between variance patterns. Hypothesis generated by LLM from correlated data.')+'</div>';
+    r.corr.forEach(cr=>{const cvc=cr.f?c.g:c.r;h+='<div class="corr-card"><div class="bi" style="background:'+cvc+'"></div><div style="flex:1"><div style="font-size:10px;font-weight:600">'+cr.a+' <span style="color:'+cvc+';font-size:9px">'+FP(cr.p)+'</span></div><div style="font-size:9px;color:var(--t2);margin-top:2px">'+cr.hyp+'</div></div><div style="text-align:right"><div style="font-size:10px;font-weight:700;color:var(--tl)">'+cr.conf+'%</div><div style="font-size:7px;color:var(--t3)">confidence</div></div></div>';});}
+  // Narrative with working editor
+  h+='<div class="s2">Narrative '+II('Narratives are AI-generated in Pass 5 using RAG-enhanced prompts with 3 similar approved commentaries as examples. When an analyst edits, both the original AI version and the edited version are preserved for audit trail and to improve future AI generations.')+'</div>';
+  h+='<div class="nar-header">';
+  if(r.edited)h+='<span class="nar-badge" style="background:var(--gdS);color:var(--gd)">Analyst edited · '+r.editedBy+'</span>';
+  else if(r.synth)h+='<span class="nar-badge" style="background:var(--prS);color:var(--pr)">Synthesized from '+r.synthCount+' children</span>';
+  else h+='<span class="nar-badge" style="background:rgba(255,255,255,.05);color:var(--t3)">AI generated (Pass 5)</span>';
+  h+='<span style="font-size:8px;color:var(--t3)">'+PN[P]+' level</span></div>';
+  h+='<div id="nar-display"><div class="nb">'+nr+'</div></div>';
+  h+='<div id="nar-editor" style="display:none"><textarea class="nar-edit">'+nr+'</textarea><div class="bg" style="margin-top:4px"><button class="bt bp" style="font-size:8px" data-nar-save="'+idx+'">Save</button><button class="bt" style="font-size:8px" data-nar-cancel="'+idx+'">Cancel</button></div></div>';
+  h+='<div id="cfo-preview-box" style="display:none;margin-top:5px;padding:8px 12px;background:rgba(0,168,199,.06);border:1px solid rgba(0,168,199,.12);border-radius:8px;font-size:10px;line-height:1.6;color:var(--t2)"></div>';
+  if(r.edited)h+='<div style="margin-top:5px;font-size:9px;color:var(--t3)">Original AI: <span style="font-style:italic">'+origNr+'</span></div>';
+  h+='<div class="bg" style="margin-top:5px"><button class="bt" style="font-size:8px" data-nar-edit="'+idx+'">Edit narrative</button>';
+  if(P==='analyst'||P==='director')h+='<button class="bt" style="font-size:8px;color:var(--tl);border-color:var(--tl)" data-cfo-preview="'+idx+'">Preview as CFO</button>';
+  h+='<button class="bt" style="font-size:8px" onclick="var el=document.getElementById(\'reasoning-box\');if(el)el.style.display=el.style.display===\'none\'?\'block\':\'none\'">Show reasoning</button></div>';
+  h+='<div id="reasoning-box" style="display:none;margin-top:5px;padding:8px 12px;background:var(--cd);border:1px solid var(--bd);border-radius:8px;font-size:9px;line-height:1.6;color:var(--t3)"><b style="color:var(--tl)">AI Reasoning (Pass 5):</b> Retrieved 3 similar approved commentaries via RAG (cosine similarity 0.87). Applied '+PN[P]+' narrative template. Confidence: 85%. Decomposition from Pass 3 algebraic breakdown. Hypotheses ranked by historical accuracy.</div>';
+  // Hypotheses with Tier 3 feedback
+  h+='<div class="s2">Hypotheses '+II('Confirming or rejecting hypotheses feeds the RAG (Retrieval-Augmented Generation) knowledge base. Each cycle, the AI retrieves similar approved commentaries to improve narrative quality. By month 6, expect 80%+ narratives needing only minor edits.')+'</div>';
+  r.hy.forEach((hp,hi2)=>{const hc=cc2[hp.c]||c.a;h+='<div class="hp"><i style="background:'+hc+'"></i><div style="flex:1"><div style="font-size:10px;line-height:1.4;color:var(--t2)">'+hp.t+'</div><div style="font-size:8px;font-weight:600;color:'+hc+'">'+hp.c+(hp.fb===1?' · <span style="color:var(--em)">✓ Confirmed</span>':hp.fb===-1?' · <span style="color:var(--cr)">✗ Rejected</span>':'')+'</div></div>';
+    if(hp.fb===0)h+='<div class="bg"><button class="bt" style="font-size:8px;color:var(--em);border-color:var(--em)" data-hy-fb data-hy-vi="'+idx+'" data-hy-hi="'+hi2+'" data-hy-fb="1">✓</button><button class="bt" style="font-size:8px;color:var(--cr);border-color:var(--cr)" data-hy-fb data-hy-vi="'+idx+'" data-hy-hi="'+hi2+'" data-hy-fb="-1">✗</button></div>';
+    h+='</div>';});
+  // Period trend
+  h+='<div class="s2">Period trend</div><div style="display:flex;gap:5px"><div class="di" style="text-align:center"><small>Apr</small><b style="color:var(--t2)">'+FP(r.sp[3]||0)+'</b></div><div class="di" style="text-align:center"><small>May</small><b style="color:var(--t2)">'+FP(r.sp[4]||0)+'</b></div><div class="di" style="text-align:center;border-color:var(--tl)"><small>Jun</small><b style="color:'+vc+'">'+FP(r.p)+'</b></div></div>';
+  // Tier 3: Working status action buttons
+  h+='<div class="s2">Actions</div><div class="bg" style="flex-wrap:wrap">';
+  if(r.st==='draft')h+='<button class="bt bp" data-st-action="confirm" data-st-idx="'+idx+'">Confirm & review</button><button class="bt" style="color:var(--am);border-color:var(--am)" data-st-action="escalate" data-st-idx="'+idx+'">Escalate</button><button class="bt" data-st-action="dismiss" data-st-idx="'+idx+'">Dismiss</button>';
+  else if(r.st==='reviewed')h+='<button class="bt bp" data-st-action="approve" data-st-idx="'+idx+'">Approve</button><button class="bt" data-st-action="escalate" data-st-idx="'+idx+'">Hold</button>';
+  else if(r.st==='autoclosed')h+='<span style="font-size:9px;color:var(--pr);font-weight:600">↻ Auto-closed (below threshold)</span>';
+  else h+='<span style="font-size:9px;color:var(--em);font-weight:600">✓ Approved</span>';
+  h+='</div></div></div></div>';
+  document.getElementById('modal').innerHTML=h;
+  // #26: Modal counter animation + #27: bar animations trigger
+  setTimeout(()=>{document.querySelectorAll('.mp [data-counter]').forEach(el2=>{countUp(el2,+el2.dataset.counter,el2.dataset.pre,el2.dataset.suf);});},100);
+}
+
+
+// #5: Custom Chart.js tooltip
+const customTooltip={enabled:false,external:function(ctx){let el=document.getElementById('chartjs-tooltip');if(!el){el=document.createElement('div');el.id='chartjs-tooltip';el.className='chartjs-tooltip';document.body.appendChild(el);}if(ctx.tooltip.opacity===0){el.style.opacity=0;return;}const tp=ctx.tooltip;let inner='<b>'+tp.title[0]+'</b>';tp.body.forEach(b=>{inner+='<br>'+b.lines[0];});el.innerHTML=inner;el.style.opacity=1;el.style.position='absolute';el.style.left=tp.caretX+'px';el.style.top=tp.caretY+'px';el.style.transform='translate(-50%,-120%)';el.style.transition='all .1s ease';}};
+// === RENDER ROUTER ===
+function render(){({dash:rD,pl:rP,chat:rC,review:rR,approve:rA,reports:rRp}[V]||rD)(document.getElementById('app'))}
+
+// === DASHBOARD ===
+function rD(el){
+  const c=G();const vis=filterByDim(filterByPersona(VARS));const unfav=vis.filter(v=>!v.f);
+  const isBU=P==='bu',isCFO=P==='cfo';
+  let h='<div>';
+  h+='<div class="bc fu"><em style="font-family:var(--se)">Dashboard</em><span style="margin-left:auto;font-size:8px;color:var(--t3)">'+greeting()+', '+PL2[P]+' · '+PN[P]+' · '+TAGG.toUpperCase()+' vs '+{bud:'Budget',fcast:'Forecast',py:'PY'}[BASE]+'</span></div>';
+  // Tier 4: Timestamp bar
+  h+='<div class="ts-bar fu d0"><div class="ts-dot"></div><span>Actuals as of Jun 30, 2026</span><span>·</span><span>Engine: 18 min</span><span>·</span><span>Coverage: 100%</span><span>·</span><span>Last refreshed <span id="refreshTimer">2m ago</span></span></div>';
+  // Scope banners
+  if(DIM_FILTER)h+='<div style="padding:6px 12px;border-radius:8px;background:rgba(0,168,199,.06);border:1px solid rgba(0,168,199,.12);margin-bottom:10px;font-size:10px;display:flex;align-items:center;justify-content:space-between" class="fu d0"><div><span style="font-weight:700;color:var(--tl)">🔍 Filtered:</span> <span style="color:var(--t2)">'+(DIM_FILTER.dim==='bu'?'BU':'Geo')+' = '+DIM_FILTER.name+' · '+vis.length+' variances</span></div><button class="bt" style="font-size:8px;padding:2px 6px" data-dim-clear>Clear</button></div>';
+  if(isBU)h+='<div style="padding:6px 12px;border-radius:8px;background:rgba(0,168,199,.06);border:1px solid rgba(0,168,199,.12);margin-bottom:10px;font-size:10px" class="fu d0"><span style="font-weight:700;color:var(--tl)">🔒 '+BU_HOME+'</span> <span style="color:var(--t2)">Showing reviewed & approved for your BU</span></div>';
+  else if(isCFO)h+='<div style="padding:6px 12px;border-radius:8px;background:rgba(45,212,168,.06);border:1px solid rgba(45,212,168,.12);margin-bottom:10px;font-size:10px" class="fu d0"><span style="font-weight:700;color:var(--em)">✓ Approved only</span> <span style="color:var(--t2)">'+vis.length+' of '+VARS.length+' variances board-ready</span></div>';
+  // Metrics bar
+  h+='<div class="metrics-bar fu d0"><div class="metric"><span>Cycle time:</span><b>18 min</b></div><div class="metric"><span>Coverage:</span><b>100%</b></div><div class="metric"><span>Root cause:</span><b>81%</b></div><div class="metric"><span>Commentary:</span><b>'+Math.round(vis.filter(v=>v.st!=='draft').length/Math.max(vis.length,1)*100)+'%</b></div></div>';
+  // Exec summary (persona-aware)
+  const exSum={analyst:'<b>June close: Revenue +2.2%, EBITDA +6.8%.</b> Advisory strength in APAC (+15.3%) driven by Singapore/Australia. <span style="color:var(--cr)">Consulting softness in EMEA (-10.0%)</span> from delayed engagements. Tech trending 4 months. <b>'+VARS.filter(v=>v.st==='draft').length+' require attention, '+VARS.filter(v=>v.st==='approved').length+'/'+VARS.length+' approved.</b>',
+    director:'<b>June close: Revenue +2.2%, EBITDA +6.8%.</b> Strong advisory offset by EMEA consulting delays. '+VARS.filter(v=>v.st==='reviewed').length+' awaiting your approval. <b>Approval completion: '+Math.round(VARS.filter(v=>v.st==='approved').length/VARS.length*100)+'%.</b>',
+    cfo:'<b>Q2 revenue $1,842K, +2.2% vs budget. EBITDA 28.3% vs 27.1% plan.</b> All '+vis.length+' reported variances FP&A-approved. Key risk: EMEA consulting pipeline at 2.1x. Recommendation: monitor tech trajectory.',
+    bu:'<b>'+BU_HOME+' June: Advisory +15.3% APAC, strong pipeline.</b> Subcontractors elevated (+21.9% UK), normalizing Q3. D&A favorable (-6.7%) timing. <b>'+vis.length+' variances, all reviewed/approved.</b>'};
+  h+='<div class="cd exec-sum fu d1"><div class="st"></div><span class="badge" style="background:rgba(0,168,199,.1);color:var(--tl)">AI '+({analyst:'DETAIL',director:'MID-LEVEL',cfo:'EXECUTIVE',bu:'BU'}[P])+' SUMMARY</span> '+II('AI-generated executive summary adapted to your persona level. Analyst sees detail with specific numbers, CFO sees board-ready language, BU Leader sees their unit performance. Updated each engine run.')+'<br>'+(exSum[P]||exSum.analyst)+'</div>';
+  // 5 KPI cards - persona-aware (#1 fix)
+  h+='<div class="kg">';
+  const kpiBase=[{l:'Revenue',v:1842,d:'+2.2%',f:1,s:'vs $1,803K',pre:'$',suf:'K',hist:['$1,803K Apr','$1,818K May','$1,842K Jun']},{l:'EBITDA',v:521,d:'+6.8%',f:1,s:'28.3% margin',pre:'$',suf:'K',hist:['$498K Apr','$510K May','$521K Jun']}];
+  const kpiByPersona={
+    analyst:[...kpiBase,{l:'Op Income',v:488,d:'+5.1%',f:1,s:'26.5% margin',pre:'$',suf:'K',hist:['$472K','$480K','$488K']},{l:'HC Plan',v:4280,d:'-1.6%',f:0,s:'70 below',pre:'',suf:'',hist:['4,310','4,295','4,280']},{l:'Risk Items',v:unfav.length,d:'',f:unfav.length<3?1:0,s:'unfavorable',pre:'',suf:'',hist:[]}],
+    director:[...kpiBase,{l:'Pending',v:VARS.filter(v=>v.st==='reviewed').length,d:'',f:1,s:'awaiting approval',pre:'',suf:'',hist:[]},{l:'Approved',v:VARS.filter(v=>v.st==='approved').length,d:Math.round(VARS.filter(v=>v.st==='approved').length/VARS.length*100)+'%',f:1,s:'of '+VARS.length,pre:'',suf:'',hist:[]},{l:'Risk Items',v:unfav.length,d:'',f:0,s:'unfavorable',pre:'',suf:'',hist:[]}],
+    cfo:[...kpiBase,{l:'Report Ready',v:vis.length,d:'100%',f:1,s:'all approved',pre:'',suf:'',hist:[]},{l:'Risk Items',v:unfav.length,d:'',f:0,s:'to monitor',pre:'',suf:'',hist:[]},{l:'Commentary',v:Math.round(vis.filter(v=>v.st!=='draft').length/Math.max(vis.length,1)*100),d:'',f:1,s:'% complete',pre:'',suf:'%',hist:[]}],
+    bu:[{l:BU_HOME+' Rev',v:892,d:'+3.9%',f:1,s:'Advisory strong',pre:'$',suf:'K',hist:['$855K','$872K','$892K']},{l:BU_HOME+' Costs',v:542,d:'+2.6%',f:0,s:'contractors up',pre:'$',suf:'K',hist:['$520K','$530K','$542K']},{l:'Variances',v:vis.length,d:'',f:1,s:'in portfolio',pre:'',suf:'',hist:[]},{l:'D&A Savings',v:700,d:'-6.7%',f:1,s:'timing favorable',pre:'$',suf:'K',hist:[]},{l:'Risk Items',v:unfav.length,d:'',f:unfav.length<2?1:0,s:'unfavorable',pre:'',suf:'',hist:[]}]
+  };
+  (kpiByPersona[P]||kpiByPersona.analyst).forEach((k,i)=>{const kColor=k.f?'var(--em)':'var(--cr)';h+='<div class="cd cl kp fu d'+(i+1)+'"><div class="st"></div>'+kpiWatermark(k.hist&&k.hist.length?[85,88,90,92,95,100]:[50,50,50,50,50,50],k.f?c.g:c.r)+'<h6>'+k.l+'</h6><strong data-counter="'+k.v+'" data-pre="'+(k.pre||'')+'" data-suf="'+(k.suf||'')+'">0</strong><small>'+(k.d?'<span style="font-weight:700;color:'+kColor+'"><span style="font-size:8px">'+(k.f?'▲':'▼')+'</span> '+k.d+'</span>':'')+'<span style="color:var(--t3);font-size:9px">'+k.s+'</span></small>';
+    if(k.hist&&k.hist.length)h+='<div class="period-comp">'+k.hist.map(x=>'<span>'+x+'</span>').join('')+'</div>';h+='</div>';});
+  h+='</div>';
+  // CFO Top Items Summary (new feature)
+  if(isCFO){
+    h+='<div class="cd fu d2" style="padding:14px 18px;margin-bottom:14px;border-left:3px solid var(--tl)"><div style="font-size:8px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Top items for your attention</div>';
+    const topItems=[...vis].sort((a,b)=>Math.abs(b.v)-Math.abs(a.v)).slice(0,6);
+    topItems.forEach((ti,tii)=>{const tic=ti.f?c.g:c.r;
+      h+='<div style="display:flex;align-items:center;gap:10px;padding:6px 0;'+(tii<topItems.length-1?'border-bottom:1px solid var(--bd)':'')+';cursor:pointer" data-modal="'+VARS.indexOf(ti)+'">';
+      h+='<span style="font-size:9px;font-weight:700;color:var(--t3);width:16px">'+(tii+1)+'</span>';
+      h+='<div class="bi" style="background:'+tic+'"></div>';
+      h+='<div style="flex:1"><span style="font-size:11px;font-weight:600">'+ti.a+'</span> <span style="font-size:9px;color:var(--t3)">'+ti.bu+' · '+ti.g+'</span></div>';
+      h+='<div style="text-align:right"><span style="font-size:13px;font-weight:700;font-family:var(--se);color:'+tic+'">'+(ti.v>0?'+':'')+F(ti.v)+'</span> <span style="font-size:9px;color:'+tic+'">'+FP(ti.p)+'</span></div>';
+      h+='<span style="font-size:9px;color:var(--t2);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+ti.nr.summary+'</span>';
+      h+='</div>';});
+    h+='</div>';
+  }
+  // Alerts (persona-aware)
+  if(!isCFO){h+='<div style="display:flex;gap:8px;margin-bottom:14px" class="fu d2">';
+    if(!isBU)h+='<div class="cd" style="flex:1;padding:12px 14px;border-left:3px solid var(--pr);cursor:pointer" data-modal="4"><div class="alert-pulse" style="font-size:7px;font-weight:700;color:var(--pr);letter-spacing:.8px;margin-bottom:2px">⚡ NETTING ALERT</div><div style="font-size:10px;color:var(--t2)">APAC masks $11.5M opposing movements</div></div>';
+    h+='<div class="cd" style="flex:1;padding:12px 14px;border-left:3px solid var(--am);cursor:pointer" data-modal="2"><div class="alert-pulse" style="font-size:7px;font-weight:700;color:var(--am);letter-spacing:.8px;margin-bottom:2px">📈 TREND ALERT</div><div style="font-size:10px;color:var(--t2)">Tech above budget 4 months. <b style="color:var(--am)">YE: +$580K</b></div></div></div>';
+  } else {h+='<div style="display:flex;gap:8px;margin-bottom:14px" class="fu d2"><div class="cd" style="flex:1;padding:12px 14px;border-left:3px solid var(--em)"><div style="font-size:7px;font-weight:700;color:var(--em);letter-spacing:.8px;margin-bottom:2px">BOARD READY</div><div style="font-size:10px;color:var(--t2)">'+vis.length+' approved. Revenue +2.2%, EBITDA +6.8%.</div></div><div class="cd" style="flex:1;padding:12px 14px;border-left:3px solid var(--cr)"><div style="font-size:7px;font-weight:700;color:var(--cr);letter-spacing:.8px;margin-bottom:2px">KEY RISK</div><div style="font-size:10px;color:var(--t2)">EMEA consulting 2.1x. Tech trend +$580K projected.</div></div></div>';}
+  // Charts
+  h+='<div style="display:grid;grid-template-columns:5fr 4fr;gap:10px;margin-bottom:14px" class="fu d3"><div class="cd" style="padding:14px 16px"><div style="font-size:11px;font-weight:700;font-family:var(--se);margin-bottom:10px">EBITDA Bridge '+II('Waterfall chart showing the bridge from budget EBITDA ($488K) to actual ($521K). Green bars are favorable variances, red bars are unfavorable. The chart shows the key drivers of the $33K positive variance.')+'</div><div style="height:210px;position:relative"><canvas id="wfC"></canvas></div></div><div class="cd" style="padding:14px 16px"><div style="font-size:11px;font-weight:700;font-family:var(--se);margin-bottom:10px">Revenue Trend '+II('Solid green line shows actual monthly revenue. Dashed teal line shows budget. Gap between lines represents the variance. Data from Jan-Jun actual, Jul-Dec budget projection.')+'</div><div style="height:210px;position:relative"><canvas id="trC"></canvas></div></div></div>';
+  // Heatmap
+  const htData=isBU?HT.filter(r2=>r2.b===BU_HOME):HT;
+  h+='<div class="cd fu d4" style="padding:14px 16px;margin-bottom:14px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:11px;font-weight:700;font-family:var(--se)">Variance Heatmap '+(isBU?'('+BU_HOME+')':'')+' '+II('Click any heatmap cell to filter the variance table below to that BU × category intersection. Click the BU name to filter by entire business unit. The heatmap shows variance percentage by category: Rev=Revenue, COGS=Cost of Goods, Comp=Compensation, Tech=Technology, T&E=Travel and Entertainment.')+'</div>';
+  if(HEATMAP_FILTER)h+='<button class="bt" style="font-size:8px" data-hm-clear>Clear: '+HEATMAP_FILTER.bu+'</button>';
+  h+='</div><table class="ht"><thead><tr><th style="text-align:left;width:100px">BU</th>';HTCATS.forEach(ct=>{h+='<th>'+ct+'</th>';});h+='</tr></thead><tbody>';
+  htData.forEach(r2=>{h+='<tr><td class="bn" data-drill-bu="'+r2.b+'">'+r2.b+' ›</td>';r2.v.forEach((v2,ci)=>{const it=Math.min(Math.abs(v2)/5,1),ps=v2>0;const bg=ps?'rgba('+(D()?'45,212,168':'13,147,115')+','+(it*.3).toFixed(2)+')':'rgba('+(D()?'249,112,102':'207,34,46')+','+(it*.3).toFixed(2)+')';const cl2=Math.abs(v2)>3?(ps?c.g:c.r):'var(--tx)';h+='<td class="hc" data-hm data-hm-bu="'+r2.b+'" data-hm-cat="'+HTCATS[ci]+'" style="background:'+bg+';color:'+cl2+';font-weight:'+(Math.abs(v2)>3?600:400)+'">'+(v2>0?'+':'')+v2.toFixed(1)+'%</td>';});h+='</tr>';});
+  h+='</tbody></table></div>';
+  // Variance table
+  let filtered=vis;if(HEATMAP_FILTER&&HEATMAP_FILTER.bu&&HEATMAP_FILTER.bu!=='All')filtered=filtered.filter(v=>v.bu===HEATMAP_FILTER.bu);
+  if(SEARCH_Q)filtered=filtered.filter(v=>(v.a+' '+v.bu+' '+v.g).toLowerCase().includes(SEARCH_Q));
+  if(SORT_COL){const sf2={account:(a,b)=>a.a.localeCompare(b.a),varpct:(a,b)=>Math.abs(b.p)-Math.abs(a.p),bu:(a,b)=>a.bu.localeCompare(b.bu),status:(a,b)=>a.st.localeCompare(b.st)};if(sf2[SORT_COL]){filtered=[...filtered].sort(sf2[SORT_COL]);if(SORT_DIR==='asc')filtered.reverse();}}
+  h+='<div class="cd tw fu d5"><div class="th2"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:12px;font-weight:700;font-family:var(--se)">Material Variances '+II('Materiality uses OR logic: a variance qualifies as material if EITHER the dollar amount OR the percentage exceeds the configured threshold. This ensures both large absolute and large relative variances are captured.')+'</span><span class="pl" style="background:rgba(0,168,199,.1);color:var(--tl)">'+filtered.length+'</span>';
+  if(isCFO)h+='<span style="font-size:9px;color:var(--t3);margin-left:4px">(approved only)</span>';
+  if(isBU)h+='<span style="font-size:9px;color:var(--t3);margin-left:4px">('+BU_HOME+')</span>';
+  h+='</div><input class="search-bar" id="varSearch" placeholder="Search account, BU, geo..." value="'+SEARCH_Q+'"></div>';
+  const sa=(col)=>'<span class="sort-arrow">'+(SORT_COL===col?(SORT_DIR==='desc'?'▾':'▴'):'›')+'</span>';
+  h+='<table class="tb"><thead><tr><th data-sort="account"'+(SORT_COL==='account'?' class="sorted"':'')+'>Account'+sa('account')+'</th><th data-sort="bu"'+(SORT_COL==='bu'?' class="sorted"':'')+'>BU'+sa('bu')+'</th><th>Geo</th><th class="r" data-sort="varpct"'+(SORT_COL==='varpct'?' class="sorted r"':'')+'>Var'+sa('varpct')+'</th><th class="r">%</th><th class="c">Trend</th><th class="c">Type</th><th class="c" data-sort="status"'+(SORT_COL==='status'?' class="sorted c"':'')+'>Status'+sa('status')+'</th></tr></thead><tbody>';
+  filtered.forEach(r2=>{const vc2=r2.f?c.g:c.r,s2=SM(r2.st),t2=TM(r2.tp);
+    h+='<tr data-modal="'+VARS.indexOf(r2)+'"><td><div style="display:flex;align-items:center;gap:6px"><div class="bi" style="background:'+vc2+'"></div><span style="font-weight:600">'+r2.a+'</span>';
+    if(r2.edited)h+='<span class="edge-badge" style="background:var(--gdS);color:var(--gd)">edited</span>';
+    if(r2.isNew)h+='<span class="edge-badge" style="background:var(--prS);color:var(--pr)">New</span>';
+    if(r2.noBud)h+='<span class="edge-badge" style="background:var(--amS);color:var(--am)">No budget</span>';
+    if(r2.noPY)h+='<span class="edge-badge" style="background:rgba(255,255,255,.05);color:var(--t3)">N/A PY</span>';
+    h+='</div></td><td style="color:var(--t2)">'+r2.bu+'</td><td style="color:var(--t2)">'+r2.g+'</td><td class="r" style="font-weight:700;font-family:var(--se);color:'+vc2+'">'+(r2.v>0?'+':'')+F(r2.v)+'</td><td class="r">'+PL3(FP(r2.p),r2.f?c.g+'15':c.r+'15',vc2)+'</td><td class="c">'+spark(r2.sp,vc2)+'</td><td class="c">'+PL3(r2.tp,t2.c+'15',t2.c)+'</td><td class="c">'+PL3(s2.l,s2.bg,s2.c)+'</td></tr>';});
+  if(!filtered.length)h+='<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--t3)"><div style="font-size:20px;margin-bottom:6px">🔍</div><div style="font-size:11px;font-weight:600">No variances match this filter</div><div style="font-size:9px;margin-top:2px">Try adjusting your search, dimension filter, or persona</div></td></tr>';
+h+='</tbody></table><div class="tf"><span>'+filtered.length+' variances</span><div class="bg"><button class="bt" style="font-size:8px">Export</button>'+(P==='analyst'||P==='director'?'<button class="bt bp" style="font-size:8px" data-nav="review">Review →</button>':'')+'</div></div></div>';
+  // Footer
+  h+='<div class="marsh-footer"><div class="mf-logo">Marsh</div><div>© 2026 Marsh. Confidential. Vantage v1.0 · Jun 2026 · '+PL2[P]+'</div></div></div>';
+  el.innerHTML=h;
+  setTimeout(()=>{document.querySelectorAll('[data-counter]').forEach(el2=>{countUp(el2,+el2.dataset.counter,el2.dataset.pre,el2.dataset.suf);});},120);
+  setTimeout(()=>{
+    const c2=G();
+    const w2=document.getElementById('wfC');if(w2)new Chart(w2,{type:'bar',data:{labels:WF.map(x=>x.n),datasets:[{data:WF.map(x=>x.s),backgroundColor:'transparent',borderWidth:0,barPercentage:.55},{data:WF.map(x=>x.v),backgroundColor:WF.map(x=>x.t==='b'?c2.tx:x.t==='r'?'#00A8C7':x.t==='p'?c2.g:c2.r),borderWidth:0,borderRadius:4,barPercentage:.55}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:customTooltip},scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:7,family:'DM Sans'},color:c2.tx,maxRotation:45,autoSkip:false},border:{display:false}},y:{stacked:true,grid:{color:c2.gr},ticks:{font:{size:8,family:'DM Sans'},color:c2.tx,callback:v2=>'$'+v2+'K'},border:{display:false},min:400,max:560}}}});
+    const t2c=document.getElementById('trC');if(t2c)new Chart(t2c,{type:'line',data:{labels:TR.map(x=>x.m),datasets:[{data:TR.map(x=>x.b),borderColor:'#016D9E',borderDash:[5,3],borderWidth:1.5,pointRadius:0,tension:.4,fill:{target:'origin',above:'rgba(0,168,199,.05)'}},{data:TR.map(x=>x.a),borderColor:c2.g,borderWidth:2.5,pointRadius:3,pointBackgroundColor:c2.g,tension:.4,spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:customTooltip},scales:{x:{grid:{display:false},ticks:{font:{size:8,family:'DM Sans'},color:c2.tx},border:{display:false}},y:{grid:{color:c2.gr},ticks:{font:{size:8,family:'DM Sans'},color:c2.tx,callback:v2=>'$'+v2+'K'},border:{display:false}}}}});
+  },100);
+}
+
+// === P&L ===
+function rP(el){
+  const c=G();let h='<div><div class="bc fu"><a data-nav="dash">Dashboard</a><s>›</s><em>P&L</em><span style="margin-left:auto;font-size:8px;color:var(--t3)">'+TAGG.toUpperCase()+' vs '+{bud:'Budget',fcast:'Forecast',py:'PY'}[BASE]+(P==='bu'?' · '+BU_HOME+' only':'')+'</span></div>';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px" class="fu d1"><div style="font-size:15px;font-weight:700;font-family:var(--se)">Income Statement '+II('Income Statement with 28 detail lines and 8 calculated rows. Calculated rows resolve in dependency order: Gross Profit=Revenue-COR, EBITDA=GP-OpEx+D&A, OpIncome=GP-OpEx, NetIncome=OpIncome-Tax. Sign convention: costs favorable when negative.')+'</div><div class="bg"><button class="bt" data-plexp style="font-size:8px">Expand</button><button class="bt" data-plcol style="font-size:8px">Collapse</button></div></div>';
+  if(P==='bu')h+='<div style="padding:5px 10px;border-radius:6px;background:rgba(0,168,199,.06);border:1px solid rgba(0,168,199,.12);margin-bottom:10px;font-size:9px;color:var(--t2)" class="fu d1"><span style="font-weight:600;color:var(--tl)">🔒 '+BU_HOME+'</span> Showing P&L scoped to your business unit</div>';
+  h+='<div class="cd fu d2" style="overflow:hidden;margin-bottom:14px">';
+  h+='<div class="pr" style="background:var(--cd2);border-bottom:2px solid var(--bd2)"><div class="pc" style="padding-left:12px;font-size:7px;font-weight:700;color:var(--tl);text-transform:uppercase;letter-spacing:.7px">Account</div><div class="pc r" style="font-size:7px;font-weight:700;color:var(--tl)">ACT</div><div class="pc r" style="font-size:7px;font-weight:700;color:var(--tl)">BUD</div><div class="pc r" style="font-size:7px;font-weight:700;color:var(--tl)">VAR$</div><div class="pc r" style="font-size:7px;font-weight:700;color:var(--tl)">%</div><div class="pc c" style="font-size:7px;font-weight:700;color:var(--tl)">FAV</div><div class="pc c" style="font-size:7px;font-weight:700;color:var(--tl)">TYPE</div></div>';
+  PA.forEach(r=>{if(r.d===1&&!PX.has(r.pr))return;
+    const v=r.a-r.b,vp=r.b?(r.a-r.b)/Math.abs(r.b)*100:0,fv=r.sg==='i'?(v<0):(v>0);
+    const vc=Math.abs(vp)<2?'var(--t3)':(fv?c.g:c.r);const cls=r.mj?'pr pmj':r.cl?'pr pcl':'pr';
+    h+='<div class="'+cls+'"'+(r.ct?' data-pltog="'+r.i+'"':(r.lf?' data-modal="'+VARS.findIndex(x=>x.a.indexOf(r.n.slice(0,6))===0)+'"':''))+'>';
+    h+='<div class="pc" style="padding-left:'+(r.d===1?'34':'12')+'px"><div style="display:flex;align-items:center;gap:3px">';
+    if(r.ct)h+='<span style="font-size:8px;color:var(--t3);width:12px;text-align:center">'+(PX.has(r.i)?'▾':'▸')+'</span>';
+    else if(r.d===1)h+='<span style="width:12px"></span>';
+    h+='<span style="font-weight:'+(r.mj?800:r.cl?700:r.ct?600:400)+';font-size:'+(r.mj||r.cl?'11px':'10px')+';'+(r.mj?'font-family:var(--se);color:var(--tl)':'')+'">'+r.n+'</span>';
+    if(Math.abs(vp)>5&&!r.cl)h+='<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:'+vc+';margin-left:3px"></span>';
+    h+='</div></div>';
+    h+='<div class="pc r" style="font-weight:'+(r.mj||r.cl?700:400)+';'+(r.mj?'font-family:var(--se)':'')+'">$'+r.a+'K</div>';
+    h+='<div class="pc r" style="color:var(--t2)">$'+r.b+'K</div>';
+    h+='<div class="pc r" style="font-weight:600;color:'+vc+'">'+(v>0?'+':'')+'$'+v+'K</div>';
+    h+='<div class="pc r">'+(Math.abs(vp)>5?PL3(FP(vp),fv?c.g+'15':c.r+'15',vc):'<span style="color:'+vc+'">'+FP(vp)+'</span>')+'</div>';
+    h+='<div class="pc c">'+(Math.abs(vp)>2?(fv?'<span style="color:var(--em)">✓</span>':'<span style="color:var(--cr)">✗</span>'):'')+'</div>';
+    h+='<div class="pc c">'+(r.tp?PL3(r.tp,TM(r.tp).c+'15',TM(r.tp).c):'')+'</div></div>';});
+  h+='</div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px" class="fu d3">';
+  [{l:'Gross',v:70.6,d:'+0.6pp'},{l:'EBITDA',v:30.6,d:'+1.3pp'},{l:'Op',v:28.3,d:'+1.6pp'},{l:'Tax',v:25.0,d:'+0.1pp'},{l:'Net',v:20.5,d:'+1.2pp'}].forEach(m=>{
+    h+='<div class="cd" style="padding:12px 14px">'+radialGauge(m.v,m.l+' margin',m.d,G().g)+'</div>';});
+  h+='</div><div class="marsh-footer"><div class="mf-logo">Marsh</div><div>P&L · Click to expand/collapse · Click detail rows for analysis</div></div></div>';el.innerHTML=h;
+}
+
+// === CHAT (Tier 3: inline tables, streaming) ===
+let chatHistory=[],chatStreaming=false;
+function rC(el){
+  let h='<div><div class="bc fu"><a data-nav="dash">Dashboard</a><s>›</s><em>Chat</em></div>';
+  h+='<div class="cd" style="padding:20px;text-align:center"><div style="font-size:22px;font-weight:700;font-family:var(--se);margin-bottom:6px">Marsh Vantage</div>';
+  h+='<div style="font-size:10px;color:var(--t3);margin-bottom:6px">'+greeting()+', '+PL2[P]+' · '+PN[P]+' narrative depth '+II('The Vantage AI agent automatically adjusts narrative depth based on your persona: Analyst=Detail level with full decomposition, Director=Mid-level with approval focus, CFO=Summary level with board-ready language, BU Leader=Mid-level scoped to your business unit.')+'</div>';
+  h+='<div style="font-size:8px;color:var(--t3);margin-bottom:10px;padding:3px 10px;background:var(--cd2);border-radius:5px;display:inline-block">Inferred: '+TAGG.toUpperCase()+' vs '+{bud:'Budget',fcast:'Forecast',py:'PY'}[BASE]+' · Jun 2026 · All BUs</div>';
+  h+='<div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center">';
+  ['Top variances?','Executive summary','Emerging risks?','EBITDA bridge?'].forEach(q=>{h+='<span class="chat-pill" data-chat-pill="'+q+'">'+q+'</span>';});h+='</div></div>';
+  chatHistory.forEach((msg,mi)=>{
+    if(msg.role==='user'){h+='<div style="margin-top:14px;display:flex;justify-content:flex-end"><div style="max-width:65%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--cd);border:1px solid var(--bd);font-size:11px">'+msg.text+'</div></div>';}
+    else{h+='<div style="margin-top:12px;display:flex;gap:8px;align-items:flex-start"><div style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,var(--cb),var(--tl));display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">M</div><div style="flex:1"><div style="padding:12px 14px;border-radius:4px 14px 14px 14px;background:var(--glass);backdrop-filter:var(--glassBlur);border:1px solid var(--glassBd);font-size:11px;line-height:1.8;color:var(--t2)" id="chatMsg'+mi+'">'+msg.text+(msg.streaming?'<span class="stream-cursor"></span>':'')+'</div>';
+      if(!msg.streaming&&msg.pills){h+='<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px">';msg.pills.forEach(p2=>{h+='<span class="chat-pill" data-chat-pill="'+p2+'">'+p2+'</span>';});h+='</div>';}
+      h+='</div></div>';}});
+  if(!chatHistory.length){
+    h+='<div style="margin-top:14px;display:flex;justify-content:flex-end"><div style="max-width:65%;padding:10px 14px;border-radius:14px 14px 4px 14px;background:var(--cd);border:1px solid var(--bd);font-size:11px">How are we tracking on revenue?</div></div>';
+    h+='<div style="margin-top:12px;display:flex;gap:8px;align-items:flex-start"><div style="width:24px;height:24px;border-radius:6px;background:linear-gradient(135deg,var(--cb),var(--tl));display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0">M</div><div style="flex:1"><div style="padding:12px 14px;border-radius:4px 14px 14px 14px;background:var(--glass);backdrop-filter:var(--glassBlur);border:1px solid var(--glassBd);font-size:11px;line-height:1.8;color:var(--t2)">';
+    // Confidence badge (#8)
+    h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px"><span style="font-size:8px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba(0,168,199,.1);color:var(--tl)">Confidence: 92%</span>';
+    // Review status badge (#10)
+    h+='<span style="font-size:8px;font-weight:600;padding:2px 8px;border-radius:10px;background:rgba(45,212,168,.08);color:var(--em)">3 approved · 2 draft</span></div>';
+    h+='<p>Revenue <b style="color:var(--tx)">$1,842K</b>, +2.2% vs budget.</p>';
+    // Mini-chart inline (#7)
+    h+='<div style="margin:6px 0;display:flex;align-items:center;gap:8px"><span style="font-size:9px;color:var(--t3)">6-month trend:</span><svg width="100" height="24" style="vertical-align:middle"><polyline points="0,20 18,17 36,14 54,12 72,9 90,4" fill="none" stroke="var(--em)" stroke-width="2" stroke-linecap="round"/><polyline points="0,18 18,16 36,14 54,12 72,11 90,10" fill="none" stroke="var(--t3)" stroke-width="1" stroke-dasharray="3,2"/></svg><span style="font-size:9px;color:var(--em);font-weight:600">↑ above budget since Mar</span></div>';
+    h+='<div style="margin:8px 0;padding:6px 10px;border-radius:6px;background:var(--emS);border-left:2px solid var(--em);font-size:10px"><b style="color:var(--em)">▲ Advisory</b> +3.9% — APAC new business '+PL3('Approved','rgba(45,212,168,.1)','var(--em)')+'</div>';
+    h+='<div style="margin:8px 0;padding:6px 10px;border-radius:6px;background:var(--crS);border-left:2px solid var(--cr);font-size:10px"><b style="color:var(--cr)">▼ Consulting</b> -7.4% — EMEA delays '+PL3('AI Draft','rgba(255,255,255,.05)','var(--t3)')+'</div>';
+    // Netting alert (#9)
+    h+='<div style="margin:8px 0;padding:6px 10px;border-radius:6px;background:var(--prS);border-left:2px solid var(--pr);font-size:10px"><b style="color:var(--pr)">⚡ Netting detected:</b> APAC revenue +0.4% masks $11.5M opposing movements (ratio 35.5×)</div>';
+    // Inline data table
+    h+='<div style="margin:8px 0;padding:6px 10px;border-radius:6px;background:var(--cd);border:1px solid var(--bd);font-size:9px;overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:9px"><tr style="border-bottom:1px solid var(--bd)"><th style="text-align:left;padding:3px 6px;color:var(--tl);font-size:7px;text-transform:uppercase">Account</th><th style="text-align:right;padding:3px 6px;color:var(--tl);font-size:7px">Var</th><th style="text-align:right;padding:3px 6px;color:var(--tl);font-size:7px">%</th><th style="text-align:center;padding:3px 6px;color:var(--tl);font-size:7px">Status</th></tr><tr><td style="padding:3px 6px">Advisory Fees</td><td style="text-align:right;padding:3px 6px;color:var(--em)">+$6.9K</td><td style="text-align:right;padding:3px 6px;color:var(--em)">+15.3%</td><td style="text-align:center;padding:3px 6px">'+PL3('Approved','rgba(45,212,168,.08)','var(--em)')+'</td></tr><tr><td style="padding:3px 6px">Consulting Fees</td><td style="text-align:right;padding:3px 6px;color:var(--cr)">-$4.6K</td><td style="text-align:right;padding:3px 6px;color:var(--cr)">-10.0%</td><td style="text-align:center;padding:3px 6px">'+PL3('Draft','rgba(255,255,255,.04)','var(--t3)')+'</td></tr><tr><td style="padding:3px 6px">Reinsurance</td><td style="text-align:right;padding:3px 6px;color:var(--em)">+$3.3K</td><td style="text-align:right;padding:3px 6px;color:var(--em)">+9.4%</td><td style="text-align:center;padding:3px 6px">'+PL3('Approved','rgba(45,212,168,.08)','var(--em)')+'</td></tr></table></div></div>';
+    h+='<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px"><span class="chat-pill" data-chat-pill="Drill into Advisory APAC">Drill into Advisory APAC</span><span class="chat-pill" data-chat-pill="Why is Consulting down?">Why is Consulting down?</span><span class="chat-pill" data-chat-pill="Show netting detail">Show netting detail</span></div></div></div>';}
+  h+='<div style="margin-top:14px;display:flex;gap:6px"><input id="chatInput" style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--cd);color:var(--tx);font-size:11px;font-family:var(--ft);outline:0" placeholder="Ask about variances..."><button class="bt bp" data-chat-send style="padding:6px 16px;font-size:10px">Send</button></div></div>';el.innerHTML=h;}
+
+function sendChat(){const inp=document.getElementById('chatInput');if(!inp||!inp.value.trim()||chatStreaming)return;
+  const q=inp.value.trim();chatHistory.push({role:'user',text:q});
+  // #18: Show typing indicator first
+  chatHistory.push({role:'agent',text:'<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>',streaming:true,pills:['Show by BU','Drill into details','Compare to PY','Export']});
+  chatStreaming=true;render();
+  const resp='Analyzing "'+q+'" across '+VARS.length+' variance records for '+TAGG.toUpperCase()+' vs '+{bud:'Budget',fcast:'Forecast',py:'PY'}[BASE]+'...\n\nThe largest favorable variance is Advisory Fees (+$6.9K, +15.3%) driven by APAC new business. Largest unfavorable is Consulting Fees (-$4.6K, -10.0%) from EMEA delays. Technology trending +15.4% for 4 months with $580K projected YE impact.';
+  const mi=chatHistory.length-1;
+  // Typing delay then stream
+  setTimeout(()=>{chatHistory[mi].text='';const chars=resp.split('');let ci=0;
+    function tick(){if(ci<chars.length){chatHistory[mi].text+=chars.slice(ci,ci+3).join('');ci+=3;const el2=document.getElementById('chatMsg'+mi);if(el2)el2.innerHTML=chatHistory[mi].text+'<span class="stream-cursor"></span>';setTimeout(tick,15+Math.random()*20);}else{chatHistory[mi].streaming=false;chatStreaming=false;render();}}
+    tick();},800);}
+
+// === REVIEW QUEUE ===
+let RV_SORT='varpct',RV_DIR='desc',RV_SEARCH='';
+function rR(el){
+  const c=G(),cc={High:c.g,Medium:c.a,Low:c.r};
+  // #14: Persona filtering
+  const rvVars=P==='bu'?VARS.filter(v=>v.bu===BU_HOME||v.bu==='All'):VARS;
+  const rev=rvVars.filter(v=>v.st!=='draft').length;
+  let h='<div><div class="bc fu"><a data-nav="dash">Dashboard</a><s>›</s><em>Review Queue</em><span style="margin-left:auto;font-size:8px;color:var(--t3)">'+PL2[P]+(P==='bu'?' · '+BU_HOME+' only':'')+'</span></div>';
+  h+='<div style="margin-bottom:12px" class="fu d1"><div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3)"><span>Review progress</span><span>'+rev+'/'+rvVars.length+' ('+Math.round(rev/rvVars.length*100)+'%)</span></div><div class="prog" style="display:flex;gap:1px;height:6px"><div style="flex:'+rvVars.filter(v=>v.st==='approved').length+';background:var(--em);border-radius:3px 0 0 3px;transition:flex .6s ease"></div><div style="flex:'+rvVars.filter(v=>v.st==='reviewed').length+';background:var(--gd);transition:flex .6s ease"></div><div style="flex:'+rvVars.filter(v=>v.st==='draft').length+';background:var(--t3);border-radius:0 3px 3px 0;transition:flex .6s ease"></div></div><div style="display:flex;justify-content:space-between;font-size:7px;color:var(--t3);margin-top:3px"><span style="color:var(--em)">'+rvVars.filter(v=>v.st==='approved').length+' approved</span><span style="color:var(--gd)">'+rvVars.filter(v=>v.st==='reviewed').length+' reviewed</span><span>'+rvVars.filter(v=>v.st==='draft').length+' draft</span></div></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px" class="fu">';
+  [{l:'Awaiting',v:rvVars.filter(v=>v.st==='draft').length,c:'var(--t2)'},{l:'Reviewed',v:rvVars.filter(v=>v.st==='reviewed').length,c:'var(--gd)'},{l:'Approved',v:rvVars.filter(v=>v.st==='approved').length,c:'var(--em)'},{l:'All',v:rvVars.length,c:'var(--t3)'}].forEach((s,i)=>{h+='<div class="cd cl fu d'+(i+1)+'" style="padding:14px 16px;cursor:pointer"><div style="font-size:26px;font-weight:700;font-family:var(--se);color:'+s.c+'">'+s.v+'</div><div style="font-size:9px;color:var(--t3)">'+s.l+'</div></div>';});
+  h+='</div>';
+  if(BATCH_CHECKED.size>0)h+='<div class="batch-bar"><span style="font-size:10px;font-weight:600;color:var(--tl)">'+BATCH_CHECKED.size+' selected</span><div class="bg"><button class="bt bp" style="font-size:8px" data-batch-review>Mark reviewed</button></div></div>';
+  // #13: Search bar
+  h+='<div style="margin-bottom:10px;display:flex;gap:8px;align-items:center" class="fu d4"><input class="search-bar" id="rvSearch" placeholder="Search review queue..." value="" style="flex:1" oninput="RV_SEARCH=this.value.toLowerCase();render()"><span style="font-size:9px;color:var(--t3)">Sort by: </span><button class="bt" style="font-size:8px" onclick="RV_SORT=RV_SORT===\'varpct\'?\'sla\':RV_SORT===\'sla\'?\'account\':\'varpct\';render()">'+({varpct:'Impact',sla:'SLA',account:'Name'}[RV_SORT]||'Impact')+' ↕</button></div>';
+  h+='<div class="cd tw fu d5">';
+  // #12: Sortable + searchable
+  let sorted=[...rvVars];
+  if(RV_SEARCH)sorted=sorted.filter(v=>(v.a+' '+v.bu+' '+v.g).toLowerCase().includes(RV_SEARCH));
+  const rvSortFns={varpct:(a,b)=>Math.abs(b.p)-Math.abs(a.p),sla:(a,b)=>(b.sla||0)-(a.sla||0),account:(a,b)=>a.a.localeCompare(b.a)};
+  if(rvSortFns[RV_SORT])sorted.sort(rvSortFns[RV_SORT]);
+  sorted.forEach((r,i)=>{
+    const vc=r.f?c.g:c.r,s=SM(r.st),t=TM(r.tp),isO=RX.has(i),nl=PN[P].toLowerCase().replace('-level','').replace('mid','midlevel'),isChk=BATCH_CHECKED.has(i);
+    const vi=VARS.indexOf(r);
+    h+='<div data-rvtog="'+i+'" style="padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bd);cursor:pointer">';
+    h+='<div class="rv-check'+(isChk?' checked':'')+'" data-rv-check="'+i+'">'+(isChk?'✓':'')+'</div>';
+    h+='<div class="bi" style="background:'+vc+'"></div><div style="flex:1;min-width:0"><div style="display:flex;align-items:center;gap:4px;margin-bottom:2px"><span style="font-weight:600;font-size:11px">'+r.a+'</span>'+PL3(r.tp,t.c+'15',t.c)+' '+PL3(s.l,s.bg,s.c);
+    if(r.edited)h+='<span class="edge-badge" style="background:var(--gdS);color:var(--gd)">edited</span>';
+    if(r.synth)h+='<span class="edge-badge" style="background:var(--prS);color:var(--pr)">synth·'+r.synthCount+'</span>';
+    if(r.isNew)h+='<span class="edge-badge" style="background:var(--prS);color:var(--pr)">New</span>';
+    h+='</div><div style="font-size:9px;color:var(--t3)">'+r.bu+' · '+r.g+'</div></div>';
+    h+='<div style="text-align:right;flex-shrink:0"><div style="font-size:17px;font-weight:700;font-family:var(--se);color:'+vc+'">'+(r.v>0?'+':'')+F(r.v)+'</div></div>';
+    if(r.sla>0)h+='<span class="sla '+slaClass(r.sla)+'">'+slaLabel(r.sla)+'</span>';
+    h+='<div style="color:var(--t3);font-size:10px">'+(isO?'▾':'▸')+'</div></div>';
+    if(isO){h+='<div class="exp"><div class="s2">Narrative ('+nl+')'+(r.edited?' · <span style="color:var(--gd)">analyst edited</span>':'')+(r.synth?' · <span style="color:var(--pr)">synthesized</span>':'')+'</div><div class="nb">'+(r.edited&&r.editedNr?r.editedNr:(r.nr[nl]||r.nr.detail))+'</div>';
+      h+='<div class="s2">Decomposition</div><div class="dc">';const mx2=Math.max(...r.dc.map(d=>Math.abs(d.v)));
+      r.dc.forEach(d=>{const dc=d.v>=0?c.g:c.r;h+='<div class="di"><small>'+d.l+'</small><b style="color:'+dc+'">'+(d.v>0?'+':'')+F(d.v)+'</b><div class="db"><div class="df" style="width:'+Math.round(Math.abs(d.v)/mx2*100)+'%;background:'+dc+'"></div></div></div>';});
+      h+='</div><div class="s2">Hypotheses</div>';
+      // #15: Hypothesis feedback in expanded view
+      r.hy.forEach((hp,hi2)=>{h+='<div class="hp"><i style="background:'+(cc[hp.c]||c.a)+'"></i><div style="flex:1"><div style="font-size:9px;line-height:1.4;color:var(--t2)">'+hp.t+'</div><div style="font-size:7px;font-weight:600;color:'+(cc[hp.c]||c.a)+'">'+hp.c+(hp.fb===1?' · <span style="color:var(--em)">✓ Confirmed</span>':hp.fb===-1?' · <span style="color:var(--cr)">✗ Rejected</span>':'')+'</div></div>';
+        if(hp.fb===0)h+='<div class="bg"><button class="bt" style="font-size:7px;color:var(--em);border-color:var(--em)" data-hy-fb data-hy-vi="'+vi+'" data-hy-hi="'+hi2+'" data-hy-fb="1">✓</button><button class="bt" style="font-size:7px;color:var(--cr);border-color:var(--cr)" data-hy-fb data-hy-vi="'+vi+'" data-hy-hi="'+hi2+'" data-hy-fb="-1">✗</button></div>';
+        h+='</div>';});
+      h+='<div class="bg" style="margin-top:10px"><button class="bt bp" style="font-size:8px" data-modal="'+vi+'">Detail →</button>';
+      if(r.st==='draft')h+='<button class="bt bp" style="font-size:8px" data-st-action="confirm" data-st-idx="'+vi+'">Confirm</button>';
+      h+='</div></div>';}});
+  h+='</div><div class="marsh-footer"><div class="mf-logo">Marsh</div><div>Vantage '+II('Service Level Agreement for variance review turnaround. Green=processed within 12 hours (on track), Amber=12-24 hours (attention needed), Red=over 48 hours (overdue, escalation recommended).')+' · SLA: green &lt;12h, amber &lt;24h, red &gt;48h</div></div></div>';el.innerHTML=h;}
+
+// === APPROVALS ===
+function rA(el){const c=G();const pendCount=VARS.filter(v=>v.st!=='approved'&&v.st!=='autoclosed').length;const allApproved=pendCount===0;
+  let h='<div><div class="bc fu"><a data-nav="dash">Dashboard</a><s>›</s><em>Approvals</em></div>';
+  // Report gate indicator (#17)
+  h+='<div style="padding:10px 14px;border-radius:8px;background:'+(allApproved?'rgba(45,212,168,.06)':'rgba(251,191,36,.06)')+';border:1px solid '+(allApproved?'rgba(45,212,168,.12)':'rgba(251,191,36,.12)')+';margin-bottom:14px;display:flex;align-items:center;justify-content:space-between" class="fu d1">';
+  if(allApproved){h+='<span style="font-size:11px;font-weight:600;color:var(--em)">✓ Report gate '+II('Distribution is gated on approval status. Reports can only be distributed when all material variances have been reviewed and approved by the appropriate authority. This ensures board and external recipients only see validated data.')+': All approved — ready for distribution</span>';}
+  else{h+='<span style="font-size:11px;font-weight:600;color:var(--am)">⚠ Report gate '+II('Distribution is gated on approval status. Reports can only be distributed when all material variances have been reviewed and approved by the appropriate authority. This ensures board and external recipients only see validated data.')+': '+pendCount+' pending — distribution blocked</span><button class="bt bp" style="font-size:8px" data-approve-all>Approve all reviewed</button>';}
+  h+='</div>';
+  [{n:'Sarah Chen',av:'SC',vs:[0,5,7]},{n:'James Park',av:'JP',vs:[1,2,6]}].forEach((g,gi)=>{
+    h+='<div class="cd fu d'+(2+gi)+'" style="margin-bottom:10px;overflow:hidden"><div style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--bd)"><div style="display:flex;align-items:center;gap:10px"><div style="width:30px;height:30px;border-radius:8px;background:rgba(0,168,199,.1);color:var(--tl);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700">'+g.av+'</div><div style="font-size:11px;font-weight:600">'+g.n+'</div></div><button class="bt bp" style="font-size:8px">Approve ('+g.vs.length+')</button></div>';
+    g.vs.forEach(vi=>{const r=VARS[vi];if(!r)return;const vc=r.f?c.g:c.r;h+='<div data-modal="'+vi+'" style="padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bd);cursor:pointer"><span style="width:6px;height:6px;border-radius:50%;background:'+(r.st==='approved'?c.g:c.a)+'"></span><div style="flex:1"><span style="font-size:10px;font-weight:500">'+r.a+'</span> '+PL3(FP(r.p),r.f?c.g+'15':c.r+'15',vc)+(r.edited?'<span class="edge-badge" style="background:var(--gdS);color:var(--gd)">edited</span>':'')+'</div><div class="bg"><button class="bt bp" style="font-size:7px" data-st-action="approve" data-st-idx="'+vi+'">Approve</button><button class="bt" style="font-size:7px;color:var(--cr);border-color:var(--cr)">Hold</button></div></div>';});h+='</div>';});
+  h+='<div class="marsh-footer"><div class="mf-logo">Marsh</div><div>Vantage · Report gate '+II('Distribution is gated on approval status. Reports can only be distributed when all material variances have been reviewed and approved by the appropriate authority. This ensures board and external recipients only see validated data.')+': only approved distributed</div></div></div>';el.innerHTML=h;}
+
+// === REPORTS ===
+function rRp(el){let h='<div><div class="bc fu"><a data-nav="dash">Dashboard</a><s>›</s><em>Reports</em></div>';
+  // #18: Persona scope indicator
+  if(P==='bu')h+='<div style="padding:5px 10px;border-radius:6px;background:rgba(0,168,199,.06);border:1px solid rgba(0,168,199,.12);margin-bottom:10px;font-size:9px;color:var(--t2)" class="fu d0"><span style="font-weight:600;color:var(--tl)">🔒 '+BU_HOME+'</span> Showing assigned reports only</div>';
+  h+='<div class="report-tabs fu d1"><button class="report-tab'+(RPT_TAB==='list'?' on':'')+'" data-rpt-tab="list">Reports</button><button class="report-tab'+(RPT_TAB==='schedule'?' on':'')+'" data-rpt-tab="schedule">Schedules</button><button class="report-tab'+(RPT_TAB==='templates'?' on':'')+'" data-rpt-tab="templates">Templates</button></div>';
+  const allReports=[{n:'June Period-End',s:'ready',scope:'all'},{n:'Q2 Board Package',s:'draft',scope:'cfo'},{n:'Executive Flash',s:'sent',scope:'all'},{n:'Weekly Pulse',s:'sent',scope:'all'},{n:BU_HOME+' Digest',s:'ready',scope:'bu'}];
+  const visReports=P==='bu'?allReports.filter(r=>r.scope==='bu'||r.scope==='all'):P==='cfo'?allReports:allReports.filter(r=>r.scope!=='cfo');
+  if(RPT_TAB==='list'){const rptTypes={0:'period',1:'board',2:'flash',3:'flash',4:'period'};visReports.forEach((r,i)=>{const sc={ready:{l:'Ready',bg:'var(--emS)',c:'var(--em)'},draft:{l:'Draft',bg:'var(--amS)',c:'var(--am)'},sent:{l:'Sent',bg:'rgba(0,168,199,.1)',c:'var(--tl)'}}[r.s];h+='<div class="cd fu d'+(i+1)+'" style="padding:12px 16px;margin-bottom:8px"><div style="display:flex;justify-content:space-between"><span style="font-size:12px;font-weight:600;font-family:var(--se)">'+r.n+'</span>'+PL3(sc.l,sc.bg,sc.c)+'</div><div class="bg" style="margin-top:8px">'+(r.s==='ready'?'<button class="bt bp" style="font-size:8px">Distribute</button>':'')+'<button class="bt" style="font-size:8px" data-rpt-preview="'+(rptTypes[i]||'flash')+'">Preview</button><button class="bt" style="font-size:8px">Download</button></div></div>';});}
+  else if(RPT_TAB==='schedule'){[{n:'Weekly Pulse',freq:'Every Monday 8AM',next:'Jul 1',on:true},{n:'Monthly Flash',freq:'1st business day',next:'Jul 1',on:true},{n:'Board Package',freq:'Quarterly',next:'Sep 15',on:true},{n:'BU Digest',freq:'Bi-weekly Fri',next:'Jul 5',on:false}].forEach((s,i)=>{h+='<div class="cd fu d'+(i+1)+'" style="padding:12px 16px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><span style="font-size:12px;font-weight:600;font-family:var(--se)">'+s.n+'</span><div style="font-size:9px;color:var(--t3);margin-top:2px">'+s.freq+' · Next: '+s.next+'</div></div><div class="bg">'+PL3(s.on?'Active':'Paused',s.on?'var(--emS)':'rgba(255,255,255,.05)',s.on?'var(--em)':'var(--t3)')+'<button class="bt" style="font-size:8px">Edit</button></div></div></div>';});}
+  else{[{n:'Period-End Package',type:'PDF + PPTX',desc:'Full variance analysis with decomposition'},{n:'Executive Flash',type:'PDF',desc:'One-page CFO/board summary'},{n:'BU Deep Dive',type:'XLSX + PDF',desc:'Per-BU variance detail with drill-downs'},{n:'Board Narrative',type:'DOCX',desc:'Board-level persona-formatted narrative'}].forEach((t,i)=>{h+='<div class="cd fu d'+(i+1)+'" style="padding:12px 16px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;align-items:center"><div><span style="font-size:12px;font-weight:600;font-family:var(--se)">'+t.n+'</span> '+PL3(t.type,'rgba(0,168,199,.1)','var(--tl)')+'<div style="font-size:9px;color:var(--t3);margin-top:2px">'+t.desc+'</div></div><div class="bg"><button class="bt bp" style="font-size:8px">Generate</button><button class="bt" style="font-size:8px">Customize</button></div></div></div>';});}
+  h+='<div class="marsh-footer"><div class="mf-logo">Marsh</div><div>Reports · Generation powered by Vantage</div></div></div>';el.innerHTML=h;}
+
+
+// === REPORT PREVIEW SYSTEM ===
+function openReport(type){
+  const c=G(),vis=filterByDim(filterByPersona(VARS));
+  const top=vis.sort((a,b)=>Math.abs(b.v)-Math.abs(a.v));
+  let h='<div class="rpt-overlay"><div class="rpt-toolbar"><div class="rpt-toolbar-left"><span class="rpt-toolbar-title">'+{flash:'Executive Flash',period:'Period-End Package',board:'Board Narrative'}[type]+'</span><span class="rpt-toolbar-badge">'+TAGG.toUpperCase()+' vs '+{bud:'Budget',fcast:'Forecast',py:'PY'}[BASE]+'</span></div><div class="rpt-toolbar-actions"><button class="rpt-toolbar-btn" onclick="window.print()">🖨 Print</button><button class="rpt-toolbar-btn">📧 Email</button><button class="rpt-toolbar-btn primary">⬇ Download PDF</button><button class="rpt-toolbar-close" data-close-rpt>&times;</button></div></div><div class="rpt-scroll">';
+
+  if(type==='flash') h+=rptFlash(c,vis,top);
+  else if(type==='period') h+=rptPeriod(c,vis,top);
+  else if(type==='board') h+=rptBoard(c,vis,top);
+
+  h+='</div></div>';
+  document.getElementById('modal').innerHTML=h;
+}
+
+function rptFlash(c,vis,top){
+  let h='<div class="rpt-page">';
+  h+='<div class="rpt-header"><div class="rpt-header-logo">Marsh <span>Vantage</span></div><div class="rpt-header-meta"><b>Executive Flash</b><br>June 2026 · '+TAGG.toUpperCase()+' vs '+{bud:'Budget',fcast:'Forecast',py:'PY'}[BASE]+'<br>Generated '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'</div></div>';
+  h+='<div class="rpt-body">';
+  h+='<div class="rpt-title">Executive Flash Report</div>';
+  h+='<div class="rpt-subtitle">FP&A Variance Analysis · Period: June 2026 · '+PL2[P]+' view</div>';
+  // KPIs
+  h+='<div class="rpt-kpis"><div class="rpt-kpi"><div class="rpt-kpi-label">Revenue</div><div class="rpt-kpi-value">$1,842K</div><div class="rpt-kpi-delta pos">▲ +2.2% vs budget</div></div><div class="rpt-kpi"><div class="rpt-kpi-label">EBITDA</div><div class="rpt-kpi-value">$521K</div><div class="rpt-kpi-delta pos">▲ +6.8% · 28.3% margin</div></div><div class="rpt-kpi"><div class="rpt-kpi-label">Op Income</div><div class="rpt-kpi-value">$488K</div><div class="rpt-kpi-delta pos">▲ +5.1% · 26.5% margin</div></div><div class="rpt-kpi"><div class="rpt-kpi-label">Variances</div><div class="rpt-kpi-value">'+vis.length+'</div><div class="rpt-kpi-delta">'+vis.filter(v=>v.st==='approved').length+' approved</div></div></div>';
+  // Exec summary
+  h+='<div class="rpt-section"><div class="rpt-section-title">Executive Summary</div>';
+  h+='<div class="rpt-narrative"><b>June close: Revenue +2.2%, EBITDA +6.8%.</b> Advisory strength in APAC (+15.3%) driven by Singapore/Australia new business. Consulting softness in EMEA (-10.0%) from delayed engagements. Technology costs trending unfavorably for 4 consecutive months with projected year-end impact of +$580K.</div></div>';
+  // Top variances
+  h+='<div class="rpt-section"><div class="rpt-section-title">Material Variances — Top '+Math.min(top.length,6)+'</div>';
+  h+='<table class="rpt-table"><thead><tr><th>Account</th><th>BU</th><th>Geo</th><th class="r">Variance</th><th class="r">%</th><th>Status</th></tr></thead><tbody>';
+  top.slice(0,6).forEach(r=>{
+    h+='<tr><td style="font-weight:600">'+r.a+'</td><td>'+r.bu+'</td><td>'+r.g+'</td><td class="r '+(r.f?'fav':'unfav')+'">'+(r.v>0?'+':'')+F(r.v)+'</td><td class="r '+(r.f?'fav':'unfav')+'">'+FP(r.p)+'</td><td>'+({draft:'AI Draft',reviewed:'Reviewed',approved:'Approved',autoclosed:'Auto-closed'}[r.st]||r.st)+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  // Risk flags
+  const risks=vis.filter(v=>!v.f&&Math.abs(v.p)>8);
+  if(risks.length){h+='<div class="rpt-section"><div class="rpt-section-title">Risk Flags</div>';
+    risks.forEach(r=>{h+='<div class="rpt-risk"><b>'+r.a+'</b> ('+r.bu+' · '+r.g+'): '+(r.nr.summary||r.nr.detail)+'</div>';});
+    h+='</div>';}
+  h+='</div><div class="rpt-footer"><div><b>Marsh</b> · Vantage v1.0 · Variance Intelligence</div><div>Confidential · '+new Date().toLocaleDateString()+'</div></div></div>';
+  return h;
+}
+
+function rptPeriod(c,vis,top){
+  let h='';
+  // Cover page
+  h+='<div class="rpt-page"><div class="rpt-cover"><div class="rpt-cover-logo">Marsh <span>Vantage</span></div><div style="font-size:10px;color:rgba(255,255,255,.4);letter-spacing:2px;text-transform:uppercase">Variance Intelligence</div><div class="rpt-cover-line"></div><div class="rpt-cover-title">Period-End Variance Package</div><div class="rpt-cover-sub">June 2026 · '+TAGG.toUpperCase()+' vs '+{bud:'Budget',fcast:'Forecast',py:'PY'}[BASE]+'</div><div class="rpt-cover-meta">Prepared for: '+PL2[P]+'<br>Generated: '+new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})+'<br>Coverage: '+vis.length+' material variances · 100% accounts analyzed<br>Engine: 5.5-pass computation · 18 minutes</div><div class="rpt-cover-conf">Confidential</div></div></div>';
+  // Page 2: KPIs + Summary
+  h+='<div class="rpt-page"><div class="rpt-header"><div class="rpt-header-logo">Marsh <span>Vantage</span></div><div class="rpt-header-meta"><b>Period-End Package</b><br>Page 2 of 4</div></div><div class="rpt-body">';
+  h+='<div class="rpt-title">Financial Summary</div><div class="rpt-subtitle">Key Performance Indicators · June 2026</div>';
+  h+='<div class="rpt-kpis"><div class="rpt-kpi"><div class="rpt-kpi-label">Revenue</div><div class="rpt-kpi-value">$1,842K</div><div class="rpt-kpi-delta pos">▲ +2.2%</div></div><div class="rpt-kpi"><div class="rpt-kpi-label">EBITDA</div><div class="rpt-kpi-value">$521K</div><div class="rpt-kpi-delta pos">▲ +6.8%</div></div><div class="rpt-kpi"><div class="rpt-kpi-label">Op Income</div><div class="rpt-kpi-value">$488K</div><div class="rpt-kpi-delta pos">▲ +5.1%</div></div><div class="rpt-kpi"><div class="rpt-kpi-label">Net Income</div><div class="rpt-kpi-value">$377K</div><div class="rpt-kpi-delta pos">▲ +7.4%</div></div></div>';
+  h+='<div class="rpt-section"><div class="rpt-section-title">Executive Summary</div><div class="rpt-narrative"><b>Revenue outperformed budget by 2.2%</b>, primarily driven by advisory fee growth in APAC (+15.3%). EBITDA margin expanded 120bps to 28.3%, reflecting operating leverage from advisory scale. <b>Key risk:</b> EMEA consulting pipeline at 2.1× (below 2.5× threshold) with two F500 renewals slipping to Q3. Technology costs trending unfavorably for 4 consecutive months — projected year-end impact +$580K if unchecked.</div></div>';
+  h+='<div class="rpt-section"><div class="rpt-section-title">Margin Analysis</div>';
+  h+='<table class="rpt-table"><thead><tr><th>Margin</th><th class="r">Actual</th><th class="r">Budget</th><th class="r">Δ</th></tr></thead><tbody>';
+  [{n:'Gross',a:'70.6%',b:'70.0%',d:'+0.6pp'},{n:'EBITDA',a:'30.6%',b:'29.3%',d:'+1.3pp'},{n:'Operating',a:'28.3%',b:'26.7%',d:'+1.6pp'},{n:'Net',a:'20.5%',b:'19.3%',d:'+1.2pp'}].forEach(m=>{h+='<tr><td style="font-weight:600">'+m.n+'</td><td class="r">'+m.a+'</td><td class="r">'+m.b+'</td><td class="r fav">'+m.d+'</td></tr>';});
+  h+='</tbody></table></div></div><div class="rpt-footer"><div><b>Marsh</b> · Vantage</div><div>Page 2 · Confidential</div></div></div>';
+  // Page 3: All variances
+  h+='<div class="rpt-page"><div class="rpt-header"><div class="rpt-header-logo">Marsh <span>Vantage</span></div><div class="rpt-header-meta"><b>Period-End Package</b><br>Page 3 of 4</div></div><div class="rpt-body">';
+  h+='<div class="rpt-title">Material Variance Detail</div><div class="rpt-subtitle">All '+vis.length+' material variances with decomposition and narratives</div>';
+  vis.forEach(r=>{
+    const nl=PN[P].toLowerCase().replace('-level','').replace('mid','midlevel');
+    h+='<div style="margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #e8edf5">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px"><span style="font-weight:700;font-size:12px;color:#002C77">'+r.a+'</span><span style="font-family:\'Playfair Display\',serif;font-size:16px;font-weight:700;color:'+(r.f?'#0D9373':'#CF222E')+'">'+(r.v>0?'+':'')+F(r.v)+' ('+FP(r.p)+')</span></div>';
+    h+='<div style="font-size:9px;color:#5a6b84;margin-bottom:6px">'+r.bu+' · '+r.g+' · '+(r.f?'Favorable':'Unfavorable')+' · '+({draft:'AI Draft',reviewed:'Reviewed',approved:'Approved',autoclosed:'Auto-closed'}[r.st])+'</div>';
+    h+='<div style="display:flex;gap:6px;margin-bottom:6px">';
+    r.dc.forEach(d=>{h+='<div style="flex:1;padding:4px 6px;background:#f4f7fc;border-radius:4px;font-size:9px"><span style="color:#5a6b84">'+d.l+':</span> <b style="color:'+(d.v>=0?'#0D9373':'#CF222E')+'">'+(d.v>0?'+':'')+F(d.v)+'</b></div>';});
+    h+='</div>';
+    h+='<div style="font-size:10px;line-height:1.7;color:#3a3a5e">'+(r.edited&&r.editedNr?r.editedNr:(r.nr[nl]||r.nr.detail))+'</div>';
+    h+='</div>';
+  });
+  h+='</div><div class="rpt-footer"><div><b>Marsh</b> · Vantage</div><div>Page 3 · Confidential</div></div></div>';
+  // Page 4: Risk + Appendix
+  h+='<div class="rpt-page"><div class="rpt-header"><div class="rpt-header-logo">Marsh <span>Vantage</span></div><div class="rpt-header-meta"><b>Period-End Package</b><br>Page 4 of 4</div></div><div class="rpt-body">';
+  h+='<div class="rpt-title">Risk Assessment & Outlook</div>';
+  h+='<div class="rpt-risk"><b>EMEA Consulting Pipeline:</b> Pipeline at 2.1× coverage (threshold: 2.5×). Two Fortune 500 renewals have slipped from Q2 to Q3. Senior consultant attrition (2 departures in April) compounds the pipeline risk. Recommend: pipeline review with Oliver Wyman leadership by July 15.</div>';
+  h+='<div class="rpt-risk"><b>Technology Cost Trend:</b> 4 consecutive months above budget. Cloud infrastructure scaling (+60% of overage) and SaaS renewals (+28%) are primary drivers. Projected year-end impact: +$580K if trajectory continues. Recommend: BCS technology team review of shadow IT spend and cloud optimization.</div>';
+  h+='<div class="rpt-section" style="margin-top:20px"><div class="rpt-section-title">Appendix: Methodology</div>';
+  h+='<div style="font-size:9px;line-height:1.8;color:#5a6b84">This report was generated by Marsh Vantage using the 5.5-pass variance computation engine. Pass 1: Raw variance calculation across all intersections. Pass 1.5: Netting detection (6 checks). Pass 2: Materiality threshold (OR logic: $ or % breach). Pass 2.5: Trend detection (4 rules). Pass 3: Algebraic decomposition (Revenue: Vol×Price×Mix×FX). Pass 4: Correlation scan with LLM hypothesis generation. Pass 5: RAG-enhanced multi-level narrative generation. All narratives are AI-generated and have been through the review workflow. Engine run time: 18 minutes. Coverage: 100% of all line items.</div></div>';
+  h+='</div><div class="rpt-footer"><div><b>Marsh</b> · Vantage v1.0 · Variance Intelligence</div><div>Page 4 · © 2026 Marsh · Confidential</div></div></div>';
+  return h;
+}
+
+function rptBoard(c,vis,top){
+  let h='<div class="rpt-page">';
+  h+='<div class="rpt-header"><div class="rpt-header-logo">Marsh <span>Vantage</span></div><div class="rpt-header-meta"><b>Board Narrative</b><br>Q2 2026 · Prepared for Board of Directors</div></div>';
+  h+='<div class="rpt-body">';
+  h+='<div class="rpt-title">Quarterly Financial Review</div>';
+  h+='<div class="rpt-subtitle">Q2 2026 · Board of Directors · '+new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+'</div>';
+
+  h+='<div class="rpt-board-section"><div class="rpt-board-h2">Financial Performance</div>';
+  h+='<div class="rpt-board-callout"><b>$1,842K</b><span style="color:#0D9373;font-weight:600">+2.2% vs plan</span><br><span style="color:#5a6b84;font-size:9px">Q2 Revenue</span></div>';
+  h+='<div class="rpt-board-para">The Company delivered revenue of <b>$1,842K</b> in June, exceeding budget by 2.2%. This represents a continuation of the positive trajectory established in Q1, with year-to-date revenue growth of 1.8% above plan. EBITDA margin expanded to 28.3%, a 120 basis point improvement over budget, driven primarily by operating leverage in the advisory business.</div>';
+  h+='<div class="rpt-board-para">The advisory and brokerage business demonstrated particular strength in the Asia-Pacific region, where revenue exceeded plan by 15.3%. This was driven by 12 incremental engagements in Singapore and Australia, supported by a robust pipeline at 3.4× coverage. The reinsurance business (Marsh Re) also contributed positively, with commissions 9.4% above plan following strong January 1 renewal season retention rates.</div></div>';
+
+  h+='<div class="rpt-board-section"><div class="rpt-board-h2">Areas of Attention</div>';
+  h+='<div class="rpt-board-callout" style="border-top-color:#CF222E"><b>-10.0%</b><span style="color:#CF222E;font-weight:600">below plan</span><br><span style="color:#5a6b84;font-size:9px">EMEA Consulting</span></div>';
+  h+='<div class="rpt-board-para">The consulting business in EMEA experienced softness, with revenue 10.0% below budget. Two Fortune 500 client renewals, with combined annual value of approximately $3.2M, have been deferred from Q2 to Q3 due to client procurement process delays. The EMEA consulting pipeline currently stands at 2.1× coverage, below the 2.5× internal threshold. Management is actively engaged with the Oliver Wyman leadership team to address this shortfall.</div>';
+  h+='<div class="rpt-board-para">Technology and infrastructure costs have trended above budget for four consecutive months, with a cumulative overage of $2.5K (15.4% above plan). The primary drivers are cloud infrastructure scaling (60% of overage) and above-budget SaaS license renewals (28%). If the current trajectory continues, the projected year-end impact is an additional +$580K. The Business and Client Services (BCS) team has been engaged to conduct an optimization review.</div></div>';
+
+  h+='<div class="rpt-board-section"><div class="rpt-board-h2">Outlook & Recommendations</div>';
+  h+='<div class="rpt-board-para">Management is confident in achieving full-year revenue targets, supported by strong advisory pipelines globally and the favorable reinsurance cycle. The key risks to monitor are: (1) EMEA consulting pipeline recovery timing, (2) technology cost trajectory and cloud optimization outcomes, and (3) compensation pressure from the 4.2% merit cycle (vs 3.0% budget).</div>';
+  h+='<div class="rpt-board-para"><b>Recommended actions for Board consideration:</b></div>';
+  h+='<div style="margin-left:20px;font-size:11px;line-height:2;color:#2a2a4a">1. Approve pipeline review with Oliver Wyman EMEA leadership (target: July 15)<br>2. Note BCS technology optimization initiative (savings target: $200K by Q4)<br>3. Review compensation philosophy alignment with current labor market dynamics</div></div>';
+
+  h+='<div style="margin-top:24px;padding-top:16px;border-top:2px solid #002C77;font-size:9px;color:#5a6b84;line-height:1.8"><b style="color:#002C77">Note:</b> This narrative was generated by Marsh Vantage using RAG-enhanced AI with analyst validation. All underlying variances have been reviewed and approved by FP&A. Source data: June 2026 actuals, loaded and reconciled as of June 30. Computation engine: 5.5-pass materiality-first analysis covering 100% of line items.</div>';
+  h+='</div><div class="rpt-footer"><div><b>Marsh</b> · Board Confidential</div><div>© 2026 Marsh · All Rights Reserved</div></div></div>';
+  return h;
+}
+
+// === INIT ===
+renderHdr();renderTree();render();
+
+</script></body></html>
