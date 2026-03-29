@@ -23,6 +23,7 @@ from services.gateway.agents.templates import (
 from services.gateway.agents.tools import ToolExecutor
 from services.gateway.streaming.context import StreamingContext
 from shared.data.review_store import ReviewStore
+from shared.llm.narrative import NarrativeGenerator
 
 logger = logging.getLogger("gateway.agents")
 
@@ -32,10 +33,15 @@ class RevenueAgent:
 
     Handles revenue overview, decomposition, trends, waterfall, heatmap.
     Calls Computation Service via ToolExecutor for real data.
+    Uses LLM narrative generation when available, falls back to templates.
     """
 
-    def __init__(self, tool_executor: ToolExecutor) -> None:
+    def __init__(
+        self, tool_executor: ToolExecutor,
+        narrative_gen: NarrativeGenerator | None = None,
+    ) -> None:
         self._tools = tool_executor
+        self._narrative_gen = narrative_gen
 
     async def generate_response(
         self,
@@ -96,10 +102,18 @@ class RevenueAgent:
 
         # Build narrative from data
         data = self._build_revenue_data(summary, variances, period_id, base_id)
-        narrative = format_response(Intent.REVENUE_OVERVIEW, data)
 
-        # Emit narrative as tokens
-        await ctx.emit_token(narrative)
+        # Emit narrative: LLM if available, else template
+        if self._narrative_gen and self._narrative_gen.is_available:
+            await self._narrative_gen.generate_streaming(
+                agent_type="revenue_agent",
+                intent=Intent.REVENUE_OVERVIEW,
+                data_context=data,
+                streaming_ctx=ctx,
+            )
+        else:
+            narrative = format_response(Intent.REVENUE_OVERVIEW, data)
+            await ctx.emit_token(narrative)
 
         # Emit variance table
         if variances and variances.get("items"):
@@ -267,10 +281,15 @@ class PLAgent:
     """P&L overview agent.
 
     Handles broad P&L questions, variance detail, drill-down.
+    Uses LLM narrative generation when available, falls back to templates.
     """
 
-    def __init__(self, tool_executor: ToolExecutor) -> None:
+    def __init__(
+        self, tool_executor: ToolExecutor,
+        narrative_gen: NarrativeGenerator | None = None,
+    ) -> None:
         self._tools = tool_executor
+        self._narrative_gen = narrative_gen
 
     async def generate_response(
         self,
@@ -317,8 +336,17 @@ class PLAgent:
             "base_label": base_id.title(),
             "cards": summary.get("cards", []) if summary else [],
         }
-        narrative = format_response(Intent.PL_SUMMARY, data)
-        await ctx.emit_token(narrative)
+        # Emit narrative: LLM if available, else template
+        if self._narrative_gen and self._narrative_gen.is_available:
+            await self._narrative_gen.generate_streaming(
+                agent_type="pl_agent",
+                intent=Intent.PL_SUMMARY,
+                data_context=data,
+                streaming_ctx=ctx,
+            )
+        else:
+            narrative = format_response(Intent.PL_SUMMARY, data)
+            await ctx.emit_token(narrative)
 
         # Emit summary table
         if summary and summary.get("cards"):

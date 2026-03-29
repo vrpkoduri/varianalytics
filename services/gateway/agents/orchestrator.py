@@ -21,12 +21,15 @@ from services.gateway.agents.intent import (
     ExtractedEntities,
     Intent,
     KeywordIntentClassifier,
+    LLMIntentClassifier,
 )
 from services.gateway.agents.templates import format_response, get_suggestions
 from services.gateway.agents.tools import ToolExecutor
 from services.gateway.clients.computation_client import ComputationClient
 from services.gateway.streaming.context import StreamingContext
 from shared.data.review_store import ReviewStore
+from shared.llm.client import LLMClient
+from shared.llm.narrative import NarrativeGenerator
 
 logger = logging.getLogger("gateway.orchestrator")
 
@@ -69,17 +72,34 @@ class OrchestratorAgent:
         self,
         computation_client: ComputationClient,
         review_store: ReviewStore,
+        llm_client: LLMClient | None = None,
     ) -> None:
         """Initialize the orchestrator with its dependencies.
 
         Args:
             computation_client: HTTP client for Computation Service.
             review_store: In-memory review/approval state.
+            llm_client: Optional LLM client. If provided and available,
+                        uses LLM for intent classification and narrative
+                        generation. Falls back to keyword+templates otherwise.
         """
-        self._classifier = KeywordIntentClassifier()
+        # Intent classifier: LLM if available, else keyword
+        if llm_client and llm_client.is_available:
+            self._classifier = LLMIntentClassifier(llm_client)
+            logger.info("Using LLM intent classifier (%s)", llm_client.provider)
+        else:
+            self._classifier = KeywordIntentClassifier()
+            logger.info("Using keyword intent classifier (LLM not available)")
+
+        # Narrative generator: LLM if available, else templates
+        narrative_gen = None
+        if llm_client and llm_client.is_available:
+            narrative_gen = NarrativeGenerator(llm_client)
+            logger.info("Using LLM narrative generation")
+
         self._tool_executor = ToolExecutor(computation_client)
-        self._revenue_agent = RevenueAgent(self._tool_executor)
-        self._pl_agent = PLAgent(self._tool_executor)
+        self._revenue_agent = RevenueAgent(self._tool_executor, narrative_gen)
+        self._pl_agent = PLAgent(self._tool_executor, narrative_gen)
         self._review_agent = ReviewAgent(review_store)
 
     async def handle_message(
@@ -103,8 +123,11 @@ class OrchestratorAgent:
             streaming_ctx: SSE streaming context to emit events on.
         """
         try:
-            # Step 1: Classify intent
-            intent, entities = self._classifier.classify(message, ui_context=context)
+            # Step 1: Classify intent (async for LLM, sync for keyword)
+            if isinstance(self._classifier, LLMIntentClassifier):
+                intent, entities = await self._classifier.classify(message, ui_context=context)
+            else:
+                intent, entities = self._classifier.classify(message, ui_context=context)
             logger.info(
                 "Intent: %s | Entities: period=%s bu=%s account=%s",
                 intent.value,

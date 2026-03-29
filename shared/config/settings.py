@@ -33,6 +33,11 @@ class Settings(BaseSettings):
     azure_openai_endpoint: Optional[str] = None
     azure_openai_api_version: str = "2024-02-01"
 
+    # LLM Configuration (SD-14)
+    anthropic_api_key: Optional[str] = None
+    use_llm_agents: bool = True
+    llm_provider: str = "anthropic"  # "anthropic" or "azure"
+
     # Azure AD
     azure_ad_tenant_id: Optional[str] = None
     azure_ad_client_id: Optional[str] = None

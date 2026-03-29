@@ -8,10 +8,14 @@ classification in SD-14.
 
 from __future__ import annotations
 
+import json
+import logging
 import re
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 class Intent(str, Enum):
@@ -310,3 +314,159 @@ class KeywordIntentClassifier:
             if name in msg_lower:
                 return self._DIMENSION_MAP[name]
         return None
+
+
+# ---------------------------------------------------------------------------
+# LLM-based intent classifier (SD-14)
+# ---------------------------------------------------------------------------
+
+
+class LLMIntentClassifier:
+    """LLM-based intent classification using function calling.
+
+    Uses LiteLLM tool-use to classify user intent and extract entities in
+    a single call.  Falls back to :class:`KeywordIntentClassifier` when
+    the LLM is unavailable or returns an error.
+    """
+
+    _CLASSIFY_TOOL: dict = {
+        "type": "function",
+        "function": {
+            "name": "classify_intent",
+            "description": (
+                "Classify the user's financial analysis intent and "
+                "extract entities from their question"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "intent": {
+                        "type": "string",
+                        "enum": [i.value for i in Intent],
+                        "description": "The classified intent",
+                    },
+                    "period_id": {
+                        "type": "string",
+                        "description": "Fiscal period in YYYY-MM format if mentioned",
+                    },
+                    "bu_id": {
+                        "type": "string",
+                        "enum": [
+                            "marsh",
+                            "mercer",
+                            "guy_carpenter",
+                            "oliver_wyman",
+                            "mmc_corporate",
+                        ],
+                        "description": "Business unit if mentioned",
+                    },
+                    "account_id": {
+                        "type": "string",
+                        "description": (
+                            "Account ID (e.g., acct_revenue, acct_ebitda) if mentioned"
+                        ),
+                    },
+                    "dimension": {
+                        "type": "string",
+                        "enum": ["geography", "segment", "lob", "costcenter"],
+                        "description": "Dimension for drill-down if mentioned",
+                    },
+                },
+                "required": ["intent"],
+            },
+        },
+    }
+
+    _SYSTEM_PROMPT: str = (
+        "You are a financial analysis intent classifier. Classify the user's "
+        "question about P&L variance analysis.\n\n"
+        "Available intents: revenue_overview, variance_detail, pl_summary, "
+        "waterfall, heatmap, trend, drill_down, decomposition, review_status, "
+        "netting, general\n\n"
+        "Available business units: marsh, mercer, guy_carpenter, oliver_wyman, "
+        "mmc_corporate\n"
+        "Available accounts: acct_revenue, acct_gross_revenue, acct_cor, "
+        "acct_total_cor, acct_gross_profit, acct_opex, acct_total_opex, "
+        "acct_ebitda, acct_operating_income, acct_pbt, acct_net_income, "
+        "acct_advisory_fees, acct_consulting_fees, acct_tech_infra, "
+        "acct_comp_benefits, acct_da, acct_tax"
+    )
+
+    def __init__(self, llm_client: object) -> None:
+        from shared.llm.client import LLMClient
+
+        self._llm: LLMClient = llm_client  # type: ignore[assignment]
+        self._fallback = KeywordIntentClassifier()
+
+    async def classify(
+        self,
+        message: str,
+        ui_context: dict | None = None,
+    ) -> tuple[Intent, ExtractedEntities]:
+        """Classify via LLM function calling.
+
+        Falls back to keyword classification on any error.
+        """
+        try:
+            context_note = ""
+            if ui_context:
+                parts: list[str] = []
+                if ui_context.get("period_id"):
+                    parts.append(f"Current period: {ui_context['period_id']}")
+                if ui_context.get("bu_id"):
+                    parts.append(f"Current BU: {ui_context['bu_id']}")
+                if parts:
+                    context_note = (
+                        f"\nUser's current filter context: {', '.join(parts)}"
+                    )
+
+            messages = [
+                {"role": "system", "content": self._SYSTEM_PROMPT + context_note},
+                {"role": "user", "content": message},
+            ]
+
+            response = await self._llm.complete(
+                task="chat_intent",
+                messages=messages,
+                tools=[self._CLASSIFY_TOOL],
+                tool_choice={
+                    "type": "function",
+                    "function": {"name": "classify_intent"},
+                },
+            )
+
+            if isinstance(response, dict) and response.get("fallback"):
+                return self._fallback.classify(message, ui_context)
+
+            # Parse function call result
+            choice = response.choices[0]
+            tool_call = choice.message.tool_calls[0]
+            args = json.loads(tool_call.function.arguments)
+
+            intent = Intent(args.get("intent", "general"))
+            entities = ExtractedEntities(
+                period_id=args.get("period_id"),
+                bu_id=args.get("bu_id"),
+                account_id=args.get("account_id"),
+                dimension=args.get("dimension"),
+            )
+
+            # Merge with UI context defaults
+            if ui_context:
+                if not entities.period_id and ui_context.get("period_id"):
+                    entities.period_id = ui_context["period_id"]
+                if not entities.bu_id and ui_context.get("bu_id"):
+                    entities.bu_id = ui_context["bu_id"]
+                if not entities.view_id and ui_context.get("view_id"):
+                    entities.view_id = ui_context["view_id"]
+                if not entities.base_id and ui_context.get("base_id"):
+                    entities.base_id = ui_context["base_id"]
+
+            return intent, entities
+
+        except Exception as exc:
+            logger.warning(
+                "LLM intent classification failed, falling back to keyword: %s",
+                exc,
+            )
+            return self._fallback.classify(message, ui_context)

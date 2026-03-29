@@ -4,61 +4,57 @@
 # Maps tasks to LLM models via LiteLLM. Model-agnostic — change providers
 # by updating model identifiers.
 
-# Default model for most tasks
-default_model: "azure/gpt-4o"
+default_provider: "anthropic"
 
-# Task-specific routing
-routing:
-  # Pass 4: Correlation & root cause hypothesis generation
-  hypothesis_generation:
-    model: "azure/gpt-4o"
-    max_tokens: 1000
-    temperature: 0.3
-    batch_size: 10             # Hypotheses per batch
+providers:
+  anthropic:
+    chat_intent:
+      model: "anthropic/claude-haiku-3-20250414"
+      max_tokens: 200
+      temperature: 0.1
+    chat_response:
+      model: "anthropic/claude-sonnet-4-20250514"
+      max_tokens: 3000
+      temperature: 0.5
+    narrative_generation:
+      model: "anthropic/claude-sonnet-4-20250514"
+      max_tokens: 2000
+      temperature: 0.4
+    hypothesis_generation:
+      model: "anthropic/claude-sonnet-4-20250514"
+      max_tokens: 1000
+      temperature: 0.3
+    oneliner_generation:
+      model: "anthropic/claude-haiku-3-20250414"
+      max_tokens: 100
+      temperature: 0.2
 
-  # Pass 5: Multi-level narrative generation
-  narrative_generation:
-    model: "azure/gpt-4o"
-    max_tokens: 2000
-    temperature: 0.4
-    concurrent_limit: 20       # Max concurrent async calls
+  azure:
+    chat_intent:
+      model: "azure/gpt-4o-mini"
+      max_tokens: 200
+      temperature: 0.1
+    chat_response:
+      model: "azure/gpt-4o"
+      max_tokens: 3000
+      temperature: 0.5
+    narrative_generation:
+      model: "azure/gpt-4o"
+      max_tokens: 2000
+      temperature: 0.4
+    hypothesis_generation:
+      model: "azure/gpt-4o"
+      max_tokens: 1000
+      temperature: 0.3
+    oneliner_generation:
+      model: "azure/gpt-4o-mini"
+      max_tokens: 100
+      temperature: 0.2
 
-  # One-liner generation (fast model)
-  oneliner_generation:
-    model: "azure/gpt-4o-mini"
-    max_tokens: 100
-    temperature: 0.2
-
-  # Chat intent classification
-  chat_intent:
-    model: "azure/gpt-4o-mini"
-    max_tokens: 200
-    temperature: 0.1
-
-  # Chat response generation
-  chat_response:
-    model: "azure/gpt-4o"
-    max_tokens: 3000
-    temperature: 0.5
-
-  # Narrative synthesis (triggered by review)
-  synthesis:
-    model: "azure/gpt-4o"
-    max_tokens: 1500
-    temperature: 0.3
-
-  # Board narrative (on-demand)
-  board_narrative:
-    model: "azure/gpt-4o"
-    max_tokens: 2500
-    temperature: 0.3
-
-# Embedding model
 embedding:
   model: "azure/text-embedding-3-small"
   dimensions: 1536
 
-# Rate limits and retry
 rate_limits:
   max_rpm: 500
   max_tpm: 200000

@@ -56,6 +56,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     from shared.data.review_store import ReviewStore
     from services.gateway.clients.computation_client import ComputationClient
     from shared.config.settings import Settings
+    from shared.llm.client import LLMClient
 
     settings = Settings()
 
@@ -66,6 +67,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.computation_client = ComputationClient(
         base_url=settings.computation_service_url,
     )
+    app.state.llm_client = LLMClient(settings)
+    if app.state.llm_client.is_available:
+        logger.info("LLM available: provider=%s", app.state.llm_client.provider)
+    else:
+        logger.info("LLM not available — using keyword intent + template responses")
     logger.info(
         "Gateway ready — DataService + ReviewStore + ConversationManager + ComputationClient(%s)",
         settings.computation_service_url,

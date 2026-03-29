@@ -67,6 +67,7 @@ async def _run_agent(
     try:
         computation_client = getattr(request.app.state, "computation_client", None)
         review_store = getattr(request.app.state, "review_store", None)
+        llm_client = getattr(request.app.state, "llm_client", None)
 
         if computation_client is None:
             # Fallback: emit error if computation client not configured
@@ -83,6 +84,7 @@ async def _run_agent(
         orchestrator = OrchestratorAgent(
             computation_client=computation_client,
             review_store=review_store,
+            llm_client=llm_client,
         )
         await orchestrator.handle_message(message, context, ctx)
 
