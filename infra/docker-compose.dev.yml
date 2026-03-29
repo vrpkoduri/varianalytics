@@ -1,0 +1,59 @@
+version: "3.9"
+
+# Development overrides — usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  gateway:
+    build:
+      target: dev
+    volumes:
+      - ../services/gateway:/app/services/gateway
+      - ../shared:/app/shared
+    command: uvicorn services.gateway.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/services/gateway --reload-dir /app/shared
+    environment:
+      - ENV=development
+      - LOG_LEVEL=debug
+
+  computation:
+    build:
+      target: dev
+    volumes:
+      - ../services/computation:/app/services/computation
+      - ../shared:/app/shared
+      - ../data:/app/data
+    command: uvicorn services.computation.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir /app/services/computation --reload-dir /app/shared
+    environment:
+      - ENV=development
+      - LOG_LEVEL=debug
+
+  reports:
+    build:
+      target: dev
+    volumes:
+      - ../services/reports:/app/services/reports
+      - ../shared:/app/shared
+    command: uvicorn services.reports.main:app --host 0.0.0.0 --port 8002 --reload --reload-dir /app/services/reports --reload-dir /app/shared
+    environment:
+      - ENV=development
+      - LOG_LEVEL=debug
+
+  frontend:
+    build:
+      target: dev
+    volumes:
+      - ../frontend/src:/app/src
+      - ../frontend/public:/app/public
+      - ../frontend/index.html:/app/index.html
+    command: npm run dev -- --host 0.0.0.0 --port 3000
+    environment:
+      - NODE_ENV=development
+      - VITE_API_BASE_URL=http://localhost
+
+  redis:
+    command: redis-server --save ""
+    volumes: []
+
+  nginx:
+    profiles:
+      - proxy

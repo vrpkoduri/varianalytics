@@ -1,0 +1,39 @@
+account_id,account_name,parent_id,depth,is_leaf,is_calculated,calc_formula,calc_dependencies,pl_category,variance_sign,rollup_path,sort_order
+acct_total_pl,Total P&L,,0,False,True,,,,,acct_total_pl,0
+acct_revenue,Revenue,acct_total_pl,1,False,False,,,Revenue,natural,acct_total_pl/acct_revenue,1
+acct_advisory_fees,Advisory & Brokerage Fees,acct_revenue,2,True,False,,,Revenue,natural,acct_total_pl/acct_revenue/acct_advisory_fees,2
+acct_consulting_fees,Consulting Fees,acct_revenue,2,True,False,,,Revenue,natural,acct_total_pl/acct_revenue/acct_consulting_fees,3
+acct_reinsurance_comm,Reinsurance Commissions,acct_revenue,2,True,False,,,Revenue,natural,acct_total_pl/acct_revenue/acct_reinsurance_comm,4
+acct_investment_income,Investment Income,acct_revenue,2,True,False,,,Revenue,natural,acct_total_pl/acct_revenue/acct_investment_income,5
+acct_data_analytics_rev,Data & Analytics Revenue,acct_revenue,2,True,False,,,Revenue,natural,acct_total_pl/acct_revenue/acct_data_analytics_rev,6
+acct_other_revenue,Other Revenue,acct_revenue,2,True,False,,,Revenue,natural,acct_total_pl/acct_revenue/acct_other_revenue,7
+acct_gross_revenue,Gross Revenue,acct_total_pl,1,True,True,SUM(acct_revenue.children),"[""acct_revenue""]",,,acct_total_pl/acct_gross_revenue,8
+acct_cor,Cost of Revenue,acct_total_pl,1,False,False,,,COGS,inverse,acct_total_pl/acct_cor,9
+acct_direct_comp,Direct Compensation,acct_cor,2,True,False,,,COGS,inverse,acct_total_pl/acct_cor/acct_direct_comp,10
+acct_subcontractor,Subcontractor Costs,acct_cor,2,True,False,,,COGS,inverse,acct_total_pl/acct_cor/acct_subcontractor,11
+acct_direct_tech,Direct Technology Costs,acct_cor,2,True,False,,,COGS,inverse,acct_total_pl/acct_cor/acct_direct_tech,12
+acct_other_direct,Other Direct Costs,acct_cor,2,True,False,,,COGS,inverse,acct_total_pl/acct_cor/acct_other_direct,13
+acct_total_cor,Total Cost of Revenue,acct_total_pl,1,True,True,SUM(acct_cor.children),"[""acct_cor""]",,,acct_total_pl/acct_total_cor,14
+acct_gross_profit,GROSS PROFIT,acct_total_pl,1,True,True,acct_gross_revenue - acct_total_cor,"[""acct_gross_revenue"", ""acct_total_cor""]",,,acct_total_pl/acct_gross_profit,15
+acct_opex,Operating Expenses,acct_total_pl,1,False,False,,,OpEx,inverse,acct_total_pl/acct_opex,16
+acct_comp_benefits,Compensation & Benefits,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_comp_benefits,17
+acct_tech_infra,Technology & Infrastructure,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_tech_infra,18
+acct_prof_services,Professional Services,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_prof_services,19
+acct_occupancy,Occupancy & Real Estate,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_occupancy,20
+acct_travel,Travel & Entertainment,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_travel,21
+acct_marketing,Marketing & Business Dev,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_marketing,22
+acct_da,Depreciation & Amortization,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_da,23
+acct_insurance,Insurance,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_insurance,24
+acct_training,Training & Development,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_training,25
+acct_other_opex,Other Operating Expenses,acct_opex,2,True,False,,,OpEx,inverse,acct_total_pl/acct_opex/acct_other_opex,26
+acct_total_opex,Total Operating Expenses,acct_total_pl,1,True,True,SUM(acct_opex.children),"[""acct_opex""]",,,acct_total_pl/acct_total_opex,27
+acct_ebitda,EBITDA,acct_total_pl,1,True,True,acct_gross_profit - acct_total_opex + acct_da,"[""acct_gross_profit"", ""acct_total_opex"", ""acct_da""]",,,acct_total_pl/acct_ebitda,28
+acct_operating_income,OPERATING INCOME,acct_total_pl,1,True,True,acct_gross_profit - acct_total_opex,"[""acct_gross_profit"", ""acct_total_opex""]",,,acct_total_pl/acct_operating_income,29
+acct_non_op,Non-Operating Items,acct_total_pl,1,False,False,,,NonOp,natural,acct_total_pl/acct_non_op,30
+acct_interest_exp,Interest Expense,acct_non_op,2,True,False,,,NonOp,inverse,acct_total_pl/acct_non_op/acct_interest_exp,31
+acct_interest_inc,Interest Income,acct_non_op,2,True,False,,,NonOp,natural,acct_total_pl/acct_non_op/acct_interest_inc,32
+acct_other_nonop,Other Non-Operating,acct_non_op,2,True,False,,,NonOp,natural,acct_total_pl/acct_non_op/acct_other_nonop,33
+acct_total_nonop,Total Non-Operating,acct_total_pl,1,True,True,SUM(acct_non_op.children),"[""acct_non_op""]",,,acct_total_pl/acct_total_nonop,34
+acct_pbt,PRE-TAX INCOME,acct_total_pl,1,True,True,acct_operating_income + acct_total_nonop,"[""acct_operating_income"", ""acct_total_nonop""]",,,acct_total_pl/acct_pbt,35
+acct_tax,Income Tax Expense,acct_total_pl,1,True,False,,,Tax,inverse,acct_total_pl/acct_tax,36
+acct_net_income,NET INCOME,acct_total_pl,1,True,True,acct_pbt - acct_tax,"[""acct_pbt"", ""acct_tax""]",,,acct_total_pl/acct_net_income,37

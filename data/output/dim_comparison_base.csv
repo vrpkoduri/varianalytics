@@ -1,0 +1,4 @@
+base_id,base_name,base_type
+BUDGET,Budget,BUDGET
+FORECAST,Forecast,FORECAST
+PRIOR_YEAR,Prior Year,PRIOR_YEAR

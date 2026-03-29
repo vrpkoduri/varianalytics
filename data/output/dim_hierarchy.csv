@@ -1,0 +1,81 @@
+node_id,node_name,dimension_name,parent_id,depth,is_leaf,rollup_path,sort_order
+geo_global,Global,Geography,,0,False,geo_global,0
+geo_americas,Americas,Geography,geo_global,1,False,geo_global/geo_americas,1
+geo_na,North America,Geography,geo_americas,2,False,geo_global/geo_americas/geo_na,2
+geo_us,United States,Geography,geo_na,3,False,geo_global/geo_americas/geo_na/geo_us,3
+geo_us_ne,US Northeast,Geography,geo_us,4,True,geo_global/geo_americas/geo_na/geo_us/geo_us_ne,4
+geo_us_se,US Southeast,Geography,geo_us,4,True,geo_global/geo_americas/geo_na/geo_us/geo_us_se,5
+geo_us_mw,US Midwest,Geography,geo_us,4,True,geo_global/geo_americas/geo_na/geo_us/geo_us_mw,6
+geo_us_w,US West,Geography,geo_us,4,True,geo_global/geo_americas/geo_na/geo_us/geo_us_w,7
+geo_canada,Canada,Geography,geo_na,3,True,geo_global/geo_americas/geo_na/geo_canada,8
+geo_latam,Latin America,Geography,geo_americas,2,False,geo_global/geo_americas/geo_latam,9
+geo_brazil,Brazil,Geography,geo_latam,3,True,geo_global/geo_americas/geo_latam/geo_brazil,10
+geo_mexico,Mexico,Geography,geo_latam,3,True,geo_global/geo_americas/geo_latam/geo_mexico,11
+geo_colombia,Colombia,Geography,geo_latam,3,True,geo_global/geo_americas/geo_latam/geo_colombia,12
+geo_emea,EMEA,Geography,geo_global,1,False,geo_global/geo_emea,13
+geo_uk_ireland,UK & Ireland,Geography,geo_emea,2,True,geo_global/geo_emea/geo_uk_ireland,14
+geo_cont_europe,Continental Europe,Geography,geo_emea,2,False,geo_global/geo_emea/geo_cont_europe,15
+geo_germany,Germany,Geography,geo_cont_europe,3,True,geo_global/geo_emea/geo_cont_europe/geo_germany,16
+geo_france,France,Geography,geo_cont_europe,3,True,geo_global/geo_emea/geo_cont_europe/geo_france,17
+geo_netherlands,Netherlands,Geography,geo_cont_europe,3,True,geo_global/geo_emea/geo_cont_europe/geo_netherlands,18
+geo_spain,Spain,Geography,geo_cont_europe,3,True,geo_global/geo_emea/geo_cont_europe/geo_spain,19
+geo_mea,Middle East & Africa,Geography,geo_emea,2,False,geo_global/geo_emea/geo_mea,20
+geo_uae,UAE,Geography,geo_mea,3,True,geo_global/geo_emea/geo_mea/geo_uae,21
+geo_south_africa,South Africa,Geography,geo_mea,3,True,geo_global/geo_emea/geo_mea/geo_south_africa,22
+geo_apac,Asia Pacific,Geography,geo_global,1,False,geo_global/geo_apac,23
+geo_anz,Australia & NZ,Geography,geo_apac,2,True,geo_global/geo_apac/geo_anz,24
+geo_japan,Japan,Geography,geo_apac,2,True,geo_global/geo_apac/geo_japan,25
+geo_india,India,Geography,geo_apac,2,True,geo_global/geo_apac/geo_india,26
+geo_sea,Southeast Asia,Geography,geo_apac,2,False,geo_global/geo_apac/geo_sea,27
+geo_singapore,Singapore,Geography,geo_sea,3,True,geo_global/geo_apac/geo_sea/geo_singapore,28
+geo_hong_kong,Hong Kong,Geography,geo_sea,3,True,geo_global/geo_apac/geo_sea/geo_hong_kong,29
+seg_all,All Segments,Segment,,0,False,seg_all,0
+seg_commercial,Commercial,Segment,seg_all,1,False,seg_all/seg_commercial,1
+seg_large_corp,Large Corporate,Segment,seg_commercial,2,True,seg_all/seg_commercial/seg_large_corp,2
+seg_mid_market,Middle Market,Segment,seg_commercial,2,True,seg_all/seg_commercial/seg_mid_market,3
+seg_small_comm,Small Commercial,Segment,seg_commercial,2,True,seg_all/seg_commercial/seg_small_comm,4
+seg_consumer,Consumer,Segment,seg_all,1,False,seg_all/seg_consumer,5
+seg_individual,Individual,Segment,seg_consumer,2,True,seg_all/seg_consumer/seg_individual,6
+seg_affinity,Affinity Groups,Segment,seg_consumer,2,True,seg_all/seg_consumer/seg_affinity,7
+seg_specialty,Specialty,Segment,seg_all,1,False,seg_all/seg_specialty,8
+seg_aviation,Aviation & Aerospace,Segment,seg_specialty,2,True,seg_all/seg_specialty/seg_aviation,9
+seg_marine,Marine,Segment,seg_specialty,2,True,seg_all/seg_specialty/seg_marine,10
+seg_energy,Energy & Power,Segment,seg_specialty,2,True,seg_all/seg_specialty/seg_energy,11
+seg_construction,Construction,Segment,seg_specialty,2,True,seg_all/seg_specialty/seg_construction,12
+seg_govt,Government & Public,Segment,seg_all,1,True,seg_all/seg_govt,13
+lob_all,All Lines of Business,LOB,,0,False,lob_all,0
+lob_risk_advisory,Risk Advisory,LOB,lob_all,1,False,lob_all/lob_risk_advisory,1
+lob_pc,Property & Casualty,LOB,lob_risk_advisory,2,True,lob_all/lob_risk_advisory/lob_pc,2
+lob_fin_prof,Financial & Professional,LOB,lob_risk_advisory,2,True,lob_all/lob_risk_advisory/lob_fin_prof,3
+lob_cyber,Cyber Risk,LOB,lob_risk_advisory,2,True,lob_all/lob_risk_advisory/lob_cyber,4
+lob_consulting,Consulting,LOB,lob_all,1,False,lob_all/lob_consulting,5
+lob_mgmt_consulting,Management Consulting,LOB,lob_consulting,2,True,lob_all/lob_consulting/lob_mgmt_consulting,6
+lob_hr_workforce,HR & Workforce,LOB,lob_consulting,2,True,lob_all/lob_consulting/lob_hr_workforce,7
+lob_invest_advisory,Investment Advisory,LOB,lob_consulting,2,True,lob_all/lob_consulting/lob_invest_advisory,8
+lob_reinsurance,Reinsurance,LOB,lob_all,1,False,lob_all/lob_reinsurance,9
+lob_treaty,Treaty,LOB,lob_reinsurance,2,True,lob_all/lob_reinsurance/lob_treaty,10
+lob_facultative,Facultative,LOB,lob_reinsurance,2,True,lob_all/lob_reinsurance/lob_facultative,11
+lob_wealth,Wealth Management,LOB,lob_all,1,True,lob_all/lob_wealth,12
+lob_data_analytics,Data & Analytics,LOB,lob_all,1,True,lob_all/lob_data_analytics,13
+cc_all,All Cost Centers,CostCenter,,0,False,cc_all,0
+cc_client_ops,Client-Facing Operations,CostCenter,cc_all,1,False,cc_all/cc_client_ops,1
+cc_sales,Sales & Origination,CostCenter,cc_client_ops,2,False,cc_all/cc_client_ops/cc_sales,2
+cc_new_biz,New Business Development,CostCenter,cc_sales,3,True,cc_all/cc_client_ops/cc_sales/cc_new_biz,3
+cc_acct_mgmt,Account Management,CostCenter,cc_sales,3,True,cc_all/cc_client_ops/cc_sales/cc_acct_mgmt,4
+cc_delivery,Service Delivery,CostCenter,cc_client_ops,2,False,cc_all/cc_client_ops/cc_delivery,5
+cc_advisory_teams,Advisory Teams,CostCenter,cc_delivery,3,True,cc_all/cc_client_ops/cc_delivery/cc_advisory_teams,6
+cc_placement,Placement Teams,CostCenter,cc_delivery,3,True,cc_all/cc_client_ops/cc_delivery/cc_placement,7
+cc_claims,Claims Management,CostCenter,cc_delivery,3,True,cc_all/cc_client_ops/cc_delivery/cc_claims,8
+cc_client_success,Client Success,CostCenter,cc_client_ops,2,True,cc_all/cc_client_ops/cc_client_success,9
+cc_corporate,Corporate Functions,CostCenter,cc_all,1,False,cc_all/cc_corporate,10
+cc_finance,Finance & Accounting,CostCenter,cc_corporate,2,True,cc_all/cc_corporate/cc_finance,11
+cc_hr,Human Resources,CostCenter,cc_corporate,2,True,cc_all/cc_corporate/cc_hr,12
+cc_legal,Legal & Compliance,CostCenter,cc_corporate,2,True,cc_all/cc_corporate/cc_legal,13
+cc_marketing,Marketing & Communications,CostCenter,cc_corporate,2,True,cc_all/cc_corporate/cc_marketing,14
+cc_strategy,Corporate Strategy,CostCenter,cc_corporate,2,True,cc_all/cc_corporate/cc_strategy,15
+cc_technology,Technology,CostCenter,cc_all,1,False,cc_all/cc_technology,16
+cc_infra_cloud,Infrastructure & Cloud,CostCenter,cc_technology,2,True,cc_all/cc_technology/cc_infra_cloud,17
+cc_app_dev,Application Development,CostCenter,cc_technology,2,True,cc_all/cc_technology/cc_app_dev,18
+cc_data_eng,Data Engineering,CostCenter,cc_technology,2,True,cc_all/cc_technology/cc_data_eng,19
+cc_cybersecurity,Cybersecurity,CostCenter,cc_technology,2,True,cc_all/cc_technology/cc_cybersecurity,20
+cc_exec_office,Executive Office,CostCenter,cc_all,1,True,cc_all/cc_exec_office,21

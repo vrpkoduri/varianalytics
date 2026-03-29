@@ -1,0 +1,4 @@
+view_id,view_name,view_type
+MTD,Month-to-Date,MTD
+QTD,Quarter-to-Date,QTD
+YTD,Year-to-Date,YTD

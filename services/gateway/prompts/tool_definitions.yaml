@@ -1,0 +1,73 @@
+# Tool definitions for the variance-analysis agent.
+# These map 1:1 to Service 2 (Computation) API endpoints.
+# The orchestrator registers these with LiteLLM for function-calling.
+
+tools:
+  - name: get_dashboard_summary
+    description: "Retrieve dashboard summary cards (actual vs comparator, variance, trend) for the current filter context."
+    endpoint: "GET /api/v1/dashboard/summary"
+    parameters:
+      period_id: { type: string, required: true }
+      view: { type: string, enum: [MTD, QTD, YTD], default: MTD }
+      base: { type: string, enum: [BUDGET, FORECAST, PY], default: BUDGET }
+
+  - name: get_variance_list
+    description: "List material variances filtered by dimension, sorted by absolute impact."
+    endpoint: "GET /api/v1/variances"
+    parameters:
+      period_id: { type: string, required: true }
+      account_id: { type: string, required: false }
+      bu_id: { type: string, required: false }
+      limit: { type: integer, default: 20 }
+
+  - name: get_variance_detail
+    description: "Get full detail for a single material variance including all narrative levels."
+    endpoint: "GET /api/v1/variances/{variance_id}"
+    parameters:
+      variance_id: { type: string, required: true }
+
+  - name: get_decomposition
+    description: "Get volume/price/mix/FX decomposition for a revenue variance, or rate/volume/timing for expense."
+    endpoint: "GET /api/v1/variances/{variance_id}/decomposition"
+    parameters:
+      variance_id: { type: string, required: true }
+
+  - name: get_drill_down
+    description: "Drill into a variance by a specific dimension (geo, segment, LOB, cost centre)."
+    endpoint: "GET /api/v1/variances/{variance_id}/drilldown"
+    parameters:
+      variance_id: { type: string, required: true }
+      dimension: { type: string, enum: [geo, segment, lob, costcenter], required: true }
+
+  - name: get_correlations
+    description: "Find correlated variances that may share a common root cause."
+    endpoint: "GET /api/v1/variances/{variance_id}/correlations"
+    parameters:
+      variance_id: { type: string, required: true }
+
+  - name: get_trend_analysis
+    description: "Retrieve trend flags and historical pattern for a variance over trailing periods."
+    endpoint: "GET /api/v1/variances/{variance_id}/trends"
+    parameters:
+      variance_id: { type: string, required: true }
+      lookback_months: { type: integer, default: 6 }
+
+  - name: get_pl_waterfall
+    description: "Generate P&L waterfall data (actual to budget bridge) for chart rendering."
+    endpoint: "GET /api/v1/pl/waterfall"
+    parameters:
+      period_id: { type: string, required: true }
+      view: { type: string, enum: [MTD, QTD, YTD], default: MTD }
+      base: { type: string, enum: [BUDGET, FORECAST, PY], default: BUDGET }
+
+  - name: get_netting_alerts
+    description: "List netting situations where offsetting variances mask true drivers."
+    endpoint: "GET /api/v1/variances/netting"
+    parameters:
+      period_id: { type: string, required: true }
+      threshold: { type: number, default: 0.10 }
+
+  - name: get_review_stats
+    description: "Get aggregate review/approval status counts for dashboard badges."
+    endpoint: "GET /api/v1/review/stats"
+    parameters: {}

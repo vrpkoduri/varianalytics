@@ -1,0 +1,140 @@
+version: "3.9"
+
+services:
+  gateway:
+    build:
+      context: ../
+      dockerfile: services/gateway/Dockerfile
+    container_name: variance-gateway
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SERVICE_NAME=gateway
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - variance-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  computation:
+    build:
+      context: ../
+      dockerfile: services/computation/Dockerfile
+    container_name: variance-computation
+    ports:
+      - "8001:8001"
+    env_file:
+      - ../.env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SERVICE_NAME=computation
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - variance-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  reports:
+    build:
+      context: ../
+      dockerfile: services/reports/Dockerfile
+    container_name: variance-reports
+    ports:
+      - "8002:8002"
+    env_file:
+      - ../.env
+    environment:
+      - SERVICE_NAME=reports
+    networks:
+      - variance-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../
+      dockerfile: frontend/Dockerfile
+    container_name: variance-frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - variance-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: variance-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    networks:
+      - variance-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: variance-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      gateway:
+        condition: service_healthy
+      computation:
+        condition: service_healthy
+      reports:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - variance-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/nginx-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  variance-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local

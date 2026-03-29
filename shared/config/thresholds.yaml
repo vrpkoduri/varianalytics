@@ -1,0 +1,43 @@
+# =============================================================================
+# Materiality Thresholds Configuration
+# =============================================================================
+# Resolution order: close_week > role > account > domain > global
+# Threshold logic: OR (either $ OR % breach triggers materiality)
+
+global:
+  abs_threshold: 50000       # $50K absolute variance
+  pct_threshold: 3.0         # 3% percentage variance
+  logic: "OR"                # OR: either threshold triggers
+
+# Domain-level overrides
+domain_overrides:
+  - scope: "Revenue"
+    pct_threshold: 2.0       # Revenue: tighter % threshold
+  - scope: "Travel & Entertainment"
+    pct_threshold: 5.0       # T&E: looser % threshold
+
+# Netting detection thresholds
+netting:
+  netting_ratio_threshold: 3.0     # Gross/net ratio > 3x triggers netting flag
+  child_dispersion_threshold: 10.0 # Std dev > 10pp triggers dispersion flag
+  min_child_variance_pct: 1.0      # Minimum child variance to consider
+  cross_account_enabled: true      # Enable cross-account netting checks
+
+# Trend detection thresholds
+trend:
+  consecutive_periods: 3           # N consecutive same-direction periods
+  cumulative_breach_enabled: true  # Enable cumulative YTD breach check
+
+# Close-week overrides (tighter thresholds during close)
+close_week:
+  abs_threshold: 25000
+  pct_threshold: 2.0
+
+# Role-based overrides
+role_overrides:
+  cfo:
+    abs_threshold: 100000    # CFO sees only large variances
+    pct_threshold: 5.0
+  board:
+    abs_threshold: 500000    # Board sees only major variances
+    pct_threshold: 10.0

@@ -1,0 +1,31 @@
+[project]
+name = "variance-agent"
+version = "0.1.0"
+description = "FP&A Variance Analysis Agent — AI-powered variance detection, root cause analysis, and narrative generation"
+requires-python = ">=3.11"
+license = {text = "Proprietary"}
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: Unit tests (fast, no external deps)",
+    "integration: Integration tests (may need services running)",
+    "e2e: End-to-end tests (full stack)",
+    "slow: Slow tests (>10s)",
+]
+addopts = "-v --tb=short"
