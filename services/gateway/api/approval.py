@@ -5,10 +5,13 @@ analyst-reviewed variances. Only ANALYST_REVIEWED items appear here.
 Report distribution is gated on APPROVED status.
 """
 
+import logging
 from typing import Optional
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/approval", tags=["approval"])
 
@@ -71,12 +74,19 @@ class ApprovalStats(BaseModel):
     summary="Get approval queue",
 )
 async def get_approval_queue(
+    request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
 ) -> ApprovalQueueResponse:
     """Return items pending director approval (status = ANALYST_REVIEWED)."""
-    # TODO: query fact_review_status WHERE status = ANALYST_REVIEWED, apply RBAC
-    return ApprovalQueueResponse(items=[], total=0, page=page, page_size=page_size)
+    store = request.app.state.review_store
+    result = store.get_approval_queue(page=page, page_size=page_size)
+    return ApprovalQueueResponse(
+        items=[ApprovalQueueItem(**item) for item in result["items"]],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
 
 
 @router.post(
@@ -85,16 +95,18 @@ async def get_approval_queue(
     status_code=status.HTTP_200_OK,
     summary="Bulk approve or reject variances",
 )
-async def submit_bulk_approval(body: BulkApprovalAction) -> BulkApprovalResponse:
+async def submit_bulk_approval(body: BulkApprovalAction, request: Request) -> BulkApprovalResponse:
     """Approve or reject multiple analyst-reviewed variances in one action.
 
     Approved items become eligible for report distribution.
     """
-    # TODO: update fact_review_status in batch, log to audit_log
-    count = len(body.variance_ids)
-    if body.action == "approve":
-        return BulkApprovalResponse(approved_count=count)
-    return BulkApprovalResponse(rejected_count=count)
+    store = request.app.state.review_store
+    result = store.submit_bulk_approval(
+        variance_ids=body.variance_ids,
+        action=body.action,
+        comment=body.comment,
+    )
+    return BulkApprovalResponse(**result)
 
 
 @router.get(
@@ -102,7 +114,8 @@ async def submit_bulk_approval(body: BulkApprovalAction) -> BulkApprovalResponse
     response_model=ApprovalStats,
     summary="Get approval statistics",
 )
-async def get_approval_stats() -> ApprovalStats:
+async def get_approval_stats(request: Request) -> ApprovalStats:
     """Return aggregate approval counts and metrics."""
-    # TODO: aggregate from fact_review_status
-    return ApprovalStats()
+    store = request.app.state.review_store
+    stats = store.get_approval_stats()
+    return ApprovalStats(**stats)

@@ -13,8 +13,11 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - SERVICE_NAME=gateway
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/variance_agent
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - variance-net
@@ -38,8 +41,11 @@ services:
     environment:
       - REDIS_URL=redis://redis:6379/0
       - SERVICE_NAME=computation
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/variance_agent
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     networks:
       - variance-net
@@ -89,6 +95,26 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: variance-postgres
+    environment:
+      POSTGRES_DB: variance_agent
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - variance-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: variance-redis
@@ -136,5 +162,7 @@ networks:
     driver: bridge
 
 volumes:
+  postgres-data:
+    driver: local
   redis-data:
     driver: local

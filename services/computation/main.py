@@ -16,6 +16,8 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from shared.data.service import DataService
+
 from services.computation.api.dashboard import router as dashboard_router
 from services.computation.api.drilldown import router as drilldown_router
 from services.computation.api.pl import router as pl_router
@@ -58,8 +60,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Computation engine starting up …")
     start = time.monotonic()
 
+    # Load DataService (all parquet tables into memory)
+    app.state.data_service = DataService()
+    logger.info("DataService initialized")
+
     # TODO: warm hierarchy cache (~20 MB materialized rollup paths)
-    # TODO: load synthetic data into memory (DataFrames)
     # TODO: connect to Redis cache
 
     elapsed = time.monotonic() - start

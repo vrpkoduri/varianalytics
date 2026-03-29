@@ -140,55 +140,125 @@ This document is the single source of truth for sprint planning, deliverable tra
 
 ---
 
-## Sprint 1 — Revenue Vertical Slice
+## Sprint 1 — Revenue Vertical Slice [IN PROGRESS]
 
 **Goal:** Revenue variance end-to-end with chat, dashboard, and review workflow.
 **Duration:** Week 3–4
-**Dependencies:** Sprint 0 complete
+**Dependencies:** Sprint 0 complete (193 tests, 300K variances, 4,422 material)
 
-### Deliverables
+### Key Decisions
+- **LLM:** Template/keyword-based first → LiteLLM wired as late enhancement (SD-14)
+- **Database:** PostgreSQL via docker-compose for review/approval persistence
+- **Build cadence:** 3 checkpoints with commit/push at each
 
-1. **Revenue Agent (Gateway)**
-   - Chat intent classification for revenue queries
-   - Tool calls to Computation Service
-   - SSE streaming response
-   - Review-status-aware responses
+### Sub-Deliverables (Build Order)
 
-2. **Dashboard — Revenue Focus**
-   - SummaryCards: Revenue, EBITDA
-   - Waterfall chart: Revenue vs Budget by BU
-   - Heatmap: Geo × BU variance intensity
-   - Trend line: Revenue by month
+#### Checkpoint 1: Backend APIs + Database (SD 1–5)
 
-3. **P&L Deep Dive — Revenue**
-   - Recursive PLTable for Revenue section
-   - Ragged hierarchy expand/collapse
-   - Narrative detail panel
-   - "Preview as CFO" button
+**SD-1: PostgreSQL + Database Layer**
+- SQLAlchemy async engine + ORM models (ReviewStatus, AuditLog, Conversation, ChatMessage)
+- Seed review_status from fact_review_status.parquet on first boot
+- PostgreSQL 16 in docker-compose
+- Files: `shared/database/{engine,models,seed}.py`, `infra/docker-compose.yml`
 
-4. **Chat Interface**
-   - Message input + SSE streaming display
-   - Context inference (current filters)
-   - Conversation history
-   - Typed SSE events (token, data_table, suggestion)
+**SD-2: Data Access Service**
+- Singleton wrapping DataLoader + HierarchyCache with typed query methods
+- Methods: get_summary_cards, get_waterfall, get_heatmap, get_trends, get_variance_list, get_variance_detail, get_pl_statement
+- File: `shared/data/service.py`
 
-5. **Review Queue**
-   - StatusBar with counts
-   - ReviewTable with sorting + SLA indicators
-   - ReviewDetailPanel stub
-   - NarrativeEditor stub (view mode)
+**SD-3: Computation Service Endpoints (8 endpoints)**
+- Dashboard: summary, waterfall, heatmap, trends
+- Variances: list, detail, by-account
+- P&L: statement, account detail
+- Drilldown: drill, decomposition, netting, correlations
+- Files: `services/computation/api/{dashboard,variances,pl,drilldown}.py`
 
-6. **Approval Queue**
-   - Pending grouped by analyst
-   - Bulk approve action
-   - Report gate enforcement
+**SD-4: Gateway Dimension + Review + Approval Endpoints**
+- Dimensions: hierarchies, BUs, accounts, periods
+- Review: queue (with RBAC), actions (status transitions), stats
+- Approval: queue (ANALYST_REVIEWED filter), bulk actions, stats
+- Files: `services/gateway/api/{dimensions,review,approval}.py`, `shared/data/review_store.py`
+
+**SD-5: SSE Streaming Infrastructure**
+- StreamingContext (asyncio.Queue), typed SSE event models, ConversationManager
+- Chat endpoints: POST message → agent, GET stream → SSE
+- Files: `services/gateway/streaming/{events,context,manager}.py`, `services/gateway/api/chat.py`
+
+**📦 CP-1: ~50 new tests, all backend APIs functional**
+
+#### Checkpoint 2: Agents + Frontend (SD 6–13)
+
+**SD-6: Agent Implementation (Template-First)**
+- KeywordIntentClassifier: regex patterns for revenue, P&L, waterfall, etc.
+- ToolExecutor: maps tool names → httpx calls to computation service
+- Response templates with `{variable}` placeholders for real data
+- OrchestratorAgent.handle_message(): classify → route → execute → stream
+- PLAgent + RevenueAgent: generate_response() with template interpolation
+- Files: `services/gateway/agents/{intent,tools,templates,orchestrator,domain_agents}.py`
+
+**SD-7: Frontend Shared Components (17 components)**
+- Charts: WaterfallChart, HeatmapGrid, TrendChart (Recharts)
+- Cards: SummaryCard
+- Tables: DataTable (generic sortable/paginated), ExpandableRow
+- Chat: ChatMessage, ChatInput, SSEStreamDisplay
+- Narrative: NarrativePanel, NarrativeEditor
+- P&L: PLTable, PLRow
+- Review: ReviewTable, ReviewDetailPanel
+- Approval: ApprovalTable, BulkApprovalBar
+
+**SD-8: Frontend Hooks (7 hooks)**
+- useDashboard, useVariances, useReviewQueue, useSSE (modify stubs)
+- useApproval, usePLStatement, useChat (new)
+
+**SD-9–13: Frontend Views**
+- DashboardView: filter bar + summary cards + waterfall + heatmap + trends
+- ChatView: conversation sidebar + message list + input + SSE streaming
+- PLView: recursive PLTable + NarrativePanel + CFO preview toggle
+- ReviewView: stats bar + ReviewTable + ReviewDetailPanel + NarrativeEditor
+- ApprovalView: stats bar + ApprovalTable + BulkApprovalBar
+
+**📦 CP-2: Full UI functional, ~25 new tests**
+
+#### Checkpoint 3: LLM Enhancement + E2E (SD 14–15)
+
+**SD-14: LiteLLM Integration**
+- LLMIntentClassifier (LiteLLM function calling) alongside keyword classifier
+- LLM narrative generation using system prompts from YAML
+- Config toggle: `use_llm_agents: bool`
+
+**SD-15: E2E Testing**
+- Full flow: chat → agent → computation → SSE → review → approval
+- Both services + DB, end-to-end verification
+
+**📦 CP-3: Sprint 1 complete**
+
+### Shared Components Centralized
+
+| Component | Location | Used By |
+|-----------|----------|---------|
+| DataService | `shared/data/service.py` | Computation API, Gateway API |
+| ReviewStore | `shared/data/review_store.py` | Gateway review/approval |
+| Database engine | `shared/database/engine.py` | Gateway service |
+| SSE events | `services/gateway/streaming/events.py` | Chat, agents, frontend |
+| DataTable | `frontend/src/components/tables/DataTable.tsx` | All list views |
+| SummaryCard | `frontend/src/components/cards/SummaryCard.tsx` | Dashboard, stats bars |
+
+### Testing Plan
+
+| Checkpoint | New Unit | New Integration | New E2E | Running Total |
+|-----------|---------|----------------|---------|---------------|
+| CP-1 | ~50 | ~4 | — | ~247 |
+| CP-2 | ~25 | ~3 | — | ~275 |
+| CP-3 | ~4 | — | ~1 | ~280 |
 
 ### Acceptance Criteria
-- [ ] User can ask "How did revenue perform?" and get a streamed answer
-- [ ] Dashboard shows revenue waterfall with real computed data
-- [ ] P&L view shows revenue hierarchy with expand/collapse
-- [ ] Analyst can see AI_DRAFT variances in review queue
-- [ ] Director can approve reviewed variances
+- [ ] User asks "How did revenue perform?" → gets streamed answer with real data
+- [ ] Dashboard shows revenue waterfall, heatmap, trend with computed data
+- [ ] P&L view shows revenue hierarchy with expand/collapse and narratives
+- [ ] Analyst sees AI_DRAFT variances in review queue, can review/edit/approve
+- [ ] Director sees ANALYST_REVIEWED in approval queue, can bulk approve
+- [ ] Review/approval state persists in PostgreSQL across restarts
+- [ ] All tests pass (target: ~280)
 
 ---
 

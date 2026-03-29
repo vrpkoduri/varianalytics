@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     smtp_password: Optional[str] = None
     notification_from_email: str = "variance-agent@company.com"
 
+    # Database (PostgreSQL)
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/variance_agent"
+    database_url_sync: str = "postgresql://postgres:postgres@localhost:5432/variance_agent"
+
     # Data
     synthetic_data_path: str = "data/output"
     synthetic_data_seed: int = 42

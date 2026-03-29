@@ -7,9 +7,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
+
+from shared.data.service import DataService
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+
+
+def _get_ds(request: Request) -> DataService:
+    """Retrieve DataService from app state."""
+    return request.app.state.data_service
 
 
 # ---------------------------------------------------------------------------
@@ -18,39 +25,29 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 @router.get("/summary")
 async def get_summary_cards(
-    period_id: str | None = Query(None, description="Period key (e.g. '2026-03')"),
-    view: str = Query("MTD", description="Aggregation view: MTD | QTD | YTD"),
-    comparison_base: str = Query("Budget", description="Budget | Forecast | PY"),
+    request: Request,
+    period_id: str = Query(..., description="Period key (e.g. '2026-03')"),
     bu_id: str | None = Query(None, description="Filter to a single business unit"),
+    view_id: str = Query("MTD", description="Aggregation view: MTD | QTD | YTD"),
+    base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
 ) -> dict[str, Any]:
     """Return summary KPI cards: Revenue, EBITDA, Total Costs, etc.
 
-    Each card contains actual, comparison, variance ($), variance (%),
+    Each card contains actual, comparator, variance ($), variance (%),
     and a materiality flag.
     """
-    # TODO: compute from fact_financials + fact_variance_material
+    ds = _get_ds(request)
+    cards = ds.get_summary_cards(
+        period_id=period_id,
+        bu_id=bu_id,
+        view_id=view_id,
+        base_id=base_id,
+    )
     return {
+        "cards": cards,
         "period_id": period_id,
-        "view": view,
-        "comparison_base": comparison_base,
-        "cards": [
-            {
-                "metric": "Revenue",
-                "actual": 0.0,
-                "comparison": 0.0,
-                "variance_amount": 0.0,
-                "variance_pct": None,
-                "is_material": False,
-            },
-            {
-                "metric": "EBITDA",
-                "actual": 0.0,
-                "comparison": 0.0,
-                "variance_amount": 0.0,
-                "variance_pct": None,
-                "is_material": False,
-            },
-        ],
+        "view_id": view_id,
+        "base_id": base_id,
     }
 
 
@@ -60,22 +57,26 @@ async def get_summary_cards(
 
 @router.get("/waterfall")
 async def get_waterfall_data(
-    period_id: str | None = Query(None),
-    view: str = Query("MTD"),
-    comparison_base: str = Query("Budget"),
-    bu_id: str | None = Query(None),
+    request: Request,
+    period_id: str = Query(..., description="Period key"),
+    bu_id: str | None = Query(None, description="Filter to a single business unit"),
+    base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
 ) -> dict[str, Any]:
     """Return waterfall chart data bridging comparison to actual.
 
     Each step has a label, delta value, running total, and color hint
     (positive / negative / subtotal).
     """
-    # TODO: build bridge from comparison → actual via account hierarchy
+    ds = _get_ds(request)
+    steps = ds.get_waterfall(
+        period_id=period_id,
+        bu_id=bu_id,
+        base_id=base_id,
+    )
     return {
+        "steps": steps,
         "period_id": period_id,
-        "view": view,
-        "comparison_base": comparison_base,
-        "steps": [],
+        "base_id": base_id,
     }
 
 
@@ -85,25 +86,17 @@ async def get_waterfall_data(
 
 @router.get("/heatmap")
 async def get_heatmap_data(
-    period_id: str | None = Query(None),
-    view: str = Query("MTD"),
-    comparison_base: str = Query("Budget"),
-    dimension: str = Query("account", description="Heatmap dimension: account | geo | segment"),
+    request: Request,
+    period_id: str = Query(..., description="Period key"),
+    base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
 ) -> dict[str, Any]:
-    """Return variance heatmap: rows × columns with color-coded variance %.
-
-    Rows = dimension members (accounts, geos, etc.).
-    Columns = periods (trailing 6 or 12 months).
+    """Return variance heatmap: geo rows x BU columns with color-coded variance %.
     """
-    # TODO: pivot fact_variance_material into heatmap grid
-    return {
-        "dimension": dimension,
-        "view": view,
-        "comparison_base": comparison_base,
-        "rows": [],
-        "columns": [],
-        "cells": [],
-    }
+    ds = _get_ds(request)
+    return ds.get_heatmap(
+        period_id=period_id,
+        base_id=base_id,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -112,23 +105,26 @@ async def get_heatmap_data(
 
 @router.get("/trends")
 async def get_trend_data(
-    account_id: str | None = Query(None, description="Specific account to trend"),
-    bu_id: str | None = Query(None),
-    view: str = Query("MTD"),
-    comparison_base: str = Query("Budget"),
+    request: Request,
+    bu_id: str | None = Query(None, description="Filter to a single business unit"),
+    account_id: str = Query("acct_gross_revenue", description="Account to trend"),
+    base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
     periods: int = Query(12, ge=3, le=36, description="Number of trailing periods"),
 ) -> dict[str, Any]:
     """Return time-series trend data for sparklines and trend charts.
 
     Each series contains period labels and values for actual,
-    comparison, and variance.
+    comparator, and variance.
     """
-    # TODO: query fact_financials over trailing periods
+    ds = _get_ds(request)
+    data = ds.get_trends(
+        bu_id=bu_id,
+        account_id=account_id,
+        base_id=base_id,
+        periods=periods,
+    )
     return {
+        "data": data,
         "account_id": account_id,
-        "bu_id": bu_id,
-        "view": view,
-        "comparison_base": comparison_base,
         "periods": periods,
-        "series": [],
     }

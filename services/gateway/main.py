@@ -19,6 +19,7 @@ from services.gateway.api.config import router as config_router
 from services.gateway.api.dimensions import router as dimensions_router
 from services.gateway.api.notifications import router as notifications_router
 from services.gateway.api.review import router as review_router
+from services.gateway.streaming.manager import ConversationManager
 from shared.models.api import HealthResponse
 
 # ---------------------------------------------------------------------------
@@ -45,16 +46,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan context manager.
 
     Startup:
-        - Initialise hierarchy cache (placeholder)
-        - Connect Redis (placeholder)
+        - Initialise DataService (parquet data)
+        - Initialise ReviewStore (mutable workflow state)
+        - Initialise ConversationManager (chat sessions)
     Shutdown:
         - Drain connections
     """
-    logger.info("Gateway starting up — initialising caches …")
-    # TODO: load hierarchy cache, connect Redis
+    from shared.data.service import DataService
+    from shared.data.review_store import ReviewStore
+
+    logger.info("Gateway starting up — initialising services …")
+    app.state.data_service = DataService()
+    app.state.review_store = ReviewStore()
+    app.state.conversation_manager = ConversationManager()
+    logger.info("Gateway ready — DataService + ReviewStore + ConversationManager initialised")
     yield
     logger.info("Gateway shutting down — draining connections …")
-    # TODO: close Redis pool
 
 
 # ---------------------------------------------------------------------------

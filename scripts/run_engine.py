@@ -94,13 +94,18 @@ def _save_output_tables(ctx: dict, data_dir: str) -> None:
         "fact_review_status": ctx.get("review_status"),
     }
 
-    for name, df in tables_to_save.items():
-        if df is not None and isinstance(df, pd.DataFrame) and len(df) > 0:
+    for name, data in tables_to_save.items():
+        if data is None:
+            continue
+        # Convert list of dicts to DataFrame if needed
+        if isinstance(data, list) and len(data) > 0:
+            data = pd.DataFrame(data)
+        if isinstance(data, pd.DataFrame) and len(data) > 0:
             path = out / f"{name}.parquet"
-            df.to_parquet(path, index=False)
+            data.to_parquet(path, index=False)
             csv_path = out / f"{name}.csv"
-            df.to_csv(csv_path, index=False)
-            print(f"  Saved {name}: {len(df):,} rows")
+            data.to_csv(csv_path, index=False)
+            print(f"  Saved {name}: {len(data):,} rows")
 
 
 if __name__ == "__main__":

@@ -4,10 +4,13 @@ Analysts use these endpoints to browse the review queue, submit review
 actions (approve / edit / escalate / dismiss), and view queue statistics.
 """
 
+import logging
 from typing import Optional
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/review", tags=["review"])
 
@@ -67,6 +70,7 @@ class ReviewStats(BaseModel):
     analyst_reviewed: int = 0
     escalated: int = 0
     dismissed: int = 0
+    approved: int = 0
     avg_sla_hours: Optional[float] = None
 
 
@@ -79,14 +83,26 @@ class ReviewStats(BaseModel):
     summary="Get review queue",
 )
 async def get_review_queue(
+    request: Request,
     status_filter: Optional[str] = Query(None, alias="status"),
     sort_by: str = Query("impact", description="Sort field: impact | sla | period"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
 ) -> ReviewQueueResponse:
     """Return the analyst review queue with optional status filter and sorting."""
-    # TODO: query fact_review_status, apply RBAC filters
-    return ReviewQueueResponse(items=[], total=0, page=page, page_size=page_size)
+    store = request.app.state.review_store
+    result = store.get_review_queue(
+        status_filter=status_filter,
+        sort_by=sort_by,
+        page=page,
+        page_size=page_size,
+    )
+    return ReviewQueueResponse(
+        items=[ReviewQueueItem(**item) for item in result["items"]],
+        total=result["total"],
+        page=result["page"],
+        page_size=result["page_size"],
+    )
 
 
 @router.post(
@@ -95,17 +111,26 @@ async def get_review_queue(
     status_code=status.HTTP_200_OK,
     summary="Submit a review action",
 )
-async def submit_review_action(body: ReviewAction) -> ReviewActionResponse:
+async def submit_review_action(body: ReviewAction, request: Request) -> ReviewActionResponse:
     """Process an analyst review action (approve / edit / escalate / dismiss).
 
     On approval, triggers bottom-up synthesis for parent nodes.
     """
-    # TODO: update fact_review_status, trigger synthesis if approved
-    return ReviewActionResponse(
-        variance_id=body.variance_id,
-        new_status="ANALYST_REVIEWED" if body.action == "approve" else body.action.upper(),
-        message=f"Action '{body.action}' applied to {body.variance_id}",
-    )
+    store = request.app.state.review_store
+    try:
+        result = store.submit_review_action(
+            variance_id=body.variance_id,
+            action=body.action,
+            edited_narrative=body.edited_narrative,
+            hypothesis_feedback=body.hypothesis_feedback,
+            comment=body.comment,
+        )
+        return ReviewActionResponse(**result)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
 
 
 @router.get(
@@ -113,7 +138,8 @@ async def submit_review_action(body: ReviewAction) -> ReviewActionResponse:
     response_model=ReviewStats,
     summary="Get review queue statistics",
 )
-async def get_review_stats() -> ReviewStats:
+async def get_review_stats(request: Request) -> ReviewStats:
     """Return aggregate counts and SLA metrics for the review queue."""
-    # TODO: aggregate from fact_review_status
-    return ReviewStats()
+    store = request.app.state.review_store
+    stats = store.get_review_stats()
+    return ReviewStats(**stats)
