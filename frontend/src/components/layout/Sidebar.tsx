@@ -1,90 +1,207 @@
-import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  Table2,
-  MessageSquare,
-  ClipboardCheck,
-  CheckCircle2,
-  FileBarChart,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  TrendingUp,
-} from 'lucide-react';
-import { cn } from '@/utils/theme';
+import { useState, useCallback } from 'react'
+import { DonutProgress } from '../sidebar/DonutProgress'
+import { BUList } from '../sidebar/BUList'
+import { HierarchyTree, type TreeNodeData } from '../sidebar/HierarchyTree'
+import { cn } from '@/utils/theme'
 
-interface NavItem {
-  path: string;
-  label: string;
-  icon: React.ReactNode;
+// ── Mock hierarchy data ──────────────────────────────────────────────
+
+const MOCK_GEO: TreeNodeData[] = [
+  {
+    id: 'global',
+    name: 'Global',
+    children: [
+      {
+        id: 'americas',
+        name: 'Americas',
+        children: [
+          {
+            id: 'us',
+            name: 'United States',
+            children: [
+              { id: 'us_ne', name: 'US Northeast' },
+              { id: 'us_se', name: 'US Southeast' },
+              { id: 'us_mw', name: 'US Midwest' },
+              { id: 'us_w', name: 'US West' },
+            ],
+          },
+          { id: 'canada', name: 'Canada' },
+          { id: 'latam', name: 'Latin America' },
+        ],
+      },
+      {
+        id: 'emea',
+        name: 'EMEA',
+        children: [
+          { id: 'uk_ireland', name: 'UK & Ireland' },
+          { id: 'europe', name: 'Continental Europe' },
+          { id: 'mena', name: 'Middle East & Africa' },
+        ],
+      },
+      {
+        id: 'apac',
+        name: 'Asia Pacific',
+        children: [
+          { id: 'anz', name: 'Australia & NZ' },
+          { id: 'japan', name: 'Japan' },
+          { id: 'india', name: 'India' },
+          { id: 'singapore', name: 'Singapore' },
+        ],
+      },
+    ],
+  },
+]
+
+const MOCK_SEGMENT: TreeNodeData[] = [
+  {
+    id: 'all_seg',
+    name: 'All Segments',
+    children: [
+      { id: 'commercial', name: 'Commercial' },
+      { id: 'consumer', name: 'Consumer' },
+      { id: 'specialty', name: 'Specialty' },
+      { id: 'government', name: 'Government' },
+    ],
+  },
+]
+
+const MOCK_LOB: TreeNodeData[] = [
+  {
+    id: 'all_lob',
+    name: 'All LOBs',
+    children: [
+      { id: 'risk_advisory', name: 'Risk Advisory' },
+      { id: 'consulting', name: 'Consulting' },
+      { id: 'reinsurance', name: 'Reinsurance' },
+      { id: 'wealth', name: 'Wealth' },
+      { id: 'dna', name: 'D&A' },
+    ],
+  },
+]
+
+const MOCK_CC: TreeNodeData[] = [
+  {
+    id: 'all_cc',
+    name: 'All Cost Centers',
+    children: [
+      { id: 'client_ops', name: 'Client Operations' },
+      { id: 'corporate', name: 'Corporate' },
+      { id: 'technology', name: 'Technology' },
+      { id: 'executive', name: 'Executive' },
+    ],
+  },
+]
+
+const MOCK_VARIANT_COUNTS: Record<string, number> = {
+  marsh: 8,
+  mercer: 5,
+  guy_carpenter: 3,
+  oliver_wyman: 4,
+  mmc_corporate: 2,
+  us: 6,
+  emea: 4,
+  apac: 3,
+  commercial: 5,
+  specialty: 3,
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { path: '/', label: 'Dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
-  { path: '/pl', label: 'P&L View', icon: <Table2 className="h-5 w-5" /> },
-  { path: '/chat', label: 'Chat', icon: <MessageSquare className="h-5 w-5" /> },
-  { path: '/review', label: 'Review', icon: <ClipboardCheck className="h-5 w-5" /> },
-  { path: '/approval', label: 'Approval', icon: <CheckCircle2 className="h-5 w-5" /> },
-  { path: '/reports', label: 'Reports', icon: <FileBarChart className="h-5 w-5" /> },
-  { path: '/admin', label: 'Admin', icon: <Settings className="h-5 w-5" /> },
-];
+// ── Component ────────────────────────────────────────────────────────
 
-export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+interface SidebarProps {
+  isOpen: boolean
+}
+
+export default function Sidebar({ isOpen }: SidebarProps) {
+  const [activeBU, setActiveBU] = useState<string | null>(null)
+
+  // Tree state per dimension
+  const [geoExpanded, setGeoExpanded] = useState<Set<string>>(new Set(['global']))
+  const [segExpanded, setSegExpanded] = useState<Set<string>>(new Set(['all_seg']))
+  const [lobExpanded, setLobExpanded] = useState<Set<string>>(new Set(['all_lob']))
+  const [ccExpanded, setCcExpanded] = useState<Set<string>>(new Set(['all_cc']))
+
+  const [activeGeo, setActiveGeo] = useState<string | null>(null)
+  const [activeSeg, setActiveSeg] = useState<string | null>(null)
+  const [activeLob, setActiveLob] = useState<string | null>(null)
+  const [activeCc, setActiveCc] = useState<string | null>(null)
+
+  const makeToggle = useCallback(
+    (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => (id: string) => {
+      setter((prev) => {
+        const next = new Set(prev)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+      })
+    },
+    []
+  )
 
   return (
     <aside
       className={cn(
-        'flex flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar-bg)] text-[var(--color-sidebar-text)] transition-all duration-200',
-        collapsed ? 'w-16' : 'w-60',
+        'flex-shrink-0 overflow-y-auto overflow-x-hidden transition-all duration-300',
+        isOpen
+          ? 'w-[210px] p-2.5 border-r border-border'
+          : 'w-0 p-0 border-0 overflow-hidden'
       )}
+      style={{ background: 'var(--surface)' }}
     >
-      {/* Logo area */}
-      <div className="flex h-16 items-center gap-2 border-b border-white/10 px-4">
-        <TrendingUp className="h-6 w-6 shrink-0 text-brand-500" />
-        {!collapsed && (
-          <span className="text-lg font-semibold tracking-tight text-white">
-            Variance Agent
-          </span>
-        )}
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-bold font-display">Dimensions</span>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-2 py-4">
-        {NAV_ITEMS.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            end={item.path === '/'}
-            className={({ isActive }) =>
-              cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-[var(--color-sidebar-active)] text-white'
-                  : 'text-[var(--color-sidebar-text)] hover:bg-white/10 hover:text-white',
-                collapsed && 'justify-center px-2',
-              )
-            }
-          >
-            {item.icon}
-            {!collapsed && <span>{item.label}</span>}
-          </NavLink>
-        ))}
-      </nav>
+      {/* Donut progress */}
+      <DonutProgress approved={12} reviewed={5} draft={8} />
 
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="flex items-center justify-center border-t border-white/10 p-3 text-[var(--color-sidebar-text)] transition-colors hover:bg-white/10 hover:text-white"
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        {collapsed ? (
-          <ChevronRight className="h-4 w-4" />
-        ) : (
-          <ChevronLeft className="h-4 w-4" />
-        )}
-      </button>
+      {/* BU List */}
+      <BUList activeBU={activeBU} onBUSelect={setActiveBU} variantCounts={MOCK_VARIANT_COUNTS} />
+
+      {/* Hierarchy trees */}
+      <HierarchyTree
+        title="Geography"
+        dimension="geo"
+        nodes={MOCK_GEO}
+        expandedIds={geoExpanded}
+        activeNodeId={activeGeo}
+        onToggle={makeToggle(setGeoExpanded)}
+        onSelect={setActiveGeo}
+        showCounts
+        variantCounts={MOCK_VARIANT_COUNTS}
+      />
+
+      <HierarchyTree
+        title="Segment"
+        dimension="segment"
+        nodes={MOCK_SEGMENT}
+        expandedIds={segExpanded}
+        activeNodeId={activeSeg}
+        onToggle={makeToggle(setSegExpanded)}
+        onSelect={setActiveSeg}
+        showCounts
+        variantCounts={MOCK_VARIANT_COUNTS}
+      />
+
+      <HierarchyTree
+        title="Line of Business"
+        dimension="lob"
+        nodes={MOCK_LOB}
+        expandedIds={lobExpanded}
+        activeNodeId={activeLob}
+        onToggle={makeToggle(setLobExpanded)}
+        onSelect={setActiveLob}
+      />
+
+      <HierarchyTree
+        title="Cost Center"
+        dimension="costcenter"
+        nodes={MOCK_CC}
+        expandedIds={ccExpanded}
+        activeNodeId={activeCc}
+        onToggle={makeToggle(setCcExpanded)}
+        onSelect={setActiveCc}
+      />
     </aside>
-  );
+  )
 }

@@ -1,30 +1,30 @@
-import { Moon, Sun } from 'lucide-react';
-import { useTheme } from '@/context/ThemeContext';
-import { cn } from '@/utils/theme';
+import { useTheme } from '@/context/ThemeContext'
 
 interface ThemeToggleProps {
-  className?: string;
+  className?: string
 }
 
 export default function ThemeToggle({ className }: ThemeToggleProps) {
-  const { theme, toggleTheme } = useTheme();
+  const { isDark, toggleTheme } = useTheme()
 
   return (
     <button
       onClick={toggleTheme}
-      className={cn(
-        'rounded-lg p-2 transition-colors',
-        'hover:bg-gray-100 dark:hover:bg-gray-800',
-        'text-gray-600 dark:text-gray-300',
+      className={[
+        'w-[30px] h-[30px] rounded-[7px] border border-white/10 bg-white/[.04]',
+        'flex items-center justify-center cursor-pointer',
+        'hover:bg-white/[.08] transition-colors text-[14px]',
         className,
-      )}
-      aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
     >
-      {theme === 'dark' ? (
-        <Sun className="h-5 w-5" />
+      {isDark ? (
+        <span className="text-white/50">&#9788;</span>
       ) : (
-        <Moon className="h-5 w-5" />
+        <span className="text-white/50">&#9790;</span>
       )}
     </button>
-  );
+  )
 }

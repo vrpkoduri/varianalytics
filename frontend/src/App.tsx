@@ -1,11 +1,10 @@
-import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from '@/context/ThemeContext';
-import { UserProvider } from '@/context/UserContext';
-import { GlobalFiltersProvider } from '@/context/GlobalFiltersContext';
-import { ReviewStatsProvider } from '@/context/ReviewStatsContext';
-import AppLayout from '@/components/layout/AppLayout';
-import AppRouter from '@/Router';
-import { GlobalBackground } from '@/components/layout/GlobalBackground';
+import { RouterProvider } from 'react-router-dom'
+import { ThemeProvider } from '@/context/ThemeContext'
+import { UserProvider } from '@/context/UserContext'
+import { GlobalFiltersProvider } from '@/context/GlobalFiltersContext'
+import { ReviewStatsProvider } from '@/context/ReviewStatsContext'
+import { GlobalBackground } from '@/components/layout/GlobalBackground'
+import { router } from '@/Router'
 
 export default function App() {
   return (
@@ -14,14 +13,10 @@ export default function App() {
       <UserProvider>
         <GlobalFiltersProvider>
           <ReviewStatsProvider>
-            <BrowserRouter>
-              <AppLayout>
-                <AppRouter />
-              </AppLayout>
-            </BrowserRouter>
+            <RouterProvider router={router} />
           </ReviewStatsProvider>
         </GlobalFiltersProvider>
       </UserProvider>
     </ThemeProvider>
-  );
+  )
 }

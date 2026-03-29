@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useState,
   type ReactNode,
@@ -10,6 +11,9 @@ interface UserContextValue {
   user: User | null;
   isLoading: boolean;
   setUser: (user: User | null) => void;
+  /** Current persona key for layout switching (e.g. 'analyst', 'director', 'cfo', 'bu') */
+  persona: string;
+  setPersona: (persona: string) => void;
 }
 
 const UserContext = createContext<UserContextValue | undefined>(undefined);
@@ -26,9 +30,14 @@ const DEFAULT_USER: User = {
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(DEFAULT_USER);
   const [isLoading] = useState(false);
+  const [persona, setPersonaState] = useState<string>('analyst');
+
+  const setPersona = useCallback((p: string) => {
+    setPersonaState(p);
+  }, []);
 
   return (
-    <UserContext.Provider value={{ user, isLoading, setUser }}>
+    <UserContext.Provider value={{ user, isLoading, setUser, persona, setPersona }}>
       {children}
     </UserContext.Provider>
   );

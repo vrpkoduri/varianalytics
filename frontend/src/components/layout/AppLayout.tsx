@@ -1,30 +1,51 @@
-import type { ReactNode } from 'react';
-import Sidebar from './Sidebar';
-import Header from './Header';
-import ErrorBoundary from '@/components/common/ErrorBoundary';
+import { useState } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
+import IdentityBar from './IdentityBar'
+import ContextStrip from './ContextStrip'
+import Sidebar from './Sidebar'
+import ErrorBoundary from '@/components/common/ErrorBoundary'
+import { cn } from '@/utils/theme'
 
-interface AppLayoutProps {
-  children: ReactNode;
-}
+export default function AppLayout() {
+  const location = useLocation()
+  const [focusMode, setFocusMode] = useState(false)
+  const isChatPage = location.pathname === '/chat'
+  const sidebarOpen = !isChatPage && !focusMode
 
-export default function AppLayout({ children }: AppLayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--color-bg-primary)]">
-      {/* Sidebar */}
-      <Sidebar />
+    <div className="flex flex-col h-screen">
+      {/* Headers — hidden in focus mode */}
+      {!focusMode && (
+        <>
+          <IdentityBar />
+          <ContextStrip onFocusToggle={() => setFocusMode(true)} />
+        </>
+      )}
 
-      {/* Main content area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Header */}
-        <Header />
+      {/* Focus mode: show exit button */}
+      {focusMode && (
+        <button
+          onClick={() => setFocusMode(false)}
+          className="fixed top-4 right-4 z-50 text-[10px] px-3 py-1.5 rounded-[6px] border border-white/15 bg-[rgba(0,26,77,.6)] backdrop-blur-md text-white/60 hover:text-white hover:border-teal/40 transition-all"
+        >
+          Exit Focus
+        </button>
+      )}
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto bg-[var(--color-bg-secondary)] p-6">
+      {/* Main: Sidebar + Content */}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar isOpen={sidebarOpen} />
+        <main
+          className={cn(
+            'flex-1 overflow-y-auto transition-all duration-300',
+            focusMode ? 'px-10 py-6 max-w-full' : 'px-6 py-5 max-w-content'
+          )}
+        >
           <ErrorBoundary>
-            {children}
+            <Outlet />
           </ErrorBoundary>
         </main>
       </div>
     </div>
-  );
+  )
 }
