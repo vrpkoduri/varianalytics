@@ -14,6 +14,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SERVICE_NAME=gateway
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/variance_agent
+      - COMPUTATION_SERVICE_URL=http://computation:8001
     depends_on:
       redis:
         condition: service_healthy

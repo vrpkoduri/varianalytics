@@ -62,6 +62,9 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/variance_agent"
     database_url_sync: str = "postgresql://postgres:postgres@localhost:5432/variance_agent"
 
+    # Service-to-service
+    computation_service_url: str = "http://localhost:8001"
+
     # Data
     synthetic_data_path: str = "data/output"
     synthetic_data_seed: int = 42

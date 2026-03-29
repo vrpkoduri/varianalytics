@@ -49,24 +49,45 @@ class SendMessageResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Placeholder agent processing (Sprint 0 — agent not wired yet)
+# Agent processing — wired to OrchestratorAgent
 # ---------------------------------------------------------------------------
-async def _placeholder_agent_response(ctx: StreamingContext) -> None:
-    """Emit placeholder SSE events until the real orchestrator is connected.
+async def _run_agent(
+    request: Request,
+    ctx: StreamingContext,
+    message: str,
+    context: dict[str, Any],
+) -> None:
+    """Run the OrchestratorAgent to process a user message.
 
-    This will be replaced by the OrchestratorAgent in Sprint 1 (SD-6).
+    Called as a background task after the POST /messages response is sent.
+    The agent emits SSE events directly to the StreamingContext.
     """
+    from services.gateway.agents.orchestrator import OrchestratorAgent
+
     try:
-        await ctx.emit_token("I received your message. ")
-        await asyncio.sleep(0.05)  # Simulate latency
-        await ctx.emit_token("The agent system is being connected. ")
-        await asyncio.sleep(0.05)
-        await ctx.emit_suggestion(
-            ["How did revenue perform?", "Show me the P&L"]
+        computation_client = getattr(request.app.state, "computation_client", None)
+        review_store = getattr(request.app.state, "review_store", None)
+
+        if computation_client is None:
+            # Fallback: emit error if computation client not configured
+            await ctx.emit_token(
+                "The computation service is not connected. "
+                "Please ensure both services are running."
+            )
+            await ctx.emit_suggestion(
+                ["How did revenue perform?", "Show me the P&L"]
+            )
+            await ctx.emit_done()
+            return
+
+        orchestrator = OrchestratorAgent(
+            computation_client=computation_client,
+            review_store=review_store,
         )
-        await ctx.emit_done()
+        await orchestrator.handle_message(message, context, ctx)
+
     except Exception as exc:
-        logger.exception("Error in placeholder agent response")
+        logger.exception("Error in agent processing: %s", exc)
         await ctx.emit_error(str(exc), code="AGENT_ERROR")
         await ctx.emit_done()
 
@@ -119,8 +140,10 @@ async def send_message(
         context=body.context,
     )
 
-    # Launch agent processing (placeholder for Sprint 0)
-    background_tasks.add_task(_placeholder_agent_response, ctx)
+    # Launch agent processing via OrchestratorAgent
+    background_tasks.add_task(
+        _run_agent, request, ctx, body.message, body.context or {},
+    )
 
     return SendMessageResponse(
         conversation_id=conversation_id,

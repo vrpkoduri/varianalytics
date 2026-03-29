@@ -54,14 +54,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     from shared.data.service import DataService
     from shared.data.review_store import ReviewStore
+    from services.gateway.clients.computation_client import ComputationClient
+    from shared.config.settings import Settings
+
+    settings = Settings()
 
     logger.info("Gateway starting up — initialising services …")
     app.state.data_service = DataService()
     app.state.review_store = ReviewStore()
     app.state.conversation_manager = ConversationManager()
-    logger.info("Gateway ready — DataService + ReviewStore + ConversationManager initialised")
+    app.state.computation_client = ComputationClient(
+        base_url=settings.computation_service_url,
+    )
+    logger.info(
+        "Gateway ready — DataService + ReviewStore + ConversationManager + ComputationClient(%s)",
+        settings.computation_service_url,
+    )
     yield
-    logger.info("Gateway shutting down — draining connections …")
+    logger.info("Gateway shutting down — closing connections …")
+    await app.state.computation_client.close()
 
 
 # ---------------------------------------------------------------------------
