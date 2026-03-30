@@ -31,9 +31,9 @@ export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
   const { filters, setViewType, setComparisonBase } = useGlobalFilters()
 
   return (
-    <div className="h-10 bg-[rgba(0,26,77,.35)] backdrop-blur-lg border-b border-[rgba(0,168,199,.08)] flex items-center justify-between px-6">
+    <div className="h-10 bg-[rgba(0,26,77,.35)] backdrop-blur-lg border-b border-[rgba(0,168,199,.08)] flex items-center justify-between px-4 overflow-x-auto">
       {/* Left — Persona pills */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 shrink-0">
         {PERSONAS.map((p) => {
           const isActive = p.key === persona
           return (
@@ -41,7 +41,7 @@ export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
               key={p.key}
               onClick={() => setPersona(p.key)}
               className={cn(
-                'flex items-center gap-1.5 px-3.5 py-1 rounded-full border cursor-pointer transition-all duration-200',
+                'flex items-center gap-1.5 px-2.5 py-1 rounded-full border cursor-pointer transition-all duration-200',
                 isActive
                   ? 'bg-gradient-to-br from-[rgba(0,168,199,.18)] to-[rgba(0,168,199,.08)] border-[rgba(0,168,199,.25)]'
                   : 'border-white/[.06] hover:border-[rgba(0,168,199,.2)] hover:bg-[rgba(0,168,199,.04)]'
@@ -71,7 +71,7 @@ export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
       </div>
 
       {/* Center — Time Agg + Base */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0 shrink-0">
         {/* Time agg group */}
         <div className="flex gap-0.5 bg-white/[.03] rounded-[5px] p-[1px] border border-white/[.06]">
           {TIME_AGGS.map((t) => {

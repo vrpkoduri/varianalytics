@@ -68,7 +68,7 @@ export function ReviewItemCollapsed({ item, isChecked, isExpanded, onCheck, onTo
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[11px] font-bold text-[var(--tx-primary)] truncate">
+          <span className="text-[11px] font-bold text-[var(--tx-primary)]" title={item.account}>
             {item.account}
           </span>
           <Badge variant={sb.variant} className="text-[7px] px-1.5 py-0">{sb.label}</Badge>
