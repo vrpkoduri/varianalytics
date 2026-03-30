@@ -193,3 +193,64 @@ When adding a feature or fixing a bug:
 4. Use shared fixtures from conftest.py
 5. Run the full test suite before pushing
 6. Update this document if adding a new test category or tool
+
+---
+
+## Filter & Interaction Test Matrix
+
+### Dashboard Filter Scenarios
+| Scenario | BU Filter | View Filter | Base Filter | Expected Behavior |
+|----------|-----------|------------|-------------|-------------------|
+| Default (no filters) | All | MTD | BUDGET | Full dataset, all BUs |
+| Single BU | Marsh | MTD | BUDGET | Marsh-only KPIs, variances, heatmap |
+| View switch | All | QTD | BUDGET | Quarterly totals (>= MTD) |
+| Base switch | All | MTD | FORECAST | Forecast comparators |
+| Combined | Marsh | QTD | BUDGET | Marsh quarterly data |
+| Combined | Mercer | YTD | PRIOR_YEAR | Mercer YTD vs PY |
+| Reset | All | MTD | BUDGET | Returns to default |
+
+### Cross-Page Filter Persistence
+| Action | Dashboard | P&L | Chat | Review | Approval |
+|--------|-----------|-----|------|--------|----------|
+| Select BU Marsh | Filters | Filters | In context | Client | Client |
+| Switch to QTD | Refetch | Refetch | In context | N/A | N/A |
+| Switch to Forecast | Refetch | Refetch | In context | N/A | N/A |
+
+### Interaction Test Checklist
+- [ ] BU click -> all dashboard sections filter
+- [ ] BU click -> P&L page filters when navigated
+- [ ] View toggle -> all endpoints refetch
+- [ ] Base toggle -> all endpoints refetch
+- [ ] Persona switch -> chat clears, variances filter
+- [ ] Heatmap cell click -> variance table filters
+- [ ] Variance table search -> filters rows
+- [ ] Variance table sort -> reorders rows
+- [ ] Variance row click -> modal opens
+- [ ] P&L expand/collapse -> works with real data
+- [ ] P&L leaf click -> modal opens
+- [ ] Chat send -> response streams
+- [ ] Review confirm -> status changes + confetti
+- [ ] Approval approve -> report gate updates + confetti
+- [ ] Geography tree expand -> shows real nodes
+- [ ] Geography node click -> dimension filter banner
+
+### Regression Test Commands
+```bash
+# Full test suite (all tests)
+PYTHONPATH=. pytest tests/ -q
+
+# Filter-specific E2E tests
+PYTHONPATH=. pytest tests/e2e/test_filter_scenarios.py -v
+
+# API contract tests
+PYTHONPATH=. pytest tests/unit/test_api_contracts.py -v
+
+# Interaction wiring tests
+PYTHONPATH=. pytest tests/integration/test_interaction_wiring.py -v
+
+# Frontend API integration
+PYTHONPATH=. pytest tests/integration/test_frontend_api.py -v
+
+# Filter validation integration
+PYTHONPATH=. pytest tests/integration/test_filter_validation.py -v
+```
