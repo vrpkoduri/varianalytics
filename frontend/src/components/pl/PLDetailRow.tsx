@@ -27,12 +27,18 @@ export function PLDetailRow({ row, onOpenModal, isEven }: PLDetailRowProps) {
       ? 'var(--emerald)'
       : 'var(--coral)'
 
+  // E5: Heat coloring based on variance magnitude
+  const intensity = Math.min(Math.abs(variancePct) / 10, 1) * 0.06
+  const heatBg = Math.abs(variancePct) > 2
+    ? (isFavorable ? `rgba(45,212,168,${intensity})` : `rgba(249,112,102,${intensity})`)
+    : undefined
+
   return (
     <div
       className="grid items-center px-3 py-1 cursor-pointer transition-colors hover:bg-[rgba(0,168,199,.05)]"
       style={{
         gridTemplateColumns: 'minmax(230px, 2fr) 70px 70px 70px 65px 50px 50px',
-        background: isEven ? 'rgba(0,168,199,.01)' : undefined,
+        background: heatBg || (isEven ? 'rgba(0,168,199,.01)' : undefined),
       }}
       onClick={onOpenModal}
       role="button"

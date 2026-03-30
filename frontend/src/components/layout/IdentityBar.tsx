@@ -125,7 +125,9 @@ export default function IdentityBar() {
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
-            <span className="absolute top-[3px] right-[3px] w-1.5 h-1.5 rounded-full bg-coral border-[1.5px] border-cobalt animate-pulse" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-coral text-white text-[7px] font-bold flex items-center justify-center">
+              3
+            </span>
           </div>
           <NotificationDropdown isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
         </div>

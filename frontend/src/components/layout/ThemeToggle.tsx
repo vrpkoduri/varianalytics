@@ -10,6 +10,7 @@ export default function ThemeToggle({ className }: ThemeToggleProps) {
   return (
     <button
       onClick={toggleTheme}
+      title="Toggle dark/light theme"
       className={[
         'w-[30px] h-[30px] rounded-[7px] border border-white/10 bg-white/[.04]',
         'flex items-center justify-center cursor-pointer',

@@ -53,7 +53,15 @@ export default function DashboardView() {
   const personaLabel = personaConfig?.label ?? persona
 
   // Resolve data — prefer API response, fallback to mock
-  const kpiCards = summary?.cards ?? MOCK_KPI_CARDS
+  // E1: Enrich KPI cards with trailing sparkline data from trends
+  const kpiCards = useMemo(() => {
+    const cards = summary?.cards ?? MOCK_KPI_CARDS
+    const trendActuals = (trends?.data || []).map((d: any) => d.actual || 0)
+    return cards.map((card: any) => ({
+      ...card,
+      sparkData: card.sparkData?.length > 0 ? card.sparkData : trendActuals.slice(-6),
+    }))
+  }, [summary, trends])
   const rawMetrics = summary?.metrics ?? MOCK_METRICS
   const waterfallData = waterfall?.steps ?? MOCK_WATERFALL
   const heatmapData = heatmap ?? MOCK_HEATMAP
@@ -152,6 +160,7 @@ export default function DashboardView() {
         <Breadcrumb
           title="Dashboard"
           subtitle={`Good afternoon, ${personaLabel} \u00B7 ${viewType} vs ${comparisonBase}`}
+          filters={{ bu: filters.businessUnit || undefined, dimension: dimensionFilter?.nodeName }}
         />
       </div>
 

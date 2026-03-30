@@ -98,6 +98,15 @@ export function PLGrid({ rows }: PLGridProps) {
           >
             {allExpanded ? 'Collapse All' : 'Expand All'}
           </button>
+          {/* Compare mode stub — Sprint 2 */}
+          <button
+            className="text-[8px] px-2 py-0.5 rounded-md border"
+            style={{ borderColor: 'var(--border)', color: 'var(--tx-tertiary)' }}
+            title="Compare MTD vs QTD (coming soon)"
+            disabled
+          >
+            Compare
+          </button>
         </div>
       </div>
       <GlassCard className="overflow-hidden">

@@ -111,6 +111,11 @@ export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
             )
           })}
         </div>
+
+        {/* E3: Period display */}
+        <div className="flex items-center gap-1 ml-2">
+          <span className="text-[9px] font-semibold" style={{ color: 'var(--teal)' }}>Jun 2026</span>
+        </div>
       </div>
 
       {/* Right — Focus mode */}

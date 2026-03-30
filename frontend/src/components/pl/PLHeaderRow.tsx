@@ -1,7 +1,7 @@
 export function PLHeaderRow() {
   return (
     <div
-      className="grid items-center px-3 py-2 border-b-2 border-border"
+      className="grid items-center px-3 py-2 border-b-2 border-border sticky top-0 z-10"
       style={{
         gridTemplateColumns: 'minmax(230px, 2fr) 70px 70px 70px 65px 50px 50px',
         background: 'var(--card-alt)',

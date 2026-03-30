@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { cn } from '@/utils/theme'
 import { Badge } from '@/components/common/Badge'
 import { InfoTooltip } from '@/components/common/Tooltip'
@@ -71,6 +71,7 @@ export function VarianceTable({ variances, totalCount, searchQuery, onSearchChan
   const { openModal } = useModal()
   const [sortCol, setSortCol] = useState<SortCol>('variance')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const handleSort = (col: SortCol) => {
     if (sortCol === col) {
@@ -141,7 +142,7 @@ export function VarianceTable({ variances, totalCount, searchQuery, onSearchChan
 
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead>
+          <thead className="sticky top-0 z-10" style={{ background: 'var(--surface)' }}>
             <tr className="border-b border-border">
               {([
                 ['account', 'Account'],
@@ -189,50 +190,68 @@ export function VarianceTable({ variances, totalCount, searchQuery, onSearchChan
             {sorted.map((v) => {
               const sConf = statusBadge[v.status]
               const tConf = typeBadge[v.type]
+              const isExpanded = expandedId === v.id
               return (
-                <tr
-                  key={v.id}
-                  className="border-b border-border/50 border-l-[3px] border-l-transparent hover:border-l-teal hover:bg-[rgba(0,168,199,.03)] hover:shadow-sm cursor-pointer transition-all duration-150"
-                  onClick={() => openModal(MOCK_MODAL_DATA[v.id] ?? toVarianceDetail(v))}
-                >
-                  <td className="py-2 px-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-table-sm text-tx-primary font-medium">
-                        {v.account}
-                      </span>
-                      {v.edgeBadge && (
-                        <Badge variant={edgeBadgeVariant[v.edgeBadge] ?? 'gray'} className="text-[7px] px-1 py-0">
-                          {v.edgeBadge}
-                        </Badge>
-                      )}
-                    </div>
-                  </td>
-                  <td className="py-2 px-2 text-table-sm text-tx-secondary">{v.bu}</td>
-                  <td className="py-2 px-2 text-table-sm text-tx-secondary">{v.geo}</td>
-                  <td className={cn('py-2 px-2 text-right text-table-var font-bold', v.favorable ? 'text-emerald' : 'text-coral')}>
-                    {v.variance >= 0 ? '+' : ''}{formatCurrency(v.variance)}
-                  </td>
-                  <td className={cn('py-2 px-2 text-right text-table-sm', v.favorable ? 'text-emerald' : 'text-coral')}>
-                    {formatPercent(v.variancePct)}
-                  </td>
-                  <td className="py-2 px-2 text-center">
-                    <Sparkline
-                      data={v.sparkData}
-                      width={48}
-                      height={14}
-                      color={v.favorable ? '#2DD4A8' : '#F97066'}
-                    />
-                  </td>
-                  <td className="py-2 px-2 text-center">
-                    <Badge variant={tConf.variant}>{tConf.label}</Badge>
-                  </td>
-                  <td className="py-2 px-2 text-center">
-                    <Badge variant={sConf.variant}>{sConf.label}</Badge>
-                  </td>
-                  <td className="py-2 px-2 text-[10px] text-tx-secondary leading-snug max-w-[260px] truncate">
-                    {v.narrative}
-                  </td>
-                </tr>
+                <React.Fragment key={v.id}>
+                  <tr
+                    className="border-b border-border/50 border-l-[3px] border-l-transparent hover:border-l-teal hover:bg-[rgba(0,168,199,.03)] hover:shadow-sm cursor-pointer transition-all duration-150"
+                    onClick={() => setExpandedId(isExpanded ? null : v.id)}
+                  >
+                    <td className="py-2 px-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-table-sm text-tx-primary font-medium">
+                          {v.account}
+                        </span>
+                        {v.edgeBadge && (
+                          <Badge variant={edgeBadgeVariant[v.edgeBadge] ?? 'gray'} className="text-[7px] px-1 py-0">
+                            {v.edgeBadge}
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2 px-2 text-table-sm text-tx-secondary">{v.bu}</td>
+                    <td className="py-2 px-2 text-table-sm text-tx-secondary">{v.geo}</td>
+                    <td className={cn('py-2 px-2 text-right text-table-var font-bold', v.favorable ? 'text-emerald' : 'text-coral')}>
+                      {v.variance >= 0 ? '+' : ''}{formatCurrency(v.variance)}
+                    </td>
+                    <td className={cn('py-2 px-2 text-right text-table-sm', v.favorable ? 'text-emerald' : 'text-coral')}>
+                      {formatPercent(v.variancePct)}
+                    </td>
+                    <td className="py-2 px-2 text-center">
+                      <Sparkline
+                        data={v.sparkData}
+                        width={48}
+                        height={14}
+                        color={v.favorable ? '#2DD4A8' : '#F97066'}
+                      />
+                    </td>
+                    <td className="py-2 px-2 text-center">
+                      <Badge variant={tConf.variant}>{tConf.label}</Badge>
+                    </td>
+                    <td className="py-2 px-2 text-center">
+                      <Badge variant={sConf.variant}>{sConf.label}</Badge>
+                    </td>
+                    <td className="py-2 px-2 text-[10px] text-tx-secondary leading-snug max-w-[260px] truncate">
+                      {v.narrative}
+                    </td>
+                  </tr>
+                  {isExpanded && (
+                    <tr>
+                      <td colSpan={9} className="px-6 py-3 border-b border-border" style={{ background: 'rgba(0,168,199,.02)' }}>
+                        <div className="text-[10px] text-tx-secondary leading-relaxed mb-2 pl-4">
+                          {v.narrative || 'No narrative available'}
+                        </div>
+                        <button
+                          className="text-[8px] font-semibold px-3 py-1 rounded-md ml-4"
+                          style={{ background: 'linear-gradient(135deg, var(--cobalt), var(--teal))', color: 'white' }}
+                          onClick={(e) => { e.stopPropagation(); openModal(MOCK_MODAL_DATA[v.id] ?? toVarianceDetail(v)) }}
+                        >
+                          Detail &rarr;
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               )
             })}
           </tbody>
@@ -247,7 +266,25 @@ export function VarianceTable({ variances, totalCount, searchQuery, onSearchChan
           }
         </span>
         <div className="flex items-center gap-2">
-          <button className="text-[9px] px-2 py-0.5 rounded-button border border-border text-tx-tertiary hover:border-teal hover:text-teal transition-colors">
+          <button
+            className="text-[9px] px-2 py-0.5 rounded-button border border-border text-tx-tertiary hover:border-teal hover:text-teal transition-colors"
+            onClick={() => {
+              const headers = ['Account', 'BU', 'Geo', 'Variance ($)', 'Variance (%)', 'Type', 'Status', 'Narrative']
+              const csvRows = sorted.map(v => [
+                v.account, v.bu, v.geo,
+                v.variance, v.variancePct,
+                v.type, v.status, `"${(v.narrative || '').replace(/"/g, '""')}"`
+              ])
+              const csv = [headers.join(','), ...csvRows.map(r => r.join(','))].join('\n')
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+              const url = URL.createObjectURL(blob)
+              const link = document.createElement('a')
+              link.href = url
+              link.download = `variances_${new Date().toISOString().slice(0, 10)}.csv`
+              link.click()
+              URL.revokeObjectURL(url)
+            }}
+          >
             Export CSV
           </button>
           <button className="text-[9px] px-2 py-0.5 rounded-button border border-border text-tx-tertiary hover:border-teal hover:text-teal transition-colors">
