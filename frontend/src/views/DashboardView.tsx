@@ -120,8 +120,9 @@ export default function DashboardView() {
     const rev = summary.cards.find((c: any) => c.label?.includes('REVENUE'))
     const ebitda = summary.cards.find((c: any) => c.label?.includes('EBITDA'))
     const topFav = filteredVariances.filter(v => v.favorable).sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance))[0]
-    const topUnfav = filteredVariances.filter(v => !v.favorable).sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance))[0]
-    return `<b>June close: Revenue ${rev ? `$${rev.value}K (${rev.delta > 0 ? '+' : ''}${rev.delta}%)` : 'N/A'}, EBITDA ${ebitda ? `$${ebitda.value}K (${ebitda.delta > 0 ? '+' : ''}${ebitda.delta}%)` : 'N/A'}.</b> ${topFav ? `${topFav.account} drives upside.` : ''} ${topUnfav ? `${topUnfav.account} is the main headwind.` : ''}`
+    const topUnfav = filteredVariances.filter(v => !v.favorable && v.account !== topFav?.account).sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance))[0]
+    const headwindText = topUnfav ? `${topUnfav.account} is the main headwind.` : 'Mixed cost pressures across accounts.'
+    return `<b>June close: Revenue ${rev ? `$${rev.value}K (${rev.delta > 0 ? '+' : ''}${rev.delta}%)` : 'N/A'}, EBITDA ${ebitda ? `$${ebitda.value}K (${ebitda.delta > 0 ? '+' : ''}${ebitda.delta}%)` : 'N/A'}.</b> ${topFav ? `${topFav.account} drives upside.` : ''} ${headwindText}`
   }, [summary, filteredVariances, persona, usingMock])
 
   if (loading) {
@@ -214,6 +215,7 @@ export default function DashboardView() {
 
       <VarianceTable
         variances={filteredVariances}
+        totalCount={variances.length}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
       />

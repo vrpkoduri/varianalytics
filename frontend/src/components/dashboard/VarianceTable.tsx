@@ -16,6 +16,7 @@ type SortDir = 'asc' | 'desc'
 
 interface VarianceTableProps {
   variances: MockVariance[]
+  totalCount?: number
   searchQuery: string
   onSearchChange: (q: string) => void
 }
@@ -66,7 +67,7 @@ function toVarianceDetail(v: MockVariance): VarianceDetail {
   }
 }
 
-export function VarianceTable({ variances, searchQuery, onSearchChange }: VarianceTableProps) {
+export function VarianceTable({ variances, totalCount, searchQuery, onSearchChange }: VarianceTableProps) {
   const { openModal } = useModal()
   const [sortCol, setSortCol] = useState<SortCol>('variance')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -240,7 +241,10 @@ export function VarianceTable({ variances, searchQuery, onSearchChange }: Varian
 
       <div className="flex items-center justify-between mt-3 pt-2 border-t border-border">
         <span className="text-[9px] text-tx-tertiary">
-          Showing {sorted.length} of {variances.length} variances
+          {sorted.length < (totalCount ?? variances.length)
+            ? `Showing ${sorted.length} of ${totalCount ?? variances.length} variances`
+            : `${totalCount ?? variances.length} variances`
+          }
         </span>
         <div className="flex items-center gap-2">
           <button className="text-[9px] px-2 py-0.5 rounded-button border border-border text-tx-tertiary hover:border-teal hover:text-teal transition-colors">

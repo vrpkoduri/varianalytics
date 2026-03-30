@@ -28,13 +28,20 @@ export default function Sidebar({ isOpen }: SidebarProps) {
   const { variances: sidebarVariances } = useVariances()
   const countData = sidebarVariances.length > 0 ? sidebarVariances : MOCK_VARIANCES
 
+  // Filter variance data by selected BU before computing donut counts
+  const filteredForDonut = useMemo(() => {
+    if (!filters.businessUnit) return countData
+    const buName = filters.businessUnit.replace(/_/g, ' ')
+    return countData.filter(v => v.bu.toLowerCase().includes(buName.toLowerCase()))
+  }, [countData, filters.businessUnit])
+
   // Compute review status counts from variance data
   const reviewCounts = useMemo(() => {
-    const approved = countData.filter((v) => v.status === 'approved').length
-    const reviewed = countData.filter((v) => v.status === 'reviewed').length
-    const draft = countData.filter((v) => v.status === 'draft').length
+    const approved = filteredForDonut.filter((v) => v.status === 'approved').length
+    const reviewed = filteredForDonut.filter((v) => v.status === 'reviewed').length
+    const draft = filteredForDonut.filter((v) => v.status === 'draft').length
     return { approved, reviewed, draft }
-  }, [countData])
+  }, [filteredForDonut])
 
   // Compute per-BU variance counts
   const buItemsWithCounts = useMemo(() => {

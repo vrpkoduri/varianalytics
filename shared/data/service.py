@@ -538,7 +538,12 @@ class DataService:
                 "is_material": bool(row.get("is_material", False)),
                 "is_netted": bool(row.get("is_netted", False)),
                 "is_trending": bool(row.get("is_trending", False)),
-                "pl_category": row.get("pl_category"),
+                "geo_node_id": row.get("geo_node_id", ""),
+                "segment_node_id": row.get("segment_node_id", ""),
+                "lob_node_id": row.get("lob_node_id", ""),
+                "costcenter_node_id": row.get("costcenter_node_id", ""),
+                "variance_sign": row.get("variance_sign", "natural"),
+                "pl_category": row.get("pl_category", ""),
                 "narrative_oneliner": row.get("narrative_oneliner"),
             })
 

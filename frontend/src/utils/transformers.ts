@@ -194,9 +194,18 @@ export function transformVariances(apiItems: any[]): MockVariance[] {
     geo: formatGeo(v.geoNodeId || v.geo || 'Global'),
     variance: round2(v.varianceAmount || v.variance || 0),
     variancePct: round2(v.variancePct || 0),
-    favorable: v.isFavorable ?? ((v.varianceAmount || v.variance || 0) > 0),
+    favorable: (() => {
+      if (v.isFavorable !== undefined && v.isFavorable !== null) return v.isFavorable
+      const amount = v.varianceAmount || v.variance || 0
+      const sign = v.varianceSign || v.variance_sign || ''
+      // Inverse sign convention: costs are favorable when negative
+      if (sign === 'inverse' || ['COGS', 'OpEx', 'NonOp', 'Tax'].includes(v.plCategory || '')) {
+        return amount < 0
+      }
+      return amount > 0
+    })(),
     sparkData: v.sparkData || [],
-    type: v.isTrending ? 'trending' : v.isNetted ? 'netted' : 'material',
+    type: v.isMaterial ? 'material' : v.isNetted ? 'netted' : v.isTrending ? 'trending' : 'material',
     status: mapStatus(v.status || v.reviewStatus || 'draft'),
     edgeBadge: v.edgeBadge || (v.isNew ? 'New' : undefined),
     narrative: v.narrativeOneliner || v.narrative || '',
