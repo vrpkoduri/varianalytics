@@ -1,0 +1,30 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "cwd": "frontend"
+    },
+    {
+      "name": "gateway",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "services.gateway.main:app", "--port", "8000", "--reload"],
+      "port": 8000
+    },
+    {
+      "name": "computation",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "services.computation.main:app", "--port", "8001", "--reload"],
+      "port": 8001
+    },
+    {
+      "name": "reports",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "services.reports.main:app", "--port", "8002", "--reload"],
+      "port": 8002
+    }
+  ]
+}
