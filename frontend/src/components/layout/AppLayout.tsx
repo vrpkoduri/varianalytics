@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import IdentityBar from './IdentityBar'
 import ContextStrip from './ContextStrip'
 import Sidebar from './Sidebar'
 import ErrorBoundary from '@/components/common/ErrorBoundary'
+import { PageTransition } from '@/components/common/PageTransition'
 import { cn } from '@/utils/theme'
 
 export default function AppLayout() {
@@ -11,6 +12,16 @@ export default function AppLayout() {
   const [focusMode, setFocusMode] = useState(false)
   const isChatPage = location.pathname === '/chat'
   const sidebarOpen = !isChatPage && !focusMode
+
+  // Focus mode body class
+  useEffect(() => {
+    if (focusMode) {
+      document.body.classList.add('meeting')
+    } else {
+      document.body.classList.remove('meeting')
+    }
+    return () => document.body.classList.remove('meeting')
+  }, [focusMode])
 
   return (
     <div className="flex flex-col h-screen">
@@ -42,7 +53,9 @@ export default function AppLayout() {
           )}
         >
           <ErrorBoundary>
-            <Outlet />
+            <PageTransition>
+              <Outlet />
+            </PageTransition>
           </ErrorBoundary>
         </main>
       </div>

@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { cn } from '@/utils/theme'
 import { Badge } from '@/components/common/Badge'
+import { InfoTooltip } from '@/components/common/Tooltip'
+import { TOOLTIPS } from '@/mocks/tooltipContent'
 import { SearchBar } from '@/components/common/SearchBar'
 import { Sparkline } from '@/components/charts/Sparkline'
 import { formatCurrency, formatPercent } from '@/utils/formatters'
@@ -125,6 +127,7 @@ export function VarianceTable({ variances, searchQuery, onSearchChange }: Varian
     <div className="glass-card p-4 animate-fade-up d4">
       <div className="flex items-center justify-between mb-3">
         <span className="section-label">MATERIAL VARIANCES</span>
+        <InfoTooltip content={TOOLTIPS.materialVariances} />
         <div className="flex items-center gap-3">
           <span className="text-[9px] text-tx-tertiary">{sorted.length} items</span>
           <SearchBar

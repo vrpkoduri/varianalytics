@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { cn } from '@/utils/theme'
 import ThemeToggle from './ThemeToggle'
+import { NotificationDropdown } from './NotificationDropdown'
 
 const TABS = [
   { key: 'dash', label: 'Dashboard', route: '/' },
@@ -22,7 +23,7 @@ function useClockTime() {
     const id = setInterval(() => {
       const now = new Date()
       setTime(now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }))
-    }, 1000)
+    }, 30000)
     return () => clearInterval(id)
   }, [])
 
@@ -33,6 +34,7 @@ export default function IdentityBar() {
   const navigate = useNavigate()
   const location = useLocation()
   const clock = useClockTime()
+  const [notifOpen, setNotifOpen] = useState(false)
 
   const activeTab = TABS.find((t) => t.route === location.pathname)?.key ?? 'dash'
 
@@ -104,22 +106,28 @@ export default function IdentityBar() {
       {/* Right — Controls */}
       <div className="flex items-center gap-3">
         {/* Bell */}
-        <div className="relative w-[30px] h-[30px] rounded-[7px] border border-white/10 bg-white/[.04] flex items-center justify-center cursor-pointer hover:bg-white/[.08] transition-colors">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="text-white/50"
+        <div className="relative">
+          <div
+            className="relative w-[30px] h-[30px] rounded-[7px] border border-white/10 bg-white/[.04] flex items-center justify-center cursor-pointer hover:bg-white/[.08] transition-colors"
+            onClick={() => setNotifOpen(!notifOpen)}
           >
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-          <span className="absolute top-[3px] right-[3px] w-1.5 h-1.5 rounded-full bg-coral border-[1.5px] border-cobalt animate-pulse" />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-white/50"
+            >
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            <span className="absolute top-[3px] right-[3px] w-1.5 h-1.5 rounded-full bg-coral border-[1.5px] border-cobalt animate-pulse" />
+          </div>
+          <NotificationDropdown isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
         </div>
 
         {/* Theme toggle */}

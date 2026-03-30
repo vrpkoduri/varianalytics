@@ -194,3 +194,17 @@ body {
 .animate-breathe {
   animation: breathe 1.5s ease infinite;
 }
+
+/* ----------------------------------------------------------------
+   Print Styles
+   ---------------------------------------------------------------- */
+@media print {
+  body::before { display: none !important; }
+  .identity-bar, .context-strip, .sidebar-container,
+  button, input, .search-bar { display: none !important; }
+  .main-layout { display: block !important; height: auto !important; }
+  .content-area { padding: 0 !important; max-width: 100% !important; overflow: visible !important; }
+  .glass-card { border: 1px solid #ddd !important; backdrop-filter: none !important; background: #fff !important; break-inside: avoid; box-shadow: none !important; }
+  * { color: #000 !important; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

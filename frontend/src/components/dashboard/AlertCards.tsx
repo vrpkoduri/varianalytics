@@ -13,7 +13,7 @@ export function AlertCards({ persona }: AlertCardsProps) {
       {showNetting && (
         <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-2">
-            <span className="section-label">NETTING ALERTS</span>
+            <span className="section-label" style={{ animation: 'borderPulse 2s ease infinite' }}>NETTING ALERTS</span>
             <Badge variant="purple">3 pairs</Badge>
           </div>
           <div className="space-y-2">
@@ -36,7 +36,7 @@ export function AlertCards({ persona }: AlertCardsProps) {
       <div className={showNetting ? '' : 'col-span-full'}>
         <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-2">
-            <span className="section-label">TREND ALERTS</span>
+            <span className="section-label" style={{ animation: 'borderPulse 2s ease infinite' }}>TREND ALERTS</span>
             <Badge variant="amber">2 trends</Badge>
           </div>
           <div className="space-y-2">

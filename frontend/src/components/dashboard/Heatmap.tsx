@@ -1,4 +1,6 @@
 import { cn } from '@/utils/theme'
+import { InfoTooltip } from '@/components/common/Tooltip'
+import { TOOLTIPS } from '@/mocks/tooltipContent'
 import type { HeatmapData } from '@/mocks/dashboardData'
 
 interface HeatmapProps {
@@ -27,6 +29,7 @@ export function Heatmap({ data, activeFilter, onCellClick, persona }: HeatmapPro
     <div className="glass-card p-4 animate-fade-up d3">
       <div className="flex items-center justify-between mb-3">
         <span className="section-label">VARIANCE HEATMAP</span>
+        <InfoTooltip content={TOOLTIPS.heatmap} />
         {activeFilter && (
           <button
             onClick={() => onCellClick(null)}

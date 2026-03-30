@@ -1,0 +1,18 @@
+export const TOOLTIPS: Record<string, string> = {
+  closeProgress: 'Shows the review lifecycle status: how many variances are approved (green), reviewed by analyst (gold), or still in AI draft (gray).',
+  projectedYE: 'Year-end impact projected using linear extrapolation of the trailing 3-month trend. Confidence reflects pattern stability.',
+  decomposition: 'Algebraic decomposition of the variance into driver components. Revenue uses Volume × Price × Mix × FX. COGS uses Rate × Volume × Mix.',
+  correlations: 'Pass 4 of the 5.5-pass engine scans all material variances for pairwise dimensional overlap and directional co-movement.',
+  narrative: 'Narratives are AI-generated in Pass 5 using RAG-enhanced templates. The persona filter adapts narrative depth automatically.',
+  hypotheses: 'Confirming or rejecting hypotheses feeds the RAG knowledge base, improving future narrative accuracy.',
+  execSummary: 'AI-generated executive summary adapted to your persona level. Analyst sees detail, CFO sees board-ready language.',
+  ebitdaBridge: 'Waterfall chart showing the bridge from budgeted EBITDA to actual. Each bar represents a category contribution.',
+  revenueTrend: 'Solid green line shows actual monthly revenue. Dashed line shows budget. Shaded area indicates the gap.',
+  heatmap: 'Click any heatmap cell to filter the variance table below. Color intensity maps to variance percentage magnitude.',
+  materialVariances: 'Materiality uses OR logic: absolute threshold ($50K) OR percentage threshold (3%). Domain overrides apply.',
+  incomeStatement: 'P&L with 28 detail accounts grouped into Revenue, COGS, OpEx. Calculated rows (EBITDA, GP) resolve after rollup.',
+  narrativeDepth: 'Vantage adjusts narrative depth by persona: Analyst=Detail, Director=Mid-level, CFO=Summary, BU Leader=Mid-level scoped.',
+  slaThresholds: 'SLA: Green <12h (on track), Amber 12-48h (needs attention), Red >48h (overdue, escalation recommended).',
+  reportGate: 'Distribution gated on approval. Reports only distribute when all material variances are reviewed and approved.',
+  confidence: 'Confidence reflects AI certainty from data quality, historical pattern match, and RAG retrieval similarity.',
+}

@@ -1,3 +1,4 @@
+import { useUser } from '@/context/UserContext'
 import { Breadcrumb } from '@/components/common/Breadcrumb'
 import { MarshFooter } from '@/components/common/MarshFooter'
 import { ReportGate } from '@/components/approval/ReportGate'
@@ -8,6 +9,7 @@ import { MOCK_MODAL_DATA } from '@/mocks/modalData'
 import type { ApprovalVariance } from '@/mocks/approvalData'
 
 export default function ApprovalView() {
+  const { persona } = useUser()
   const { analystGroups, pendingCount, approveItem, holdItem, approveAllReviewed, bulkApproveGroup } = useApprovalQueue()
   const { openModal } = useModal()
 
@@ -19,6 +21,18 @@ export default function ApprovalView() {
   return (
     <div className="space-y-3">
       <Breadcrumb title="Approvals" subtitle="Director approval queue" />
+      {persona === 'bu' && (
+        <div
+          className="px-3 py-1.5 rounded-lg text-[9px] animate-fade-up"
+          style={{
+            background: 'rgba(0,168,199,.06)',
+            border: '1px solid rgba(0,168,199,.12)',
+          }}
+        >
+          <span className="font-semibold" style={{ color: 'var(--teal)' }}>&#128274; Marsh</span>
+          <span className="ml-1" style={{ color: 'var(--tx-secondary)' }}>Showing data scoped to your business unit</span>
+        </div>
+      )}
       <ReportGate pendingCount={pendingCount} onApproveAllReviewed={approveAllReviewed} />
       {analystGroups.map((group) => (
         <AnalystGroup

@@ -34,6 +34,18 @@ export default function ChatView() {
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-0">
+        {persona === 'bu' && (
+          <div
+            className="px-3 py-1.5 rounded-lg text-[9px] animate-fade-up mb-2"
+            style={{
+              background: 'rgba(0,168,199,.06)',
+              border: '1px solid rgba(0,168,199,.12)',
+            }}
+          >
+            <span className="font-semibold" style={{ color: 'var(--teal)' }}>&#128274; Marsh</span>
+            <span className="ml-1" style={{ color: 'var(--tx-secondary)' }}>Showing data scoped to your business unit</span>
+          </div>
+        )}
         <ChatHeader
           persona={persona}
           viewType={filters.viewType}
