@@ -36,7 +36,7 @@ export function KPICard({ card }: KPICardProps) {
       <div className="section-label mb-1">{card.label}</div>
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-kpi font-bold text-tx-primary">
+          <div className="text-kpi font-bold text-tx-primary animate-glow">
             {card.prefix}{count.toLocaleString()}{card.suffix}
           </div>
           <div className="flex items-center gap-2 mt-1">
@@ -46,7 +46,7 @@ export function KPICard({ card }: KPICardProps) {
             <span className="text-[9px] text-tx-tertiary">{card.comparatorLabel}</span>
           </div>
         </div>
-        <div className="opacity-30 absolute right-3 bottom-3">
+        <div className="opacity-[0.06] absolute right-3 bottom-3">
           <Sparkline data={card.sparkData} width={70} height={28} color="#00A8C7" opacity={0.4} />
         </div>
       </div>

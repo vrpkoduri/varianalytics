@@ -191,7 +191,7 @@ export function VarianceTable({ variances, searchQuery, onSearchChange }: Varian
               return (
                 <tr
                   key={v.id}
-                  className="border-b border-border/50 hover:bg-[rgba(0,168,199,.03)] cursor-pointer transition-colors"
+                  className="border-b border-border/50 border-l-[3px] border-l-transparent hover:border-l-teal hover:bg-[rgba(0,168,199,.03)] hover:shadow-sm cursor-pointer transition-all duration-150"
                   onClick={() => openModal(MOCK_MODAL_DATA[v.id] ?? toVarianceDetail(v))}
                 >
                   <td className="py-2 px-2">

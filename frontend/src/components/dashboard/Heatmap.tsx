@@ -67,10 +67,10 @@ export function Heatmap({ data, activeFilter, onCellClick, persona }: HeatmapPro
                           )
                         }
                         className={cn(
-                          'w-full py-1.5 rounded text-[10px] font-semibold text-center transition-all',
+                          'w-full py-1.5 rounded text-[10px] font-semibold text-center transition-all duration-150',
                           getCellColor(cell),
                           isActive && 'ring-2 ring-teal ring-offset-1 ring-offset-[var(--card)]',
-                          'hover:opacity-80 cursor-pointer',
+                          'hover:scale-[1.02] hover:shadow-[inset_0_0_12px_rgba(255,255,255,.08)] hover:z-10 cursor-pointer',
                         )}
                       >
                         {cell > 0 ? '+' : ''}{cell.toFixed(1)}%

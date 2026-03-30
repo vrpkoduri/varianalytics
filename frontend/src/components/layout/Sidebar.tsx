@@ -1,9 +1,10 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { DonutProgress } from '../sidebar/DonutProgress'
 import { BUList } from '../sidebar/BUList'
 import { HierarchyTree } from '../sidebar/HierarchyTree'
 import { useDimensions } from '../../hooks/useDimensions'
 import { useGlobalFilters } from '../../context/GlobalFiltersContext'
+import { MOCK_VARIANCES } from '@/mocks/dashboardData'
 import { cn } from '@/utils/theme'
 
 // Dimension display labels
@@ -23,6 +24,24 @@ interface SidebarProps {
 export default function Sidebar({ isOpen }: SidebarProps) {
   const { businessUnits, hierarchies } = useDimensions()
   const { filters, setBusinessUnit, setDimensionFilter } = useGlobalFilters()
+
+  // Compute review status counts from variance data
+  const reviewCounts = useMemo(() => {
+    const approved = MOCK_VARIANCES.filter((v) => v.status === 'approved').length
+    const reviewed = MOCK_VARIANCES.filter((v) => v.status === 'reviewed').length
+    const draft = MOCK_VARIANCES.filter((v) => v.status === 'draft').length
+    return { approved, reviewed, draft }
+  }, [])
+
+  // Compute per-BU variance counts
+  const buItemsWithCounts = useMemo(() => {
+    return businessUnits.map((bu) => ({
+      ...bu,
+      varianceCount: bu.id
+        ? MOCK_VARIANCES.filter((v) => v.bu === bu.name).length
+        : MOCK_VARIANCES.length,
+    }))
+  }, [businessUnits])
 
   // Tree expanded/active state per dimension
   const [expandedMap, setExpandedMap] = useState<Record<string, Set<string>>>({
@@ -86,11 +105,11 @@ export default function Sidebar({ isOpen }: SidebarProps) {
       </div>
 
       {/* Donut progress */}
-      <DonutProgress approved={12} reviewed={5} draft={8} />
+      <DonutProgress approved={reviewCounts.approved} reviewed={reviewCounts.reviewed} draft={reviewCounts.draft} />
 
       {/* BU List */}
       <BUList
-        items={businessUnits}
+        items={buItemsWithCounts}
         activeId={filters.businessUnit}
         onSelect={(buId) => setBusinessUnit(buId)}
       />

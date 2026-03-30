@@ -45,14 +45,18 @@ export function TrendChart({ data, height = 210 }: TrendChartProps) {
             domain={['dataMin - 40', 'dataMax + 40']}
           />
           <Tooltip
-            contentStyle={{
-              background: 'var(--card)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              fontSize: 10,
-              color: 'var(--tx-primary)',
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null
+              return (
+                <div className="px-3 py-2 rounded-lg text-[9px] shadow-lg"
+                     style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--tx-secondary)' }}>
+                  <div className="font-semibold mb-1" style={{ color: 'var(--tx-primary)' }}>{label}</div>
+                  {payload.map((p: any, i: number) => (
+                    <div key={i}>{p.name}: <b style={{ color: p.color }}>${Math.round(p.value)}K</b></div>
+                  ))}
+                </div>
+              )
             }}
-            formatter={(val: number) => [`$${val}`, undefined]}
           />
           <Area
             type="monotone"

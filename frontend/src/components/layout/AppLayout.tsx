@@ -25,13 +25,14 @@ export default function AppLayout() {
 
   return (
     <div className="flex flex-col h-screen">
-      {/* Headers — hidden in focus mode */}
-      {!focusMode && (
-        <>
-          <IdentityBar />
-          <ContextStrip onFocusToggle={() => setFocusMode(true)} />
-        </>
-      )}
+      {/* Headers — fade out in focus mode */}
+      <div
+        style={{ transition: 'opacity 0.25s ease, transform 0.25s ease' }}
+        className={focusMode ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : 'opacity-100'}
+      >
+        <IdentityBar />
+        <ContextStrip onFocusToggle={() => setFocusMode(true)} />
+      </div>
 
       {/* Focus mode: show exit button */}
       {focusMode && (

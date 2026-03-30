@@ -11,8 +11,8 @@ export function GlassCard({ children, className, hover = false, onClick }: Glass
   return (
     <div
       className={cn(
-        'glass-card',
-        hover && 'glass-card-clickable cursor-pointer',
+        'glass-card transition-all duration-200',
+        hover && 'glass-card-clickable cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:border-[rgba(0,168,199,.2)]',
         className,
       )}
       onClick={onClick}

@@ -1,3 +1,4 @@
+import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { Breadcrumb } from '@/components/common/Breadcrumb'
 import { MarshFooter } from '@/components/common/MarshFooter'
 import { SegmentedProgressBar } from '@/components/review/SegmentedProgressBar'
@@ -77,23 +78,15 @@ export default function ReviewView() {
   if (loading) {
     return (
       <div className="space-y-4 px-6 py-5 max-w-[1300px] mx-auto">
-        <Breadcrumb title="Review Queue" subtitle="Analyst Workspace" />
-        <div className="glass-card p-4 h-8 animate-pulse" style={{ background: 'var(--glass)' }} />
+        <LoadingSkeleton height="30px" width="200px" />
+        <LoadingSkeleton height="32px" />
         <div className="grid grid-cols-4 gap-2.5">
-          {[...Array(4)].map((_, i) => (
-            <div
-              key={i}
-              className="glass-card p-4 h-20 animate-pulse"
-              style={{ background: 'var(--glass)' }}
-            />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <LoadingSkeleton key={i} height="80px" />
           ))}
         </div>
-        {[...Array(3)].map((_, i) => (
-          <div
-            key={i}
-            className="glass-card p-4 h-32 animate-pulse"
-            style={{ background: 'var(--glass)' }}
-          />
+        {Array.from({ length: 3 }).map((_, i) => (
+          <LoadingSkeleton key={i} height="130px" />
         ))}
       </div>
     )

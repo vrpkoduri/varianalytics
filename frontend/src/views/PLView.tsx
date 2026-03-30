@@ -1,6 +1,7 @@
 import { useUser } from '@/context/UserContext'
 import { useGlobalFilters } from '@/context/GlobalFiltersContext'
 import { usePL } from '@/hooks/usePL'
+import { LoadingSkeleton } from '@/components/common/LoadingSkeleton'
 import { Breadcrumb } from '@/components/common/Breadcrumb'
 import { MarshFooter } from '@/components/common/MarshFooter'
 import { PLGrid } from '@/components/pl/PLGrid'
@@ -16,15 +17,11 @@ export default function PLView() {
   if (loading) {
     return (
       <div className="space-y-3">
-        <Breadcrumb title="P&L" subtitle={subtitle} />
-        <div className="glass-card p-4 h-96 animate-pulse" style={{ background: 'var(--glass)' }} />
+        <LoadingSkeleton height="30px" width="120px" />
+        <LoadingSkeleton height="380px" />
         <div className="grid grid-cols-5 gap-2">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className="glass-card p-4 h-20 animate-pulse"
-              style={{ background: 'var(--glass)' }}
-            />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <LoadingSkeleton key={i} height="80px" />
           ))}
         </div>
       </div>
@@ -37,13 +34,10 @@ export default function PLView() {
 
       {usingMock && (
         <div
-          className="px-3 py-1 rounded text-[9px] text-tx-secondary"
-          style={{
-            background: 'rgba(255,191,0,.06)',
-            border: '1px solid rgba(255,191,0,.15)',
-          }}
+          className="px-3 py-1 rounded-md text-[8px] font-semibold mb-2 animate-fade-up"
+          style={{ background: 'rgba(251,191,36,.06)', border: '1px solid rgba(251,191,36,.12)', color: 'var(--amber)' }}
         >
-          Using cached data — backend unavailable
+          Warning: Using cached data — backend unavailable
         </div>
       )}
 

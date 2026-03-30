@@ -56,16 +56,17 @@ export function WaterfallChart({ data, height = 210 }: WaterfallChartProps) {
             width={45}
           />
           <Tooltip
-            formatter={(val: number, name: string) => {
-              if (name === 'invisible') return [null, null]
-              return [formatDollar(val), 'Value']
-            }}
-            contentStyle={{
-              background: 'var(--card)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              fontSize: 10,
-              color: 'var(--tx-primary)',
+            content={({ active, payload, label }) => {
+              if (!active || !payload?.length) return null
+              const vis = payload.find((p: any) => p.dataKey === 'visible')
+              if (!vis) return null
+              return (
+                <div className="px-3 py-2 rounded-lg text-[9px] shadow-lg"
+                     style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--tx-secondary)' }}>
+                  <div className="font-semibold mb-1" style={{ color: 'var(--tx-primary)' }}>{label}</div>
+                  <div>Value: <b style={{ color: vis.color }}>{formatDollar(vis.value as number)}</b></div>
+                </div>
+              )
             }}
           />
           <Bar dataKey="invisible" stackId="stack" fill="transparent" radius={0} />
