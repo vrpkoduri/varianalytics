@@ -12,7 +12,7 @@ import {
 export function useDashboard() {
   const { filters } = useGlobalFilters()
   const { viewType, comparisonBase } = filters
-  const period = '2025-12' // Default period — will be dynamic later
+  const period = filters.period ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}` : '2026-06'
 
   const [summary, setSummary] = useState<any>(null)
   const [waterfall, setWaterfall] = useState<any>(null)

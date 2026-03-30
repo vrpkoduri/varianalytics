@@ -6,7 +6,7 @@ import { MOCK_PL_DATA, MOCK_MARGINS } from '@/mocks/plData'
 export function usePL() {
   const { filters } = useGlobalFilters()
   const { viewType, comparisonBase } = filters
-  const period = '2025-12'
+  const period = filters.period ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}` : '2026-06'
 
   const [rows, setRows] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

@@ -93,7 +93,7 @@ export function useChat() {
       try {
         const resp = (await api.gateway.post('/chat/messages', {
           message: text,
-          context: { period_id: '2025-12', view_id: 'MTD', base_id: 'BUDGET' },
+          context: { period_id: '2026-06', view_id: 'MTD', base_id: 'BUDGET' },
           conversation_id: conversationId,
         })) as any
         const cid = resp.conversationId || resp.conversation_id

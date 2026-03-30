@@ -6,7 +6,7 @@ import { MOCK_VARIANCES } from '@/mocks/dashboardData'
 export function useVariances(filters?: { plCategory?: string; buId?: string }) {
   const { filters: globalFilters } = useGlobalFilters()
   const { viewType, comparisonBase } = globalFilters
-  const period = '2025-12'
+  const period = globalFilters.period ? `${globalFilters.period.year}-${String(globalFilters.period.month).padStart(2, '0')}` : '2026-06'
 
   const [variances, setVariances] = useState<any[]>([])
   const [total, setTotal] = useState(0)
