@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { matchIntent, MOCK_RESPONSES, type RichContent } from '@/mocks/chatData'
 import { api } from '@/utils/api'
+import { useGlobalFilters } from '@/context/GlobalFiltersContext'
 
 export interface ChatMessage {
   id: string
@@ -13,6 +14,9 @@ export interface ChatMessage {
 }
 
 export function useChat() {
+  const { filters } = useGlobalFilters()
+  const period = filters.period ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}` : '2026-06'
+
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -93,7 +97,7 @@ export function useChat() {
       try {
         const resp = (await api.gateway.post('/chat/messages', {
           message: text,
-          context: { period_id: '2026-06', view_id: 'MTD', base_id: 'BUDGET' },
+          context: { period_id: period, view_id: filters.viewType, base_id: filters.comparisonBase, bu_id: filters.businessUnit || undefined },
           conversation_id: conversationId,
         })) as any
         const cid = resp.conversationId || resp.conversation_id
@@ -105,7 +109,7 @@ export function useChat() {
         return null // Signals fallback to mock
       }
     },
-    [conversationId],
+    [conversationId, period, filters.viewType, filters.comparisonBase, filters.businessUnit],
   )
 
   const sendMessage = useCallback(

@@ -7,8 +7,9 @@ import {
 import { fireConfetti } from '../components/common/ConfettiContainer'
 import { api } from '../utils/api'
 import { transformApprovalItems } from '../utils/transformers'
+import { personas } from '../theme/tokens'
 
-export function useApprovalQueue() {
+export function useApprovalQueue(persona?: string) {
   const [items, setItems] = useState<ApprovalVariance[]>([])
   const [usingMock, setUsingMock] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -42,8 +43,13 @@ export function useApprovalQueue() {
   )
 
   const analystGroups = useMemo((): AnalystGroupData[] => {
+    let filtered = items
+    if (persona === 'bu') {
+      const homeBU = (personas as any)?.[persona]?.homeBU ?? 'Marsh'
+      filtered = items.filter(i => i.bu.toLowerCase().includes(homeBU.toLowerCase()))
+    }
     const groups: Record<string, ApprovalVariance[]> = {}
-    items.forEach((item) => {
+    filtered.forEach((item) => {
       const analyst = item.assignedAnalyst
       ;(groups[analyst] ??= []).push(item)
     })

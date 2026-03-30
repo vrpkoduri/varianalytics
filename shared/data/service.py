@@ -266,6 +266,7 @@ class DataService:
         period_id: str,
         bu_id: Optional[str] = None,
         base_id: str = "BUDGET",
+        view_id: str = "MTD",
     ) -> list[dict[str, Any]]:
         """Return waterfall steps for revenue bridge.
 
@@ -279,7 +280,7 @@ class DataService:
         if vm.empty:
             return []
 
-        filtered = self._filter_variance(vm, period_id, bu_id, "MTD", base_id)
+        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id)
         rev_rows = filtered[filtered["account_id"] == "acct_revenue"]
 
         if rev_rows.empty:
@@ -341,6 +342,8 @@ class DataService:
         self,
         period_id: str,
         base_id: str = "BUDGET",
+        view_id: str = "MTD",
+        bu_id: Optional[str] = None,
     ) -> dict[str, Any]:
         """Return heatmap of revenue variances: geo rows x BU columns.
 
@@ -352,7 +355,7 @@ class DataService:
         if vm.empty:
             return {"rows": [], "columns": [], "cells": []}
 
-        filtered = self._filter_variance(vm, period_id, None, "MTD", base_id)
+        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id)
         # Revenue leaf accounts only (not calculated)
         rev = filtered[
             (filtered["pl_category"] == "Revenue") & (filtered["is_calculated"] == False)
@@ -405,6 +408,13 @@ class DataService:
                     })
             cells.append(row)
 
+        # If bu_id filter is set, narrow columns to only that BU
+        if bu_id is not None:
+            matching_indices = [i for i, bid in enumerate(bu_ids) if bid == bu_id]
+            if matching_indices:
+                bu_names = [bu_names[i] for i in matching_indices]
+                cells = [[row[i] for i in matching_indices] for row in cells]
+
         return {"rows": geo_names, "columns": bu_names, "cells": cells}
 
     # ------------------------------------------------------------------
@@ -417,6 +427,7 @@ class DataService:
         account_id: str = "acct_gross_revenue",
         base_id: str = "BUDGET",
         periods: int = 12,
+        view_id: str = "MTD",
     ) -> list[dict[str, Any]]:
         """Return last N periods of MTD variance data for an account.
 
@@ -430,7 +441,7 @@ class DataService:
         if vm.empty:
             return []
 
-        filtered = self._filter_variance(vm, None, bu_id, "MTD", base_id)
+        filtered = self._filter_variance(vm, None, bu_id, view_id, base_id)
         acct_rows = filtered[filtered["account_id"] == account_id]
 
         if acct_rows.empty:

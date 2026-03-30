@@ -61,6 +61,7 @@ async def get_waterfall_data(
     period_id: str = Query(..., description="Period key"),
     bu_id: str | None = Query(None, description="Filter to a single business unit"),
     base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
+    view_id: str = Query("MTD", description="View: MTD, QTD, YTD"),
 ) -> dict[str, Any]:
     """Return waterfall chart data bridging comparison to actual.
 
@@ -72,6 +73,7 @@ async def get_waterfall_data(
         period_id=period_id,
         bu_id=bu_id,
         base_id=base_id,
+        view_id=view_id,
     )
     return {
         "steps": steps,
@@ -89,6 +91,8 @@ async def get_heatmap_data(
     request: Request,
     period_id: str = Query(..., description="Period key"),
     base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
+    view_id: str = Query("MTD", description="View: MTD, QTD, YTD"),
+    bu_id: str | None = Query(None, description="Business unit filter"),
 ) -> dict[str, Any]:
     """Return variance heatmap: geo rows x BU columns with color-coded variance %.
     """
@@ -96,6 +100,8 @@ async def get_heatmap_data(
     return ds.get_heatmap(
         period_id=period_id,
         base_id=base_id,
+        view_id=view_id,
+        bu_id=bu_id,
     )
 
 
@@ -110,6 +116,7 @@ async def get_trend_data(
     account_id: str = Query("acct_gross_revenue", description="Account to trend"),
     base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
     periods: int = Query(12, ge=3, le=36, description="Number of trailing periods"),
+    view_id: str = Query("MTD", description="View: MTD, QTD, YTD"),
 ) -> dict[str, Any]:
     """Return time-series trend data for sparklines and trend charts.
 
@@ -122,6 +129,7 @@ async def get_trend_data(
         account_id=account_id,
         base_id=base_id,
         periods=periods,
+        view_id=view_id,
     )
     return {
         "data": data,

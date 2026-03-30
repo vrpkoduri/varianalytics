@@ -43,10 +43,10 @@ export function useDashboard() {
       api.computation.get(`/dashboard/summary${params}`),
       api.computation.get(`/dashboard/waterfall${params}`),
       api.computation.get(
-        `/dashboard/heatmap${buildParams({ period_id: period, base_id: comparisonBase })}`,
+        `/dashboard/heatmap${buildParams({ period_id: period, base_id: comparisonBase, bu_id: businessUnit || undefined, view_id: viewType })}`,
       ),
       api.computation.get(
-        `/dashboard/trends${buildParams({ base_id: comparisonBase, periods: 12 })}`,
+        `/dashboard/trends${buildParams({ base_id: comparisonBase, periods: 12, bu_id: businessUnit || undefined, view_id: viewType })}`,
       ),
     ])
       .then(([s, w, h, t]) => {

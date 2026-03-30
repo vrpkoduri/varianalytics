@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { MOCK_REVIEW_DATA, type ReviewVariance } from '@/mocks/reviewData'
 import { api } from '@/utils/api'
 import { transformReviewItems } from '@/utils/transformers'
+import { personas } from '@/theme/tokens'
 
 export function useReviewQueue(persona: string) {
   const [items, setItems] = useState<ReviewVariance[]>([])
@@ -50,7 +51,10 @@ export function useReviewQueue(persona: string) {
     let result = [...items]
 
     // Persona filter: BU Leader sees own BU only
-    if (persona === 'bu') result = result.filter((i) => i.bu === 'Marsh')
+    if (persona === 'bu') {
+      const homeBU = (personas as any)[persona]?.homeBU ?? 'Marsh'
+      result = result.filter((i) => i.bu === homeBU)
+    }
 
     // Status filter
     if (statusFilter === 'awaiting')

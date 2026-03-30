@@ -4,6 +4,7 @@ import { BUList } from '../sidebar/BUList'
 import { HierarchyTree } from '../sidebar/HierarchyTree'
 import { useDimensions } from '../../hooks/useDimensions'
 import { useGlobalFilters } from '../../context/GlobalFiltersContext'
+import { useVariances } from '@/hooks/useVariances'
 import { MOCK_VARIANCES } from '@/mocks/dashboardData'
 import { cn } from '@/utils/theme'
 
@@ -24,24 +25,26 @@ interface SidebarProps {
 export default function Sidebar({ isOpen }: SidebarProps) {
   const { businessUnits, hierarchies } = useDimensions()
   const { filters, setBusinessUnit, setDimensionFilter } = useGlobalFilters()
+  const { variances: sidebarVariances } = useVariances()
+  const countData = sidebarVariances.length > 0 ? sidebarVariances : MOCK_VARIANCES
 
   // Compute review status counts from variance data
   const reviewCounts = useMemo(() => {
-    const approved = MOCK_VARIANCES.filter((v) => v.status === 'approved').length
-    const reviewed = MOCK_VARIANCES.filter((v) => v.status === 'reviewed').length
-    const draft = MOCK_VARIANCES.filter((v) => v.status === 'draft').length
+    const approved = countData.filter((v) => v.status === 'approved').length
+    const reviewed = countData.filter((v) => v.status === 'reviewed').length
+    const draft = countData.filter((v) => v.status === 'draft').length
     return { approved, reviewed, draft }
-  }, [])
+  }, [countData])
 
   // Compute per-BU variance counts
   const buItemsWithCounts = useMemo(() => {
     return businessUnits.map((bu) => ({
       ...bu,
       varianceCount: bu.id
-        ? MOCK_VARIANCES.filter((v) => v.bu === bu.name).length
-        : MOCK_VARIANCES.length,
+        ? countData.filter((v) => v.bu === bu.name).length
+        : countData.length,
     }))
-  }, [businessUnits])
+  }, [businessUnits, countData])
 
   // Tree expanded/active state per dimension
   const [expandedMap, setExpandedMap] = useState<Record<string, Set<string>>>({

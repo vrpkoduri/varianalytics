@@ -19,7 +19,7 @@ export default function ApprovalView() {
     bulkApproveGroup,
     loading,
     usingMock,
-  } = useApprovalQueue()
+  } = useApprovalQueue(persona)
   const { openModal } = useModal()
 
   const handleOpenModal = (item: ApprovalVariance) => {

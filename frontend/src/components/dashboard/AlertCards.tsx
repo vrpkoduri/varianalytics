@@ -1,12 +1,39 @@
 import { Badge } from '@/components/common/Badge'
 
-interface AlertCardsProps {
-  persona: string
+interface NettingAlert {
+  left: string
+  right: string
+  net: string
+  favorable: boolean
 }
 
-export function AlertCards({ persona }: AlertCardsProps) {
+interface TrendAlert {
+  description: string
+  projection: string
+}
+
+interface AlertCardsProps {
+  persona: string
+  nettingAlerts?: NettingAlert[]
+  trendAlerts?: TrendAlert[]
+}
+
+const DEFAULT_NETTING_ALERTS: NettingAlert[] = [
+  { left: 'T&E EMEA -$2.8K', right: 'T&E NAM +$2.1K', net: '-$0.7K', favorable: false },
+  { left: 'Consulting Rev -$4.2K', right: 'Advisory Rev +$6.9K', net: '+$2.7K', favorable: true },
+  { left: 'Real Estate -$2.2K', right: 'Outsourcing -$1.1K', net: '-$3.3K', favorable: false },
+]
+
+const DEFAULT_TREND_ALERTS: TrendAlert[] = [
+  { description: 'Tech Infrastructure: 4th consecutive month above budget', projection: '+$580K YE' },
+  { description: 'Cloud Services: trending 9% above plan since Mar', projection: '+$320K YE' },
+]
+
+export function AlertCards({ persona, nettingAlerts, trendAlerts }: AlertCardsProps) {
   // BU leaders don't see cross-BU netting alerts
   const showNetting = persona !== 'bu'
+  const netting = nettingAlerts ?? DEFAULT_NETTING_ALERTS
+  const trends = trendAlerts ?? DEFAULT_TREND_ALERTS
 
   return (
     <div className="grid grid-cols-1 tablet:grid-cols-2 gap-2.5 animate-fade-up d2">
@@ -14,21 +41,15 @@ export function AlertCards({ persona }: AlertCardsProps) {
         <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="section-label" style={{ animation: 'borderPulse 2s ease infinite' }}>NETTING ALERTS</span>
-            <Badge variant="purple">3 pairs</Badge>
+            <Badge variant="purple">{netting.length} pairs</Badge>
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-tx-secondary">T&amp;E EMEA -$2.8K &harr; T&amp;E NAM +$2.1K</span>
-              <span className="text-purple font-semibold">Net: -$0.7K</span>
-            </div>
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-tx-secondary">Consulting Rev -$4.2K &harr; Advisory Rev +$6.9K</span>
-              <span className="text-emerald font-semibold">Net: +$2.7K</span>
-            </div>
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-tx-secondary">Real Estate -$2.2K &harr; Outsourcing -$1.1K</span>
-              <span className="text-coral font-semibold">Net: -$3.3K</span>
-            </div>
+            {netting.map((alert, i) => (
+              <div key={i} className="flex items-center justify-between text-[10px]">
+                <span className="text-tx-secondary">{alert.left} &harr; {alert.right}</span>
+                <span className={`${alert.favorable ? 'text-emerald' : alert.net.startsWith('+') ? 'text-emerald' : 'text-coral'} font-semibold`}>Net: {alert.net}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -37,17 +58,15 @@ export function AlertCards({ persona }: AlertCardsProps) {
         <div className="glass-card p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="section-label" style={{ animation: 'borderPulse 2s ease infinite' }}>TREND ALERTS</span>
-            <Badge variant="amber">2 trends</Badge>
+            <Badge variant="amber">{trends.length} trends</Badge>
           </div>
           <div className="space-y-2">
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-tx-secondary">Tech Infrastructure: 4th consecutive month above budget</span>
-              <span className="text-amber font-semibold">Projected: +$580K YE</span>
-            </div>
-            <div className="flex items-center justify-between text-[10px]">
-              <span className="text-tx-secondary">Cloud Services: trending 9% above plan since Mar</span>
-              <span className="text-amber font-semibold">Projected: +$320K YE</span>
-            </div>
+            {trends.map((alert, i) => (
+              <div key={i} className="flex items-center justify-between text-[10px]">
+                <span className="text-tx-secondary">{alert.description}</span>
+                <span className="text-amber font-semibold">Projected: {alert.projection}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
