@@ -1,4 +1,4 @@
-import type { ApiError, ApiResponse } from '@/types/api';
+import type { ApiError } from '@/types/api';
 
 const SERVICE_URLS = {
   gateway: '/api/gateway',
@@ -18,6 +18,40 @@ export function setAuthToken(token: string | null): void {
 }
 
 /**
+ * Convert snake_case keys to camelCase recursively.
+ */
+function snakeToCamel(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(snakeToCamel)
+  if (obj !== null && typeof obj === 'object' && !(obj instanceof Date)) {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [
+        k.replace(/_([a-z])/g, (_, c) => c.toUpperCase()),
+        snakeToCamel(v),
+      ])
+    )
+  }
+  return obj
+}
+
+/**
+ * Build URL query params from an object, filtering out undefined/empty values.
+ */
+export function buildParams(
+  params: Record<string, string | number | boolean | undefined>,
+): string {
+  const entries = Object.entries(params).filter(
+    ([_, v]) => v !== undefined && v !== '',
+  )
+  if (entries.length === 0) return ''
+  return (
+    '?' +
+    entries
+      .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+      .join('&')
+  )
+}
+
+/**
  * Build headers for API requests.
  */
 function buildHeaders(custom?: Record<string, string>): HeadersInit {
@@ -32,13 +66,13 @@ function buildHeaders(custom?: Record<string, string>): HeadersInit {
 }
 
 /**
- * Generic fetch wrapper with error handling.
+ * Generic fetch wrapper with error handling and snake_case to camelCase conversion.
  */
 async function request<T>(
   service: ServiceName,
   path: string,
   options: RequestInit = {},
-): Promise<ApiResponse<T>> {
+): Promise<T> {
   const url = `${SERVICE_URLS[service]}${path}`;
 
   const response = await fetch(url, {
@@ -61,7 +95,7 @@ async function request<T>(
   }
 
   const data = await response.json();
-  return { data, status: response.status };
+  return snakeToCamel(data) as T;
 }
 
 /**
@@ -69,31 +103,31 @@ async function request<T>(
  */
 export const api = {
   gateway: {
-    get: <T>(path: string) => request<T>('gateway', path),
-    post: <T>(path: string, body: unknown) =>
+    get: <T = any>(path: string) => request<T>('gateway', path),
+    post: <T = any>(path: string, body: unknown) =>
       request<T>('gateway', path, {
         method: 'POST',
         body: JSON.stringify(body),
       }),
-    put: <T>(path: string, body: unknown) =>
+    put: <T = any>(path: string, body: unknown) =>
       request<T>('gateway', path, {
         method: 'PUT',
         body: JSON.stringify(body),
       }),
-    delete: <T>(path: string) =>
+    delete: <T = any>(path: string) =>
       request<T>('gateway', path, { method: 'DELETE' }),
   },
   computation: {
-    get: <T>(path: string) => request<T>('computation', path),
-    post: <T>(path: string, body: unknown) =>
+    get: <T = any>(path: string) => request<T>('computation', path),
+    post: <T = any>(path: string, body: unknown) =>
       request<T>('computation', path, {
         method: 'POST',
         body: JSON.stringify(body),
       }),
   },
   reports: {
-    get: <T>(path: string) => request<T>('reports', path),
-    post: <T>(path: string, body: unknown) =>
+    get: <T = any>(path: string) => request<T>('reports', path),
+    post: <T = any>(path: string, body: unknown) =>
       request<T>('reports', path, {
         method: 'POST',
         body: JSON.stringify(body),

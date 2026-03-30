@@ -1,36 +1,65 @@
-import { useState, useEffect } from 'react';
-import type { DashboardData } from '@/types/api';
-import { useGlobalFilters } from '@/context/GlobalFiltersContext';
+import { useState, useEffect } from 'react'
+import { useGlobalFilters } from '@/context/GlobalFiltersContext'
+import { api, buildParams } from '@/utils/api'
+import {
+  MOCK_KPI_CARDS,
+  MOCK_WATERFALL,
+  MOCK_HEATMAP,
+  MOCK_TREND,
+  MOCK_METRICS,
+} from '@/mocks/dashboardData'
 
-interface UseDashboardResult {
-  data: DashboardData | null;
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
-}
+export function useDashboard() {
+  const { filters } = useGlobalFilters()
+  const { viewType, comparisonBase } = filters
+  const period = '2025-12' // Default period — will be dynamic later
 
-/**
- * Custom hook for fetching dashboard summary data.
- */
-export function useDashboard(): UseDashboardResult {
-  const { filters } = useGlobalFilters();
-  const [data, setData] = useState<DashboardData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fetchTrigger, setFetchTrigger] = useState(0);
-
-  const refetch = () => setFetchTrigger((prev) => prev + 1);
+  const [summary, setSummary] = useState<any>(null)
+  const [waterfall, setWaterfall] = useState<any>(null)
+  const [heatmap, setHeatmap] = useState<any>(null)
+  const [trends, setTrends] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [usingMock, setUsingMock] = useState(false)
 
   useEffect(() => {
-    // TODO: Implement API call to computation service
-    // GET /api/computation/dashboard?period=...&bu=...&view=...&base=...
-    setIsLoading(false);
-    setData(null);
-    setError(null);
+    setLoading(true)
+    setError(null)
 
-    void filters;
-    void fetchTrigger;
-  }, [filters, fetchTrigger]);
+    const params = buildParams({
+      period_id: period,
+      view_id: viewType,
+      base_id: comparisonBase,
+    })
 
-  return { data, isLoading, error, refetch };
+    Promise.all([
+      api.computation.get(`/dashboard/summary${params}`),
+      api.computation.get(`/dashboard/waterfall${params}`),
+      api.computation.get(
+        `/dashboard/heatmap${buildParams({ period_id: period, base_id: comparisonBase })}`,
+      ),
+      api.computation.get(
+        `/dashboard/trends${buildParams({ base_id: comparisonBase, periods: 12 })}`,
+      ),
+    ])
+      .then(([s, w, h, t]) => {
+        setSummary(s)
+        setWaterfall(w)
+        setHeatmap(h)
+        setTrends(t)
+        setUsingMock(false)
+        setLoading(false)
+      })
+      .catch(() => {
+        // Fallback to mock data
+        setSummary({ cards: MOCK_KPI_CARDS, metrics: MOCK_METRICS })
+        setWaterfall({ steps: MOCK_WATERFALL })
+        setHeatmap(MOCK_HEATMAP)
+        setTrends({ data: MOCK_TREND })
+        setUsingMock(true)
+        setLoading(false)
+      })
+  }, [viewType, comparisonBase, period])
+
+  return { summary, waterfall, heatmap, trends, loading, error, usingMock }
 }

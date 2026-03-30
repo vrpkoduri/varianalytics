@@ -15,17 +15,17 @@ export default defineConfig({
       '/api/gateway': {
         target: 'http://localhost:8000',
         changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api\/gateway/, ''),
+        rewrite: (p) => p.replace(/^\/api\/gateway/, '/api/v1'),
       },
       '/api/computation': {
         target: 'http://localhost:8001',
         changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api\/computation/, ''),
+        rewrite: (p) => p.replace(/^\/api\/computation/, '/api/v1'),
       },
       '/api/reports': {
         target: 'http://localhost:8002',
         changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/api\/reports/, ''),
+        rewrite: (p) => p.replace(/^\/api\/reports/, '/api/v1'),
       },
     },
   },

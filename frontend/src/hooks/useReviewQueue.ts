@@ -1,13 +1,39 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { MOCK_REVIEW_DATA, type ReviewVariance } from '@/mocks/reviewData'
+import { api } from '@/utils/api'
 
 export function useReviewQueue(persona: string) {
-  const [items, setItems] = useState<ReviewVariance[]>(MOCK_REVIEW_DATA)
+  const [items, setItems] = useState<ReviewVariance[]>([])
   const [statusFilter, setStatusFilter] = useState('all')
   const [sortBy, setSortBy] = useState('varpct')
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+  const [usingMock, setUsingMock] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch from API, fallback to mock
+  useEffect(() => {
+    setLoading(true)
+    api.gateway
+      .get('/review/queue?page_size=50')
+      .then((data: any) => {
+        const queueItems = data.items || data
+        if (Array.isArray(queueItems) && queueItems.length > 0) {
+          setItems(queueItems)
+          setUsingMock(false)
+        } else {
+          setItems(MOCK_REVIEW_DATA)
+          setUsingMock(true)
+        }
+        setLoading(false)
+      })
+      .catch(() => {
+        setItems(MOCK_REVIEW_DATA)
+        setUsingMock(true)
+        setLoading(false)
+      })
+  }, [])
 
   const counts = useMemo(
     () => ({
@@ -26,8 +52,10 @@ export function useReviewQueue(persona: string) {
     if (persona === 'bu') result = result.filter((i) => i.bu === 'Marsh')
 
     // Status filter
-    if (statusFilter === 'awaiting') result = result.filter((i) => i.status === 'draft')
-    else if (statusFilter !== 'all') result = result.filter((i) => i.status === statusFilter)
+    if (statusFilter === 'awaiting')
+      result = result.filter((i) => i.status === 'draft')
+    else if (statusFilter !== 'all')
+      result = result.filter((i) => i.status === statusFilter)
 
     // Search filter
     if (searchQuery) {
@@ -38,7 +66,10 @@ export function useReviewQueue(persona: string) {
     }
 
     // Sort
-    const sortFns: Record<string, (a: ReviewVariance, b: ReviewVariance) => number> = {
+    const sortFns: Record<
+      string,
+      (a: ReviewVariance, b: ReviewVariance) => number
+    > = {
       varpct: (a, b) => Math.abs(b.variancePct) - Math.abs(a.variancePct),
       sla: (a, b) => b.sla - a.sla,
       account: (a, b) => a.account.localeCompare(b.account),
@@ -65,23 +96,68 @@ export function useReviewQueue(persona: string) {
   }, [])
 
   const batchMarkReviewed = useCallback(() => {
-    setItems((prev) =>
-      prev.map((item) =>
-        checkedIds.has(item.id) && item.status === 'draft'
-          ? { ...item, status: 'reviewed' as const }
-          : item,
-      ),
-    )
+    if (!usingMock) {
+      const ids = Array.from(checkedIds)
+      api.gateway
+        .post('/review/actions', {
+          variance_ids: ids,
+          action: 'confirm',
+        })
+        .then(() => {
+          // Refresh queue after action
+          api.gateway.get('/review/queue?page_size=50').then((data: any) => {
+            const queueItems = data.items || data
+            if (Array.isArray(queueItems)) setItems(queueItems)
+          })
+        })
+        .catch(() => {
+          // Fall back to local state update on error
+          setItems((prev) =>
+            prev.map((item) =>
+              checkedIds.has(item.id) && item.status === 'draft'
+                ? { ...item, status: 'reviewed' as const }
+                : item,
+            ),
+          )
+        })
+    } else {
+      setItems((prev) =>
+        prev.map((item) =>
+          checkedIds.has(item.id) && item.status === 'draft'
+            ? { ...item, status: 'reviewed' as const }
+            : item,
+        ),
+      )
+    }
     setCheckedIds(new Set())
-  }, [checkedIds])
+  }, [checkedIds, usingMock])
 
   const updateItemStatus = useCallback(
     (id: string, status: ReviewVariance['status']) => {
-      setItems((prev) =>
-        prev.map((item) => (item.id === id ? { ...item, status } : item)),
-      )
+      if (!usingMock) {
+        api.gateway
+          .post('/review/actions', {
+            variance_id: id,
+            action: status === 'reviewed' ? 'confirm' : status,
+          })
+          .then(() => {
+            api.gateway.get('/review/queue?page_size=50').then((data: any) => {
+              const queueItems = data.items || data
+              if (Array.isArray(queueItems)) setItems(queueItems)
+            })
+          })
+          .catch(() => {
+            setItems((prev) =>
+              prev.map((item) => (item.id === id ? { ...item, status } : item)),
+            )
+          })
+      } else {
+        setItems((prev) =>
+          prev.map((item) => (item.id === id ? { ...item, status } : item)),
+        )
+      }
     },
-    [],
+    [usingMock],
   )
 
   const updateHypothesisFeedback = useCallback(
@@ -120,5 +196,7 @@ export function useReviewQueue(persona: string) {
     batchMarkReviewed,
     updateItemStatus,
     updateHypothesisFeedback,
+    loading,
+    usingMock,
   }
 }

@@ -1,67 +1,78 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { SSEEvent } from '@/types/api';
+import { useEffect, useRef, useCallback } from 'react'
 
-interface UseSSEOptions {
-  url: string;
-  enabled?: boolean;
-  onEvent?: (event: SSEEvent) => void;
-  onError?: (error: Event) => void;
+export interface SSEEvent {
+  type: string
+  payload: any
 }
 
-interface UseSSEResult {
-  isConnected: boolean;
-  lastEvent: SSEEvent | null;
-  error: Event | null;
-  connect: () => void;
-  disconnect: () => void;
-}
-
-/**
- * Custom hook for managing a Server-Sent Events (SSE) streaming connection.
- * Used for chat streaming and real-time updates.
- */
-export function useSSE({
-  url,
-  enabled = false,
-  onEvent,
-  onError,
-}: UseSSEOptions): UseSSEResult {
-  const [isConnected, setIsConnected] = useState(false);
-  const [lastEvent, _setLastEvent] = useState<SSEEvent | null>(null);
-  const [error, _setError] = useState<Event | null>(null);
-  // TODO: Wire setLastEvent and setError in SSE connect logic (Step 11)
-  void _setLastEvent; void _setError;
-  const eventSourceRef = useRef<EventSource | null>(null);
-
-  const disconnect = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-      setIsConnected(false);
-    }
-  }, []);
-
-  const connect = useCallback(() => {
-    disconnect();
-
-    // TODO: Implement SSE connection to gateway service
-    // const source = new EventSource(url);
-    // source.onopen = () => setIsConnected(true);
-    // source.onmessage = (e) => { ... };
-    // source.onerror = (e) => { ... };
-    // eventSourceRef.current = source;
-
-    void url;
-    void onEvent;
-    void onError;
-  }, [url, onEvent, onError, disconnect]);
+export function useSSE(
+  conversationId: string | null,
+  onEvent: (event: SSEEvent) => void,
+  enabled: boolean = true,
+) {
+  const esRef = useRef<EventSource | null>(null)
+  const onEventRef = useRef(onEvent)
+  onEventRef.current = onEvent
 
   useEffect(() => {
-    if (enabled) {
-      connect();
-    }
-    return () => disconnect();
-  }, [enabled, connect, disconnect]);
+    if (!conversationId || !enabled) return
 
-  return { isConnected, lastEvent, error, connect, disconnect };
+    const url = `/api/gateway/chat/stream/${conversationId}`
+    const es = new EventSource(url)
+    esRef.current = es
+
+    // Listen for typed events
+    const eventTypes = [
+      'token',
+      'data_table',
+      'mini_chart',
+      'suggestion',
+      'confidence',
+      'netting_alert',
+      'review_status',
+      'done',
+      'error',
+    ]
+
+    for (const type of eventTypes) {
+      es.addEventListener(type, (e: MessageEvent) => {
+        try {
+          const payload = JSON.parse(e.data)
+          onEventRef.current({ type, payload })
+          if (type === 'done' || type === 'error') {
+            es.close()
+          }
+        } catch {
+          // Ignore malformed JSON
+        }
+      })
+    }
+
+    // Generic message handler as fallback
+    es.onmessage = (e: MessageEvent) => {
+      try {
+        const payload = JSON.parse(e.data)
+        onEventRef.current({ type: payload.type || 'token', payload })
+      } catch {
+        // Ignore malformed JSON
+      }
+    }
+
+    es.onerror = () => {
+      onEventRef.current({ type: 'error', payload: { message: 'Connection lost' } })
+      es.close()
+    }
+
+    return () => {
+      es.close()
+      esRef.current = null
+    }
+  }, [conversationId, enabled])
+
+  const close = useCallback(() => {
+    esRef.current?.close()
+    esRef.current = null
+  }, [])
+
+  return { close }
 }

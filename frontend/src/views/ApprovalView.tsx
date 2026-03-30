@@ -10,7 +10,16 @@ import type { ApprovalVariance } from '@/mocks/approvalData'
 
 export default function ApprovalView() {
   const { persona } = useUser()
-  const { analystGroups, pendingCount, approveItem, holdItem, approveAllReviewed, bulkApproveGroup } = useApprovalQueue()
+  const {
+    analystGroups,
+    pendingCount,
+    approveItem,
+    holdItem,
+    approveAllReviewed,
+    bulkApproveGroup,
+    loading,
+    usingMock,
+  } = useApprovalQueue()
   const { openModal } = useModal()
 
   const handleOpenModal = (item: ApprovalVariance) => {
@@ -18,9 +27,38 @@ export default function ApprovalView() {
     if (modalData) openModal(modalData)
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <Breadcrumb title="Approvals" subtitle="Director approval queue" />
+        <div className="glass-card p-4 h-24 animate-pulse" style={{ background: 'var(--glass)' }} />
+        {[...Array(3)].map((_, i) => (
+          <div
+            key={i}
+            className="glass-card p-4 h-40 animate-pulse"
+            style={{ background: 'var(--glass)' }}
+          />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
       <Breadcrumb title="Approvals" subtitle="Director approval queue" />
+
+      {usingMock && (
+        <div
+          className="px-3 py-1 rounded text-[9px] text-tx-secondary"
+          style={{
+            background: 'rgba(255,191,0,.06)',
+            border: '1px solid rgba(255,191,0,.15)',
+          }}
+        >
+          Using cached data — backend unavailable
+        </div>
+      )}
+
       {persona === 'bu' && (
         <div
           className="px-3 py-1.5 rounded-lg text-[9px] animate-fade-up"

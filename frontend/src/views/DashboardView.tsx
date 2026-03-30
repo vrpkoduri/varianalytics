@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useUser } from '@/context/UserContext'
 import { useGlobalFilters } from '@/context/GlobalFiltersContext'
+import { useDashboard } from '@/hooks/useDashboard'
 import { personas } from '@/theme/tokens'
 
 // Common
@@ -22,7 +23,7 @@ import { AlertCards } from '@/components/dashboard/AlertCards'
 import { Heatmap } from '@/components/dashboard/Heatmap'
 import { VarianceTable } from '@/components/dashboard/VarianceTable'
 
-// Mock data
+// Mock data (used as fallback defaults when API returns structured data without these fields)
 import {
   MOCK_KPI_CARDS,
   MOCK_WATERFALL,
@@ -37,6 +38,7 @@ export default function DashboardView() {
   const { persona } = useUser()
   const { filters } = useGlobalFilters()
   const { viewType, comparisonBase } = filters
+  const { summary, waterfall, heatmap, trends, loading, usingMock } = useDashboard()
 
   const [heatmapFilter, setHeatmapFilter] = useState<{ bu: string; cat: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -45,9 +47,17 @@ export default function DashboardView() {
   const personaConfig = personas[persona as keyof typeof personas]
   const personaLabel = personaConfig?.label ?? persona
 
+  // Resolve data — prefer API response, fallback to mock
+  const kpiCards = summary?.cards ?? MOCK_KPI_CARDS
+  const metrics = summary?.metrics ?? MOCK_METRICS
+  const waterfallData = waterfall?.steps ?? MOCK_WATERFALL
+  const heatmapData = heatmap ?? MOCK_HEATMAP
+  const trendData = trends?.data ?? MOCK_TREND
+  const variances = MOCK_VARIANCES // Variances come from useVariances hook, keep mock here
+
   // Filter variances based on persona, heatmap selection, and dimension filter
   const filteredVariances = useMemo(() => {
-    let items = MOCK_VARIANCES
+    let items = variances
 
     // Persona filter: BU leaders see only their BU
     if (persona === 'bu') {
@@ -78,9 +88,36 @@ export default function DashboardView() {
     }
 
     return items
-  }, [persona, personaConfig, heatmapFilter, dimensionFilter])
+  }, [persona, personaConfig, heatmapFilter, dimensionFilter, variances])
 
   const narrative = MOCK_EXEC_SUMMARIES[persona] ?? MOCK_EXEC_SUMMARIES.analyst
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        <Breadcrumb
+          title="Dashboard"
+          subtitle={`Good afternoon, ${personaLabel} \u00B7 ${viewType} vs ${comparisonBase}`}
+        />
+        <TimestampBar />
+        {/* Skeleton placeholders */}
+        <div className="grid grid-cols-2 tablet:grid-cols-5 gap-2.5">
+          {[...Array(5)].map((_, i) => (
+            <div
+              key={i}
+              className="glass-card p-4 h-24 animate-pulse"
+              style={{ background: 'var(--glass)' }}
+            />
+          ))}
+        </div>
+        <div className="glass-card p-4 h-48 animate-pulse" style={{ background: 'var(--glass)' }} />
+        <div className="grid grid-cols-1 tablet:grid-cols-2 gap-2.5">
+          <div className="glass-card p-4 h-56 animate-pulse" style={{ background: 'var(--glass)' }} />
+          <div className="glass-card p-4 h-56 animate-pulse" style={{ background: 'var(--glass)' }} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -90,6 +127,18 @@ export default function DashboardView() {
       />
 
       <TimestampBar />
+
+      {usingMock && (
+        <div
+          className="px-3 py-1 rounded text-[9px] text-tx-secondary"
+          style={{
+            background: 'rgba(255,191,0,.06)',
+            border: '1px solid rgba(255,191,0,.15)',
+          }}
+        >
+          Using cached data — backend unavailable
+        </div>
+      )}
 
       {dimensionFilter && (
         <DimensionFilterBanner
@@ -101,25 +150,25 @@ export default function DashboardView() {
       {persona === 'bu' && <PersonaScopeBanner type="bu" buName="Marsh" />}
       {persona === 'cfo' && <PersonaScopeBanner type="cfo" approvedCount={18} totalCount={42} />}
 
-      <SuccessMetricsBar metrics={MOCK_METRICS} />
+      <SuccessMetricsBar metrics={metrics} />
 
       <ExecSummary narrative={narrative} persona={persona} />
 
-      <KPIGrid cards={MOCK_KPI_CARDS} />
+      <KPIGrid cards={kpiCards} />
 
       <AlertCards persona={persona} />
 
       <div className="grid grid-cols-1 tablet:grid-cols-[5fr_4fr] gap-2.5 animate-fade-up d3">
         <div className="glass-card p-4">
-          <WaterfallChart data={MOCK_WATERFALL} height={210} />
+          <WaterfallChart data={waterfallData} height={210} />
         </div>
         <div className="glass-card p-4">
-          <TrendChart data={MOCK_TREND} height={210} />
+          <TrendChart data={trendData} height={210} />
         </div>
       </div>
 
       <Heatmap
-        data={MOCK_HEATMAP}
+        data={heatmapData}
         activeFilter={heatmapFilter}
         onCellClick={setHeatmapFilter}
         persona={persona}

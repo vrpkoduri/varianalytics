@@ -1,38 +1,54 @@
-import { useState, useEffect } from 'react';
-import type { VarianceSummary } from '@/types/api';
-import { useGlobalFilters } from '@/context/GlobalFiltersContext';
+import { useState, useEffect, useCallback } from 'react'
+import { useGlobalFilters } from '@/context/GlobalFiltersContext'
+import { api, buildParams } from '@/utils/api'
+import { MOCK_VARIANCES } from '@/mocks/dashboardData'
 
-interface UseVariancesResult {
-  variances: VarianceSummary[];
-  isLoading: boolean;
-  error: string | null;
-  refetch: () => void;
-}
+export function useVariances(filters?: { plCategory?: string; buId?: string }) {
+  const { filters: globalFilters } = useGlobalFilters()
+  const { viewType, comparisonBase } = globalFilters
+  const period = '2025-12'
 
-/**
- * Custom hook for fetching variance data from the computation service.
- * Reacts to global filter changes.
- */
-export function useVariances(): UseVariancesResult {
-  const { filters } = useGlobalFilters();
-  const [variances, setVariances] = useState<VarianceSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fetchTrigger, setFetchTrigger] = useState(0);
-
-  const refetch = () => setFetchTrigger((prev) => prev + 1);
+  const [variances, setVariances] = useState<any[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [usingMock, setUsingMock] = useState(false)
 
   useEffect(() => {
-    // TODO: Implement API call to computation service
-    // GET /api/computation/variances?period=...&bu=...&view=...&base=...
-    setIsLoading(false);
-    setVariances([]);
-    setError(null);
+    setLoading(true)
+    const params = buildParams({
+      period_id: period,
+      view_id: viewType,
+      base_id: comparisonBase,
+      page: page,
+      page_size: 50,
+      pl_category: filters?.plCategory,
+      bu_id: filters?.buId,
+    })
 
-    // Placeholder to suppress unused variable warnings in strict mode
-    void filters;
-    void fetchTrigger;
-  }, [filters, fetchTrigger]);
+    api.computation
+      .get(`/variances/${params}`)
+      .then((data: any) => {
+        setVariances(data.variances || data.items || [])
+        setTotal(data.total || data.totalCount || 0)
+        setUsingMock(false)
+        setLoading(false)
+      })
+      .catch(() => {
+        setVariances(MOCK_VARIANCES)
+        setTotal(MOCK_VARIANCES.length)
+        setUsingMock(true)
+        setLoading(false)
+      })
+  }, [viewType, comparisonBase, period, page, filters?.plCategory, filters?.buId])
 
-  return { variances, isLoading, error, refetch };
+  const fetchVarianceDetail = useCallback(async (varianceId: string) => {
+    try {
+      return await api.computation.get(`/variances/${varianceId}`)
+    } catch {
+      return null
+    }
+  }, [])
+
+  return { variances, total, page, setPage, loading, usingMock, fetchVarianceDetail }
 }

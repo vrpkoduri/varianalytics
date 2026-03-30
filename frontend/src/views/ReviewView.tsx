@@ -32,6 +32,8 @@ export default function ReviewView() {
     batchMarkReviewed,
     updateItemStatus,
     updateHypothesisFeedback,
+    loading,
+    usingMock,
   } = useReviewQueue(persona)
 
   const handleOpenModal = (item: ReviewVariance) => {
@@ -72,9 +74,46 @@ export default function ReviewView() {
     updateItemStatus(id, 'reviewed')
   }
 
+  if (loading) {
+    return (
+      <div className="space-y-4 px-6 py-5 max-w-[1300px] mx-auto">
+        <Breadcrumb title="Review Queue" subtitle="Analyst Workspace" />
+        <div className="glass-card p-4 h-8 animate-pulse" style={{ background: 'var(--glass)' }} />
+        <div className="grid grid-cols-4 gap-2.5">
+          {[...Array(4)].map((_, i) => (
+            <div
+              key={i}
+              className="glass-card p-4 h-20 animate-pulse"
+              style={{ background: 'var(--glass)' }}
+            />
+          ))}
+        </div>
+        {[...Array(3)].map((_, i) => (
+          <div
+            key={i}
+            className="glass-card p-4 h-32 animate-pulse"
+            style={{ background: 'var(--glass)' }}
+          />
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-4 px-6 py-5 max-w-[1300px] mx-auto">
       <Breadcrumb title="Review Queue" subtitle="Analyst Workspace" />
+
+      {usingMock && (
+        <div
+          className="px-3 py-1 rounded text-[9px] text-tx-secondary"
+          style={{
+            background: 'rgba(255,191,0,.06)',
+            border: '1px solid rgba(255,191,0,.15)',
+          }}
+        >
+          Using cached data — backend unavailable
+        </div>
+      )}
 
       {/* BU Leader scope banner */}
       {persona === 'bu' && (
