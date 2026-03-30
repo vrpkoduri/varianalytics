@@ -14,9 +14,9 @@ export enum ViewType {
 }
 
 export enum ComparisonBase {
-  BUDGET = 'Budget',
-  FORECAST = 'Forecast',
-  PRIOR_YEAR = 'PY',
+  BUDGET = 'BUDGET',
+  FORECAST = 'FORECAST',
+  PRIOR_YEAR = 'PRIOR_YEAR',
 }
 
 export enum PersonaType {

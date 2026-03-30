@@ -2,6 +2,12 @@ import { useState, useEffect } from 'react'
 import { useGlobalFilters } from '@/context/GlobalFiltersContext'
 import { api, buildParams } from '@/utils/api'
 import {
+  transformSummaryCards,
+  transformWaterfallSteps,
+  transformTrendData,
+  transformHeatmap,
+} from '@/utils/transformers'
+import {
   MOCK_KPI_CARDS,
   MOCK_WATERFALL,
   MOCK_HEATMAP,
@@ -43,10 +49,13 @@ export function useDashboard() {
       ),
     ])
       .then(([s, w, h, t]) => {
-        setSummary(s)
-        setWaterfall(w)
-        setHeatmap(h)
-        setTrends(t)
+        setSummary({
+          cards: transformSummaryCards(s?.cards || []),
+          metrics: s?.metrics || MOCK_METRICS,
+        })
+        setWaterfall({ steps: transformWaterfallSteps(w?.steps || []) })
+        setHeatmap(transformHeatmap(h))
+        setTrends({ data: transformTrendData(t?.data || []) })
         setUsingMock(false)
         setLoading(false)
       })

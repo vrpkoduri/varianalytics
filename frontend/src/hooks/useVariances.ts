@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useGlobalFilters } from '@/context/GlobalFiltersContext'
 import { api, buildParams } from '@/utils/api'
+import { transformVariances } from '@/utils/transformers'
 import { MOCK_VARIANCES } from '@/mocks/dashboardData'
 
 export function useVariances(filters?: { plCategory?: string; buId?: string }) {
@@ -29,8 +30,9 @@ export function useVariances(filters?: { plCategory?: string; buId?: string }) {
     api.computation
       .get(`/variances/${params}`)
       .then((data: any) => {
-        setVariances(data.variances || data.items || [])
-        setTotal(data.total || data.totalCount || 0)
+        const rawItems = data.variances || data.items || []
+        setVariances(transformVariances(rawItems))
+        setTotal(data.total || data.totalCount || rawItems.length)
         setUsingMock(false)
         setLoading(false)
       })

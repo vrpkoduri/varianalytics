@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useGlobalFilters } from '@/context/GlobalFiltersContext'
 import { api, buildParams } from '@/utils/api'
+import { transformPLRows } from '@/utils/transformers'
 import { MOCK_PL_DATA, MOCK_MARGINS } from '@/mocks/plData'
 
 export function usePL() {
@@ -23,7 +24,7 @@ export function usePL() {
     api.computation
       .get(`/pl/statement${params}`)
       .then((data: any) => {
-        setRows(data.rows || [])
+        setRows(transformPLRows(data.rows || []))
         setUsingMock(false)
         setLoading(false)
       })

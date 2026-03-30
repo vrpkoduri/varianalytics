@@ -6,6 +6,7 @@ import {
 } from '../mocks/approvalData'
 import { fireConfetti } from '../components/common/ConfettiContainer'
 import { api } from '../utils/api'
+import { transformApprovalItems } from '../utils/transformers'
 
 export function useApprovalQueue() {
   const [items, setItems] = useState<ApprovalVariance[]>([])
@@ -20,7 +21,7 @@ export function useApprovalQueue() {
       .then((data: any) => {
         const queueItems = data.items || data
         if (Array.isArray(queueItems) && queueItems.length > 0) {
-          setItems(queueItems)
+          setItems(transformApprovalItems(queueItems))
           setUsingMock(false)
         } else {
           setItems(MOCK_APPROVAL_DATA)
@@ -67,7 +68,7 @@ export function useApprovalQueue() {
           .then(() => {
             api.gateway.get('/approval/queue?page_size=50').then((data: any) => {
               const queueItems = data.items || data
-              if (Array.isArray(queueItems)) setItems(queueItems)
+              if (Array.isArray(queueItems)) setItems(transformApprovalItems(queueItems))
             })
           })
           .catch(() => {
@@ -111,7 +112,7 @@ export function useApprovalQueue() {
           .then(() => {
             api.gateway.get('/approval/queue?page_size=50').then((data: any) => {
               const queueItems = data.items || data
-              if (Array.isArray(queueItems)) setItems(queueItems)
+              if (Array.isArray(queueItems)) setItems(transformApprovalItems(queueItems))
             })
           })
           .catch(() => {

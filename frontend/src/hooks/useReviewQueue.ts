@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { MOCK_REVIEW_DATA, type ReviewVariance } from '@/mocks/reviewData'
 import { api } from '@/utils/api'
+import { transformReviewItems } from '@/utils/transformers'
 
 export function useReviewQueue(persona: string) {
   const [items, setItems] = useState<ReviewVariance[]>([])
@@ -20,7 +21,7 @@ export function useReviewQueue(persona: string) {
       .then((data: any) => {
         const queueItems = data.items || data
         if (Array.isArray(queueItems) && queueItems.length > 0) {
-          setItems(queueItems)
+          setItems(transformReviewItems(queueItems))
           setUsingMock(false)
         } else {
           setItems(MOCK_REVIEW_DATA)
@@ -107,7 +108,7 @@ export function useReviewQueue(persona: string) {
           // Refresh queue after action
           api.gateway.get('/review/queue?page_size=50').then((data: any) => {
             const queueItems = data.items || data
-            if (Array.isArray(queueItems)) setItems(queueItems)
+            if (Array.isArray(queueItems)) setItems(transformReviewItems(queueItems))
           })
         })
         .catch(() => {
