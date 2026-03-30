@@ -35,11 +35,18 @@ export interface Period {
   label: string;
 }
 
+export interface DimensionFilter {
+  dimension: string;
+  nodeId: string;
+  nodeName: string;
+}
+
 export interface GlobalFilters {
   period: Period | null;
   businessUnit: string | null;
   viewType: ViewType;
   comparisonBase: ComparisonBase;
+  dimensionFilter: DimensionFilter | null;
 }
 
 export interface User {

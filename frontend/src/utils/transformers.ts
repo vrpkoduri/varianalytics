@@ -312,3 +312,84 @@ export function transformApprovalItems(apiItems: any[]): ApprovalVariance[] {
     varianceId: v.varianceId,
   }))
 }
+
+// ============================================================
+// Business Units (for sidebar BU list)
+// ============================================================
+export function transformBusinessUnits(apiData: any): Array<{ id: string | null; name: string; varianceCount?: number }> {
+  if (!apiData) return []
+  const items = Array.isArray(apiData) ? apiData : apiData.items || apiData.businessUnits || []
+  const bus = items.map((bu: any) => ({
+    id: bu.buId || bu.bu_id || bu.id || '',
+    name: bu.buName || bu.bu_name || bu.name || '',
+  }))
+  return [{ id: null, name: 'All' }, ...bus]
+}
+
+// ============================================================
+// Hierarchy Trees (for sidebar dimension trees)
+// ============================================================
+export interface TreeNodeData {
+  id: string
+  name: string
+  children?: TreeNodeData[]
+  variantCount?: number
+}
+
+export function transformHierarchyTree(apiData: any): TreeNodeData[] {
+  if (!apiData) return []
+
+  // API returns { dimensionName, roots: [...] } after snakeToCamel
+  const items = Array.isArray(apiData)
+    ? apiData
+    : apiData.roots || apiData.nodes || apiData.items || apiData.hierarchy || []
+
+  if (items.length === 0) return []
+
+  // Check if it's already a tree (has children property)
+  if (items[0]?.children) {
+    return items.map(transformTreeNode)
+  }
+
+  // Build tree from flat list with parentId
+  return buildTreeFromFlat(items)
+}
+
+function transformTreeNode(node: any): TreeNodeData {
+  return {
+    id: node.nodeId || node.node_id || node.id || '',
+    name: node.nodeName || node.node_name || node.name || '',
+    children: (node.children || []).map(transformTreeNode),
+    variantCount: node.variantCount || node.variant_count,
+  }
+}
+
+function buildTreeFromFlat(items: any[]): TreeNodeData[] {
+  const nodeMap = new Map<string, TreeNodeData>()
+  const roots: TreeNodeData[] = []
+
+  // Create all nodes
+  for (const item of items) {
+    const id = item.nodeId || item.node_id || item.id || ''
+    nodeMap.set(id, {
+      id,
+      name: item.nodeName || item.node_name || item.name || '',
+      children: [],
+    })
+  }
+
+  // Build parent-child relationships
+  for (const item of items) {
+    const id = item.nodeId || item.node_id || item.id || ''
+    const parentId = item.parentId || item.parent_id || item.parentNodeId
+    const node = nodeMap.get(id)!
+
+    if (parentId && nodeMap.has(parentId)) {
+      nodeMap.get(parentId)!.children!.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+
+  return roots
+}

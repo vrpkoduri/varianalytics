@@ -151,5 +151,5 @@ export function useChat() {
     setUseRealApi(true)
   }, [])
 
-  return { messages, isStreaming, sendMessage, clearChat, conversationId, useRealApi }
+  return { messages, isStreaming, sendMessage, clearChat, conversationId, useRealApi, setMessages, setIsStreaming }
 }

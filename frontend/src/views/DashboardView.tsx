@@ -36,13 +36,13 @@ import {
 
 export default function DashboardView() {
   const { persona } = useUser()
-  const { filters } = useGlobalFilters()
+  const { filters, setDimensionFilter } = useGlobalFilters()
   const { viewType, comparisonBase } = filters
+  const dimensionFilter = filters.dimensionFilter
   const { summary, waterfall, heatmap, trends, loading, usingMock } = useDashboard()
 
   const [heatmapFilter, setHeatmapFilter] = useState<{ bu: string; cat: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [dimensionFilter, setDimensionFilter] = useState<{ dimension: string; value: string } | null>(null)
 
   const personaConfig = personas[persona as keyof typeof personas]
   const personaLabel = personaConfig?.label ?? persona
@@ -78,11 +78,11 @@ export default function DashboardView() {
       })
     }
 
-    // Dimension filter
+    // Dimension filter from context
     if (dimensionFilter) {
       items = items.filter((v) => {
-        if (dimensionFilter.dimension === 'BU') return v.bu === dimensionFilter.value
-        if (dimensionFilter.dimension === 'Geo') return v.geo === dimensionFilter.value
+        if (dimensionFilter.dimension === 'geography') return v.geo === dimensionFilter.nodeName
+        if (dimensionFilter.dimension === 'segment') return true // Segment not in variance table yet
         return true
       })
     }
@@ -142,7 +142,7 @@ export default function DashboardView() {
 
       {dimensionFilter && (
         <DimensionFilterBanner
-          filter={dimensionFilter}
+          filter={{ dimension: dimensionFilter.dimension, value: dimensionFilter.nodeName }}
           onClear={() => setDimensionFilter(null)}
         />
       )}

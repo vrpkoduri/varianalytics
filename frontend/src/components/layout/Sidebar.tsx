@@ -1,108 +1,17 @@
 import { useState, useCallback } from 'react'
 import { DonutProgress } from '../sidebar/DonutProgress'
 import { BUList } from '../sidebar/BUList'
-import { HierarchyTree, type TreeNodeData } from '../sidebar/HierarchyTree'
+import { HierarchyTree } from '../sidebar/HierarchyTree'
+import { useDimensions } from '../../hooks/useDimensions'
+import { useGlobalFilters } from '../../context/GlobalFiltersContext'
 import { cn } from '@/utils/theme'
 
-// ── Mock hierarchy data ──────────────────────────────────────────────
-
-const MOCK_GEO: TreeNodeData[] = [
-  {
-    id: 'global',
-    name: 'Global',
-    children: [
-      {
-        id: 'americas',
-        name: 'Americas',
-        children: [
-          {
-            id: 'us',
-            name: 'United States',
-            children: [
-              { id: 'us_ne', name: 'US Northeast' },
-              { id: 'us_se', name: 'US Southeast' },
-              { id: 'us_mw', name: 'US Midwest' },
-              { id: 'us_w', name: 'US West' },
-            ],
-          },
-          { id: 'canada', name: 'Canada' },
-          { id: 'latam', name: 'Latin America' },
-        ],
-      },
-      {
-        id: 'emea',
-        name: 'EMEA',
-        children: [
-          { id: 'uk_ireland', name: 'UK & Ireland' },
-          { id: 'europe', name: 'Continental Europe' },
-          { id: 'mena', name: 'Middle East & Africa' },
-        ],
-      },
-      {
-        id: 'apac',
-        name: 'Asia Pacific',
-        children: [
-          { id: 'anz', name: 'Australia & NZ' },
-          { id: 'japan', name: 'Japan' },
-          { id: 'india', name: 'India' },
-          { id: 'singapore', name: 'Singapore' },
-        ],
-      },
-    ],
-  },
-]
-
-const MOCK_SEGMENT: TreeNodeData[] = [
-  {
-    id: 'all_seg',
-    name: 'All Segments',
-    children: [
-      { id: 'commercial', name: 'Commercial' },
-      { id: 'consumer', name: 'Consumer' },
-      { id: 'specialty', name: 'Specialty' },
-      { id: 'government', name: 'Government' },
-    ],
-  },
-]
-
-const MOCK_LOB: TreeNodeData[] = [
-  {
-    id: 'all_lob',
-    name: 'All LOBs',
-    children: [
-      { id: 'risk_advisory', name: 'Risk Advisory' },
-      { id: 'consulting', name: 'Consulting' },
-      { id: 'reinsurance', name: 'Reinsurance' },
-      { id: 'wealth', name: 'Wealth' },
-      { id: 'dna', name: 'D&A' },
-    ],
-  },
-]
-
-const MOCK_CC: TreeNodeData[] = [
-  {
-    id: 'all_cc',
-    name: 'All Cost Centers',
-    children: [
-      { id: 'client_ops', name: 'Client Operations' },
-      { id: 'corporate', name: 'Corporate' },
-      { id: 'technology', name: 'Technology' },
-      { id: 'executive', name: 'Executive' },
-    ],
-  },
-]
-
-const MOCK_VARIANT_COUNTS: Record<string, number> = {
-  marsh: 8,
-  mercer: 5,
-  guy_carpenter: 3,
-  oliver_wyman: 4,
-  mmc_corporate: 2,
-  us: 6,
-  emea: 4,
-  apac: 3,
-  commercial: 5,
-  specialty: 3,
+// Dimension display labels
+const DIMENSION_LABELS: Record<string, string> = {
+  geography: 'Geography',
+  segment: 'Segment',
+  lob: 'Line of Business',
+  costcenter: 'Cost Center',
 }
 
 // ── Component ────────────────────────────────────────────────────────
@@ -112,29 +21,53 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen }: SidebarProps) {
-  const [activeBU, setActiveBU] = useState<string | null>(null)
+  const { businessUnits, hierarchies } = useDimensions()
+  const { filters, setBusinessUnit, setDimensionFilter } = useGlobalFilters()
 
-  // Tree state per dimension
-  const [geoExpanded, setGeoExpanded] = useState<Set<string>>(new Set(['global']))
-  const [segExpanded, setSegExpanded] = useState<Set<string>>(new Set(['all_seg']))
-  const [lobExpanded, setLobExpanded] = useState<Set<string>>(new Set(['all_lob']))
-  const [ccExpanded, setCcExpanded] = useState<Set<string>>(new Set(['all_cc']))
-
-  const [activeGeo, setActiveGeo] = useState<string | null>(null)
-  const [activeSeg, setActiveSeg] = useState<string | null>(null)
-  const [activeLob, setActiveLob] = useState<string | null>(null)
-  const [activeCc, setActiveCc] = useState<string | null>(null)
+  // Tree expanded/active state per dimension
+  const [expandedMap, setExpandedMap] = useState<Record<string, Set<string>>>({
+    geography: new Set(['global']),
+    segment: new Set(['all_seg']),
+    lob: new Set(['all_lob']),
+    costcenter: new Set(['all_cc']),
+  })
+  const [activeMap, setActiveMap] = useState<Record<string, string | null>>({
+    geography: null,
+    segment: null,
+    lob: null,
+    costcenter: null,
+  })
 
   const makeToggle = useCallback(
-    (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => (id: string) => {
-      setter((prev) => {
-        const next = new Set(prev)
+    (dim: string) => (id: string) => {
+      setExpandedMap((prev) => {
+        const next = new Set(prev[dim] || new Set())
         if (next.has(id)) next.delete(id)
         else next.add(id)
-        return next
+        return { ...prev, [dim]: next }
       })
     },
     []
+  )
+
+  const makeSelect = useCallback(
+    (dim: string) => (nodeId: string) => {
+      setActiveMap((prev) => ({ ...prev, [dim]: nodeId }))
+      // Find node name from hierarchies for the banner
+      const findName = (nodes: any[], targetId: string): string | null => {
+        for (const n of nodes) {
+          if (n.id === targetId) return n.name
+          if (n.children) {
+            const found = findName(n.children, targetId)
+            if (found) return found
+          }
+        }
+        return null
+      }
+      const nodeName = findName(hierarchies[dim] || [], nodeId) || nodeId
+      setDimensionFilter({ dimension: dim, nodeId, nodeName })
+    },
+    [hierarchies, setDimensionFilter]
   )
 
   return (
@@ -156,52 +89,26 @@ export default function Sidebar({ isOpen }: SidebarProps) {
       <DonutProgress approved={12} reviewed={5} draft={8} />
 
       {/* BU List */}
-      <BUList activeBU={activeBU} onBUSelect={setActiveBU} variantCounts={MOCK_VARIANT_COUNTS} />
-
-      {/* Hierarchy trees */}
-      <HierarchyTree
-        title="Geography"
-        dimension="geo"
-        nodes={MOCK_GEO}
-        expandedIds={geoExpanded}
-        activeNodeId={activeGeo}
-        onToggle={makeToggle(setGeoExpanded)}
-        onSelect={setActiveGeo}
-        showCounts
-        variantCounts={MOCK_VARIANT_COUNTS}
+      <BUList
+        items={businessUnits}
+        activeId={filters.businessUnit}
+        onSelect={(buId) => setBusinessUnit(buId)}
       />
 
-      <HierarchyTree
-        title="Segment"
-        dimension="segment"
-        nodes={MOCK_SEGMENT}
-        expandedIds={segExpanded}
-        activeNodeId={activeSeg}
-        onToggle={makeToggle(setSegExpanded)}
-        onSelect={setActiveSeg}
-        showCounts
-        variantCounts={MOCK_VARIANT_COUNTS}
-      />
-
-      <HierarchyTree
-        title="Line of Business"
-        dimension="lob"
-        nodes={MOCK_LOB}
-        expandedIds={lobExpanded}
-        activeNodeId={activeLob}
-        onToggle={makeToggle(setLobExpanded)}
-        onSelect={setActiveLob}
-      />
-
-      <HierarchyTree
-        title="Cost Center"
-        dimension="costcenter"
-        nodes={MOCK_CC}
-        expandedIds={ccExpanded}
-        activeNodeId={activeCc}
-        onToggle={makeToggle(setCcExpanded)}
-        onSelect={setActiveCc}
-      />
+      {/* Hierarchy trees — rendered from real API data or fallbacks */}
+      {Object.entries(hierarchies).map(([dim, tree]) => (
+        <HierarchyTree
+          key={dim}
+          title={DIMENSION_LABELS[dim] || dim}
+          dimension={dim}
+          nodes={tree}
+          expandedIds={expandedMap[dim] || new Set()}
+          activeNodeId={activeMap[dim] || null}
+          onToggle={makeToggle(dim)}
+          onSelect={makeSelect(dim)}
+          showCounts={dim === 'geography' || dim === 'segment'}
+        />
+      ))}
     </aside>
   )
 }

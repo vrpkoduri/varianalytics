@@ -6,7 +6,7 @@ import { MOCK_PL_DATA, MOCK_MARGINS } from '@/mocks/plData'
 
 export function usePL() {
   const { filters } = useGlobalFilters()
-  const { viewType, comparisonBase } = filters
+  const { viewType, comparisonBase, businessUnit } = filters
   const period = filters.period ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}` : '2026-06'
 
   const [rows, setRows] = useState<any[]>([])
@@ -19,6 +19,7 @@ export function usePL() {
       period_id: period,
       view_id: viewType,
       base_id: comparisonBase,
+      bu_id: businessUnit || undefined,
     })
 
     api.computation
@@ -33,7 +34,7 @@ export function usePL() {
         setUsingMock(true)
         setLoading(false)
       })
-  }, [viewType, comparisonBase, period])
+  }, [viewType, comparisonBase, period, businessUnit])
 
   return { rows, margins: MOCK_MARGINS, loading, usingMock }
 }

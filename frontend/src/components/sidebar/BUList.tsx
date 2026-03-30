@@ -1,34 +1,25 @@
 import { cn } from '@/utils/theme'
 
 interface BUListProps {
-  activeBU: string | null
-  onBUSelect: (buId: string | null) => void
-  variantCounts?: Record<string, number>
+  items: Array<{ id: string | null; name: string; varianceCount?: number }>
+  activeId: string | null
+  onSelect: (buId: string | null) => void
 }
 
-const BUS = [
-  { id: null, name: 'All' },
-  { id: 'marsh', name: 'Marsh' },
-  { id: 'mercer', name: 'Mercer' },
-  { id: 'guy_carpenter', name: 'Guy Carpenter' },
-  { id: 'oliver_wyman', name: 'Oliver Wyman' },
-  { id: 'mmc_corporate', name: 'MMC Corporate' },
-] as const
-
-export function BUList({ activeBU, onBUSelect, variantCounts }: BUListProps) {
+export function BUList({ items, activeId, onSelect }: BUListProps) {
   return (
     <div>
       <h6 className="text-[7px] font-bold text-teal uppercase tracking-[1.2px] mt-2.5 mb-1 px-1">
         Business Unit
       </h6>
       <div className="flex flex-col">
-        {BUS.map((bu) => {
-          const isActive = activeBU === bu.id
-          const count = bu.id ? variantCounts?.[bu.id] : undefined
+        {items.map((bu) => {
+          const isActive = activeId === bu.id
+          const count = bu.varianceCount
           return (
             <button
               key={bu.id ?? 'all'}
-              onClick={() => onBUSelect(bu.id as string | null)}
+              onClick={() => onSelect(bu.id)}
               className={cn(
                 'flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-medium cursor-pointer transition-all duration-150 text-left',
                 isActive

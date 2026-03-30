@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useUser } from '@/context/UserContext'
 import { useGlobalFilters } from '@/context/GlobalFiltersContext'
 import { useChat } from '@/hooks/useChat'
-import { useSSE } from '@/hooks/useSSE'
+import { useSSE, type SSEEvent } from '@/hooks/useSSE'
 import { ChatHeader } from '@/components/chat/ChatHeader'
 import { UserMessage } from '@/components/chat/UserMessage'
 import { AgentAvatar } from '@/components/chat/AgentAvatar'
@@ -13,18 +13,47 @@ import { ChatInput } from '@/components/chat/ChatInput'
 export default function ChatView() {
   const { persona } = useUser()
   const { filters } = useGlobalFilters()
-  const { messages, isStreaming, sendMessage, clearChat, conversationId, useRealApi } = useChat()
+  const { messages, isStreaming, sendMessage, clearChat, conversationId, useRealApi, setMessages, setIsStreaming } = useChat()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const prevPersona = useRef(persona)
 
   // SSE handler for real API mode — updates the last agent message with streamed tokens
+  const handleSSEEvent = useCallback((event: SSEEvent) => {
+    switch (event.type) {
+      case 'token':
+        setMessages(prev => {
+          const updated = [...prev]
+          const last = updated[updated.length - 1]
+          if (last && last.role === 'agent') {
+            return [...updated.slice(0, -1), { ...last, text: last.text + (event.payload.text || ''), isStreaming: true, isTyping: false }]
+          }
+          return updated
+        })
+        break
+      case 'done':
+        setMessages(prev => prev.map(m => m.isStreaming ? { ...m, isStreaming: false } : m))
+        setIsStreaming(false)
+        break
+      case 'suggestion':
+        setMessages(prev => {
+          const last = prev[prev.length - 1]
+          if (last?.role === 'agent') {
+            return [...prev.slice(0, -1), { ...last, suggestions: event.payload.suggestions }]
+          }
+          return prev
+        })
+        break
+      case 'error':
+        // Connection error — mark streaming complete
+        setMessages(prev => prev.map(m => m.isStreaming || m.isTyping ? { ...m, isStreaming: false, isTyping: false } : m))
+        setIsStreaming(false)
+        break
+    }
+  }, [setMessages, setIsStreaming])
+
   useSSE(
     conversationId,
-    (event) => {
-      // SSE events would be handled here for real-time token streaming
-      // For now, the mock fallback handles all rendering
-      void event
-    },
+    handleSSEEvent,
     useRealApi && !!conversationId,
   )
 

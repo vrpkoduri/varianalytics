@@ -10,6 +10,7 @@ import {
   ComparisonBase,
   type GlobalFilters,
   type Period,
+  type DimensionFilter,
 } from '@/types/index';
 
 type FilterAction =
@@ -17,6 +18,7 @@ type FilterAction =
   | { type: 'SET_BUSINESS_UNIT'; payload: string | null }
   | { type: 'SET_VIEW_TYPE'; payload: ViewType }
   | { type: 'SET_COMPARISON_BASE'; payload: ComparisonBase }
+  | { type: 'SET_DIMENSION_FILTER'; payload: DimensionFilter | null }
   | { type: 'RESET' };
 
 interface GlobalFiltersContextValue {
@@ -25,6 +27,7 @@ interface GlobalFiltersContextValue {
   setBusinessUnit: (bu: string | null) => void;
   setViewType: (viewType: ViewType) => void;
   setComparisonBase: (base: ComparisonBase) => void;
+  setDimensionFilter: (filter: DimensionFilter | null) => void;
   resetFilters: () => void;
 }
 
@@ -33,6 +36,7 @@ const initialFilters: GlobalFilters = {
   businessUnit: null,
   viewType: ViewType.MTD,
   comparisonBase: ComparisonBase.BUDGET,
+  dimensionFilter: null,
 };
 
 function filtersReducer(state: GlobalFilters, action: FilterAction): GlobalFilters {
@@ -45,6 +49,8 @@ function filtersReducer(state: GlobalFilters, action: FilterAction): GlobalFilte
       return { ...state, viewType: action.payload };
     case 'SET_COMPARISON_BASE':
       return { ...state, comparisonBase: action.payload };
+    case 'SET_DIMENSION_FILTER':
+      return { ...state, dimensionFilter: action.payload };
     case 'RESET':
       return initialFilters;
     default:
@@ -76,6 +82,11 @@ export function GlobalFiltersProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'SET_COMPARISON_BASE', payload: base }),
     [],
   );
+  const setDimensionFilter = useCallback(
+    (filter: DimensionFilter | null) =>
+      dispatch({ type: 'SET_DIMENSION_FILTER', payload: filter }),
+    [],
+  );
   const resetFilters = useCallback(() => dispatch({ type: 'RESET' }), []);
 
   return (
@@ -86,6 +97,7 @@ export function GlobalFiltersProvider({ children }: { children: ReactNode }) {
         setBusinessUnit,
         setViewType,
         setComparisonBase,
+        setDimensionFilter,
         resetFilters,
       }}
     >

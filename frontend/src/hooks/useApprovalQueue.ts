@@ -93,10 +93,27 @@ export function useApprovalQueue() {
     [usingMock],
   )
 
-  const holdItem = useCallback((_id: string) => {
-    // Hold keeps status as 'reviewed' (no change in this simple mock)
-    // In production, this would set a hold flag or revert to draft
+  const refreshQueue = useCallback(() => {
+    api.gateway.get('/approval/queue?page_size=50').then((data: any) => {
+      const queueItems = data.items || data
+      if (Array.isArray(queueItems)) setItems(transformApprovalItems(queueItems))
+    }).catch(() => {})
   }, [])
+
+  const holdItem = useCallback((id: string) => {
+    if (usingMock) {
+      // In mock mode, item stays in reviewed state — no change needed
+      return
+    }
+    api.gateway
+      .post('/approval/actions', {
+        variance_ids: [id],
+        action: 'reject',
+        comment: 'Held for further review',
+      })
+      .then(() => refreshQueue())
+      .catch(() => {})
+  }, [usingMock, refreshQueue])
 
   const approveAllReviewed = useCallback(() => {
     if (!usingMock) {

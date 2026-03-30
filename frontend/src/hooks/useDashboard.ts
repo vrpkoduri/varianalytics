@@ -17,7 +17,7 @@ import {
 
 export function useDashboard() {
   const { filters } = useGlobalFilters()
-  const { viewType, comparisonBase } = filters
+  const { viewType, comparisonBase, businessUnit } = filters
   const period = filters.period ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}` : '2026-06'
 
   const [summary, setSummary] = useState<any>(null)
@@ -36,6 +36,7 @@ export function useDashboard() {
       period_id: period,
       view_id: viewType,
       base_id: comparisonBase,
+      bu_id: businessUnit || undefined,
     })
 
     Promise.all([
@@ -68,7 +69,7 @@ export function useDashboard() {
         setUsingMock(true)
         setLoading(false)
       })
-  }, [viewType, comparisonBase, period])
+  }, [viewType, comparisonBase, period, businessUnit])
 
   return { summary, waterfall, heatmap, trends, loading, error, usingMock }
 }

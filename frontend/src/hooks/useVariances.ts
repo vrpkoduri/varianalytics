@@ -6,7 +6,7 @@ import { MOCK_VARIANCES } from '@/mocks/dashboardData'
 
 export function useVariances(filters?: { plCategory?: string; buId?: string }) {
   const { filters: globalFilters } = useGlobalFilters()
-  const { viewType, comparisonBase } = globalFilters
+  const { viewType, comparisonBase, businessUnit } = globalFilters
   const period = globalFilters.period ? `${globalFilters.period.year}-${String(globalFilters.period.month).padStart(2, '0')}` : '2026-06'
 
   const [variances, setVariances] = useState<any[]>([])
@@ -24,7 +24,7 @@ export function useVariances(filters?: { plCategory?: string; buId?: string }) {
       page: page,
       page_size: 50,
       pl_category: filters?.plCategory,
-      bu_id: filters?.buId,
+      bu_id: filters?.buId || businessUnit || undefined,
     })
 
     api.computation
@@ -42,7 +42,7 @@ export function useVariances(filters?: { plCategory?: string; buId?: string }) {
         setUsingMock(true)
         setLoading(false)
       })
-  }, [viewType, comparisonBase, period, page, filters?.plCategory, filters?.buId])
+  }, [viewType, comparisonBase, period, page, filters?.plCategory, filters?.buId, businessUnit])
 
   const fetchVarianceDetail = useCallback(async (varianceId: string) => {
     try {

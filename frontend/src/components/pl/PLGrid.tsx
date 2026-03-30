@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { PLRowData } from '@/mocks/plData'
 import { MOCK_MODAL_DATA } from '@/mocks/modalData'
-import { useModal } from '@/context/ModalContext'
+import { useModal, type VarianceDetail } from '@/context/ModalContext'
 import { GlassCard } from '@/components/common/GlassCard'
 import { SectionLabel } from '@/components/common/SectionLabel'
 import { PLHeaderRow } from './PLHeaderRow'
@@ -47,9 +47,42 @@ export function PLGrid({ rows }: PLGridProps) {
   }
 
   function handleLeafClick(row: PLRowData) {
+    // Try preloaded modal data first
     if (row.varianceId && MOCK_MODAL_DATA[row.varianceId]) {
       openModal(MOCK_MODAL_DATA[row.varianceId])
+      return
     }
+
+    // Build a basic VarianceDetail from the row itself
+    const variance = row.actual - row.budget
+    const detail: VarianceDetail = {
+      id: row.id,
+      account: row.name,
+      bu: 'All',
+      geo: 'Global',
+      variance: variance * 1000, // Convert back from $K
+      variancePct: row.budget ? (variance / Math.abs(row.budget)) * 100 : 0,
+      favorable: row.signConvention === 'inverse' ? variance < 0 : variance > 0,
+      type: row.type || 'material',
+      status: row.status || 'draft',
+      sparkData: [],
+      decomposition: [],
+      correlations: [],
+      hypotheses: [],
+      narratives: {
+        detail: `${row.name}: $${Math.abs(variance)}K variance`,
+        midlevel: '',
+        summary: '',
+        board: '',
+      },
+      isEdited: false,
+      isSynthesized: false,
+      isNew: false,
+      noBudget: row.budget === 0,
+      noPriorYear: false,
+      narrative: '',
+    }
+    openModal(detail)
   }
 
   let visibleIndex = 0
