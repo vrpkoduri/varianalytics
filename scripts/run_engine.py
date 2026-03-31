@@ -45,10 +45,35 @@ def main() -> None:
     print(f"  Data:     {args.data_dir}")
     print()
 
+    # Initialize LLM + RAG if API key available
+    llm_client = None
+    rag_retriever = None
+    try:
+        from shared.llm.client import LLMClient
+        from shared.knowledge.embedding import EmbeddingService
+        from shared.knowledge.vector_store import create_vector_store
+        from shared.knowledge.rag import RAGRetriever
+
+        llm_client = LLMClient()
+        if llm_client.is_available:
+            print(f"  LLM:      {llm_client.provider} (available)")
+            embedding_svc = EmbeddingService()
+            vector_store = create_vector_store(qdrant_url=None)
+            rag_retriever = RAGRetriever(embedding_svc, vector_store)
+        else:
+            print("  LLM:      unavailable (template mode)")
+            llm_client = None
+    except Exception as exc:
+        print(f"  LLM:      initialization failed ({exc})")
+
+    print()
+
     runner = EngineRunner()
     result = asyncio.run(runner.run_full_pipeline(
         period_id=args.period,
         data_dir=args.data_dir,
+        llm_client=llm_client,
+        rag_retriever=rag_retriever,
     ))
 
     # Print results
