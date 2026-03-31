@@ -42,8 +42,17 @@ export function ReportCard({ report, onPreview }: ReportCardProps) {
             Distribute
           </button>
           <button
-            className="px-2.5 py-1 rounded-button text-[8px] font-semibold border border-[rgba(255,255,255,.08)] text-tx-tertiary opacity-50 cursor-not-allowed"
-            disabled
+            className={`px-2.5 py-1 rounded-button text-[8px] font-semibold border transition-colors ${
+              report.status === 'ready' || report.status === 'sent'
+                ? 'border-[rgba(255,255,255,.12)] text-tx-secondary hover:text-white hover:border-teal/40 cursor-pointer'
+                : 'border-[rgba(255,255,255,.08)] text-tx-tertiary opacity-50 cursor-not-allowed'
+            }`}
+            disabled={report.status !== 'ready' && report.status !== 'sent'}
+            onClick={() => {
+              if (report.id) {
+                window.open(`/api/reports/reports/download/${report.id}`, '_blank')
+              }
+            }}
           >
             Download
           </button>

@@ -34,8 +34,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         computation_url="http://localhost:8001",
     )
     app.state.storage = LocalReportStorage("data/reports")
+    from services.reports.scheduler import ReportScheduler
+    app.state.scheduler = ReportScheduler(reports_url="http://localhost:8002")
+    await app.state.scheduler.start()
     yield
     logger.info("Reports service shutting down")
+    if hasattr(app.state, "scheduler"):
+        await app.state.scheduler.stop()
     await app.state.data_provider.close()
 
 

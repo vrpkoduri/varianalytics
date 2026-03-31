@@ -6,11 +6,12 @@ reports can be automatically produced at period close.
 
 from __future__ import annotations
 
-import uuid
-from enum import Enum
+from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
+
+from enum import Enum
 
 router = APIRouter(prefix="/scheduling", tags=["scheduling"])
 
@@ -71,60 +72,59 @@ class ScheduleResponse(BaseModel):
     schedule_id: str
     name: str
     description: str | None = None
-    frequency: ScheduleFrequency
+    frequency: str | None = None
     cron_expression: str | None = None
-    report_format: str
+    report_format: str = "pdf"
     template_id: str | None = None
-    period_key_pattern: str
-    comparison_base: str
-    view: str
-    enabled: bool
+    period_key_pattern: str = "latest"
+    comparison_base: str = "budget"
+    view: str = "MTD"
+    enabled: bool = True
     last_run_at: str | None = None
     next_run_at: str | None = None
+    created_at: str | None = None
 
 
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@router.get("/schedules", response_model=list[ScheduleResponse])
-async def list_schedules() -> list[ScheduleResponse]:
+@router.get("/schedules")
+async def list_schedules(request: Request):
     """List all configured report schedules."""
-    # TODO: query persistence
-    return []
+    scheduler = getattr(request.app.state, "scheduler", None)
+    if not scheduler:
+        return []
+    return scheduler.list_schedules()
 
 
-@router.post("/schedules", response_model=ScheduleResponse, status_code=201)
-async def create_schedule(payload: ScheduleCreate) -> ScheduleResponse:
+@router.post("/schedules")
+async def create_schedule(body: ScheduleCreate, request: Request):
     """Create a new report schedule."""
-    schedule_id = str(uuid.uuid4())
-    return ScheduleResponse(
-        schedule_id=schedule_id,
-        name=payload.name,
-        description=payload.description,
-        frequency=payload.frequency,
-        cron_expression=payload.cron_expression,
-        report_format=payload.report_format,
-        template_id=payload.template_id,
-        period_key_pattern=payload.period_key_pattern,
-        comparison_base=payload.comparison_base,
-        view=payload.view,
-        enabled=payload.enabled,
-    )
+    scheduler = getattr(request.app.state, "scheduler", None)
+    schedule_id = str(uuid4())
+    config = body.model_dump()
+    if scheduler:
+        result = scheduler.add_schedule(schedule_id, config)
+        return ScheduleResponse(**result)
+    return ScheduleResponse(schedule_id=schedule_id, **config)
 
 
-@router.put("/schedules/{schedule_id}", response_model=ScheduleResponse)
-async def update_schedule(
-    schedule_id: str,
-    payload: ScheduleUpdate,
-) -> ScheduleResponse:
+@router.put("/schedules/{schedule_id}")
+async def update_schedule(schedule_id: str, body: ScheduleUpdate, request: Request):
     """Update an existing report schedule."""
-    # TODO: fetch existing, apply partial update
-    raise HTTPException(status_code=404, detail=f"Schedule {schedule_id} not found.")
+    scheduler = getattr(request.app.state, "scheduler", None)
+    if not scheduler:
+        raise HTTPException(404, "Scheduler not initialized")
+    result = scheduler.update_schedule(schedule_id, body.model_dump(exclude_unset=True))
+    if not result:
+        raise HTTPException(404, f"Schedule {schedule_id} not found")
+    return ScheduleResponse(**result)
 
 
 @router.delete("/schedules/{schedule_id}", status_code=204)
-async def delete_schedule(schedule_id: str) -> None:
+async def delete_schedule(schedule_id: str, request: Request):
     """Delete a report schedule."""
-    # TODO: remove from persistence
-    raise HTTPException(status_code=404, detail=f"Schedule {schedule_id} not found.")
+    scheduler = getattr(request.app.state, "scheduler", None)
+    if not scheduler or not scheduler.remove_schedule(schedule_id):
+        raise HTTPException(404, f"Schedule {schedule_id} not found")

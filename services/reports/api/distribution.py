@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/distribution", tags=["distribution"])
@@ -69,22 +69,56 @@ class SendReportResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# In-memory store
+# ---------------------------------------------------------------------------
+
+_distribution_lists: dict[str, dict] = {}
+
+
+# ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
 @router.post("/send", response_model=SendReportResponse)
-async def send_report(payload: SendReportRequest) -> SendReportResponse:
+async def send_report(body: SendReportRequest, request: Request) -> SendReportResponse:
     """Distribute a completed report to the specified recipients.
 
-    Only reports with status APPROVED are eligible for distribution.
+    Only reports with status COMPLETED are eligible for distribution.
     """
-    distribution_id = str(uuid.uuid4())
-    total = len(payload.distribution_list_ids) + len(payload.ad_hoc_channels)
-    # TODO: resolve list members, enqueue delivery tasks
+    # Get report job status
+    from services.reports.api.reports import _jobs
+    job = _jobs.get(body.job_id)
+    if not job or job.get("status") != "completed":
+        raise HTTPException(400, f"Report {body.job_id} not ready for distribution")
+
+    # Collect channels from ad-hoc + distribution lists
+    channels: list[DistributionChannel] = list(body.ad_hoc_channels or [])
+    for list_id in (body.distribution_list_ids or []):
+        dl = _distribution_lists.get(list_id)
+        if dl:
+            channels.extend(
+                DistributionChannel(**c) if isinstance(c, dict) else c
+                for c in dl.get("channels", [])
+            )
+
+    # Send via notification dispatcher
+    results: list[tuple[str, bool]] = []
+    try:
+        from services.gateway.notifications import notify_event
+        results = await notify_event("report_ready", {
+            "title": f"Report Ready: {job.get('period_id', '')} {job.get('format', '')}",
+            "body": body.message or "A new report has been generated and is ready for download.",
+            "action_url": "http://localhost:3000/reports",
+            "recipients": [c.target for c in channels if c.channel_type == "email"],
+        })
+    except Exception:
+        # Notification dispatch is best-effort
+        pass
+
     return SendReportResponse(
-        distribution_id=distribution_id,
-        recipients_count=total,
-        status="queued",
+        distribution_id=str(uuid.uuid4()),
+        recipients_count=len(channels),
+        status="sent" if results and any(s for _, s in results) else "queued",
     )
 
 
@@ -94,8 +128,8 @@ async def list_distribution_lists(
     offset: int = Query(default=0, ge=0),
 ) -> list[DistributionListResponse]:
     """List saved distribution lists."""
-    # TODO: query persistence
-    return []
+    items = list(_distribution_lists.values())[offset:offset + limit]
+    return [DistributionListResponse(**dl) for dl in items]
 
 
 @router.post("/recipients", response_model=DistributionListResponse, status_code=201)
@@ -104,6 +138,13 @@ async def create_distribution_list(
 ) -> DistributionListResponse:
     """Create a new distribution list."""
     list_id = str(uuid.uuid4())
+    dl = {
+        "list_id": list_id,
+        "name": payload.name,
+        "description": payload.description,
+        "channels": [c.model_dump() for c in payload.channels],
+    }
+    _distribution_lists[list_id] = dl
     return DistributionListResponse(
         list_id=list_id,
         name=payload.name,
