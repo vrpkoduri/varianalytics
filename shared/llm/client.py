@@ -94,47 +94,64 @@ class LLMClient:
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
+        max_retries: int = 3,
     ) -> Any:
-        """Send a chat completion request.
+        """Send a chat completion request with retry on rate limits.
 
-        Returns the raw ``litellm`` response object on success, or a dict
-        with ``{"fallback": True, "content": ...}`` when the LLM is
-        unavailable or an error occurs.
+        Retries up to ``max_retries`` times with exponential backoff when
+        rate-limited (HTTP 429). Returns the raw ``litellm`` response object
+        on success, or a dict with ``{"fallback": True, "content": ...}``
+        when the LLM is unavailable or all retries are exhausted.
         """
         if not self._available:
             return {"fallback": True, "content": "LLM not configured"}
 
-        try:
-            import litellm
+        import asyncio
 
-            kwargs: dict[str, Any] = {
-                "model": self.get_model(task),
-                "messages": messages,
-                **self.get_params(task),
-            }
-            if tools is not None:
-                kwargs["tools"] = tools
-            if tool_choice is not None:
-                kwargs["tool_choice"] = tool_choice
+        for attempt in range(max_retries + 1):
+            try:
+                import litellm
 
-            response = await litellm.acompletion(**kwargs)
+                kwargs: dict[str, Any] = {
+                    "model": self.get_model(task),
+                    "messages": messages,
+                    **self.get_params(task),
+                }
+                if tools is not None:
+                    kwargs["tools"] = tools
+                if tool_choice is not None:
+                    kwargs["tool_choice"] = tool_choice
 
-            # Log token usage when present
-            usage = getattr(response, "usage", None)
-            if usage:
-                logger.debug(
-                    "LLM usage — task=%s prompt=%s completion=%s total=%s",
-                    task,
-                    getattr(usage, "prompt_tokens", "?"),
-                    getattr(usage, "completion_tokens", "?"),
-                    getattr(usage, "total_tokens", "?"),
-                )
+                response = await litellm.acompletion(**kwargs)
 
-            return response
+                # Log token usage when present
+                usage = getattr(response, "usage", None)
+                if usage:
+                    logger.debug(
+                        "LLM usage — task=%s prompt=%s completion=%s total=%s",
+                        task,
+                        getattr(usage, "prompt_tokens", "?"),
+                        getattr(usage, "completion_tokens", "?"),
+                        getattr(usage, "total_tokens", "?"),
+                    )
 
-        except Exception as exc:
-            logger.error("LLM completion failed for task=%s: %s", task, exc)
-            return {"fallback": True, "content": f"LLM error: {exc}"}
+                return response
+
+            except Exception as exc:
+                exc_str = str(exc).lower()
+                is_rate_limit = "rate_limit" in exc_str or "429" in exc_str or "rate limit" in exc_str
+
+                if is_rate_limit and attempt < max_retries:
+                    wait = 2 ** attempt + 1  # 2s, 3s, 5s
+                    logger.warning(
+                        "Rate limited (attempt %d/%d) — retrying in %ds",
+                        attempt + 1, max_retries, wait,
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+
+                logger.error("LLM completion failed for task=%s: %s", task, exc)
+                return {"fallback": True, "content": f"LLM error: {exc}"}
 
     # ------------------------------------------------------------------
     # Streaming completion
