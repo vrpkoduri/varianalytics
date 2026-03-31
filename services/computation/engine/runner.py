@@ -84,6 +84,8 @@ class EngineRunner:
         comparison_base: str = "Budget",
         bu_id: str | None = None,
         data_dir: str = "data/output",
+        llm_client: Any | None = None,
+        rag_retriever: Any | None = None,
     ) -> PipelineResult:
         """Execute all passes of the computation engine in sequence.
 
@@ -92,6 +94,9 @@ class EngineRunner:
             view: Aggregation window — MTD, QTD, or YTD.
             comparison_base: Comparison column — Budget, Forecast, or PY.
             bu_id: Optional filter to a single business unit.
+            data_dir: Path to data output directory.
+            llm_client: Optional LLM client for narrative/hypothesis generation.
+            rag_retriever: Optional RAG retriever for few-shot examples.
 
         Returns:
             PipelineResult with counts, timings, and any errors.
@@ -103,6 +108,8 @@ class EngineRunner:
             "comparison_base": comparison_base,
             "bu_id": bu_id,
             "data_dir": data_dir,
+            "llm_client": llm_client,
+            "rag_retriever": rag_retriever,
         }
 
         # Order: 1 → 1.5 → 2.5 → 2 → 3 → 4 → 5

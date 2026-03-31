@@ -64,6 +64,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.data_service = DataService()
     logger.info("DataService initialized")
 
+    # Initialize LLM + RAG (optional — graceful if unavailable)
+    try:
+        from shared.llm.client import LLMClient
+        from shared.knowledge.embedding import EmbeddingService
+        from shared.knowledge.vector_store import create_vector_store
+        from shared.knowledge.rag import RAGRetriever
+
+        app.state.llm_client = LLMClient()
+        embedding_svc = EmbeddingService()
+        vector_store = create_vector_store(qdrant_url=None)  # InMemory for computation
+        app.state.rag_retriever = RAGRetriever(embedding_svc, vector_store)
+        logger.info(
+            "LLM + RAG initialized (available=%s)", app.state.llm_client.is_available
+        )
+    except Exception as exc:
+        logger.warning("LLM/RAG initialization failed: %s", exc)
+        app.state.llm_client = None
+        app.state.rag_retriever = None
+
     # TODO: warm hierarchy cache (~20 MB materialized rollup paths)
     # TODO: connect to Redis cache
 

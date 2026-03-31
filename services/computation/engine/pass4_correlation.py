@@ -1,8 +1,9 @@
 """Pass 4 — Correlation & Root Cause Analysis.
 
 Performs pairwise correlation scans across material variances to
-identify potential causal relationships. For Sprint 0 the LLM
-hypothesis step is deferred — hypothesis and confidence are set to None.
+identify potential causal relationships. When ``context["llm_client"]``
+is available, generates LLM-powered root cause hypotheses for the top
+correlated pairs. Falls back to ``hypothesis=None`` when unavailable.
 
 Scoring formula (combined score for each pair):
     0.4 * dimension_overlap  +  0.3 * direction_match  +  0.3 * magnitude_similarity
@@ -18,8 +19,10 @@ the fact_correlations schema.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import math
+import re
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
@@ -46,6 +49,59 @@ _DIM_COLS = [
     "lob_node_id",
     "account_id",
 ]
+
+
+async def _generate_hypothesis(
+    llm_client: Any, row_a: dict, row_b: dict
+) -> tuple[str | None, float | None]:
+    """Generate a root cause hypothesis for a correlated variance pair."""
+    if (
+        not llm_client
+        or not hasattr(llm_client, "is_available")
+        or not llm_client.is_available
+    ):
+        return None, None
+    try:
+        prompt = (
+            f"These two variances are correlated:\n"
+            f"1. {row_a.get('account_id', '?')}: "
+            f"${row_a.get('variance_amount', 0):,.0f} "
+            f"({row_a.get('variance_pct', 0):.1f}%)\n"
+            f"2. {row_b.get('account_id', '?')}: "
+            f"${row_b.get('variance_amount', 0):,.0f} "
+            f"({row_b.get('variance_pct', 0):.1f}%)\n"
+            f"Shared dimensions: {row_a.get('bu_id', '?')}\n"
+            f"In 1-2 sentences, what is the most likely root cause?"
+        )
+        response = await llm_client.complete(
+            task="hypothesis_generation",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an FP&A analyst generating root cause hypotheses "
+                        "for correlated variances. Be specific and data-driven. "
+                        "Also provide a confidence score from 0.0 to 1.0."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+        )
+        if isinstance(response, dict) and response.get("fallback"):
+            return None, None
+        content = response.choices[0].message.content
+        # Extract confidence if mentioned (e.g., "Confidence: 0.85")
+        confidence: float | None = None
+        conf_match = re.search(r"confidence[:\s]+([0-9.]+)", content, re.IGNORECASE)
+        if conf_match:
+            confidence = min(1.0, max(0.0, float(conf_match.group(1))))
+        # Clean the hypothesis text
+        hypothesis = content.split("\n")[0].strip()
+        if len(hypothesis) > 500:
+            hypothesis = hypothesis[:500]
+        return hypothesis, confidence or 0.7
+    except Exception:
+        return None, None
 
 
 async def find_correlations(context: dict[str, Any]) -> None:
@@ -90,6 +146,8 @@ async def find_correlations(context: dict[str, Any]) -> None:
     n = len(rows)
 
     scored_pairs: list[dict[str, Any]] = []
+    # Track row refs for LLM hypothesis generation
+    pair_rows: list[tuple[dict, dict]] = []
 
     for i in range(n):
         for j in range(i + 1, n):
@@ -115,17 +173,50 @@ async def find_correlations(context: dict[str, Any]) -> None:
                         "correlation_score": round(combined, 4),
                         "dimension_overlap": shared_dims,
                         "directional_match": direction_score == 1.0,
-                        "hypothesis": None,  # Deferred to Sprint 3 (LLM)
-                        "confidence": None,   # Deferred to Sprint 3 (LLM)
+                        "hypothesis": None,
+                        "confidence": None,
                         "created_at": datetime.now(timezone.utc),
                     }
                 )
+                pair_rows.append((row_a, row_b))
 
     # ------------------------------------------------------------------
     # Keep top N pairs by score
     # ------------------------------------------------------------------
-    scored_pairs.sort(key=lambda p: p["correlation_score"], reverse=True)
-    top_pairs = scored_pairs[:_MAX_PAIRS]
+    # Sort pairs and row refs together
+    indexed = list(enumerate(scored_pairs))
+    indexed.sort(key=lambda x: x[1]["correlation_score"], reverse=True)
+    top_indexed = indexed[:_MAX_PAIRS]
+
+    top_pairs = [p for _, p in top_indexed]
+    top_pair_rows = [pair_rows[i] for i, _ in top_indexed]
+
+    # ------------------------------------------------------------------
+    # LLM hypothesis generation for top pairs (rate-limited)
+    # ------------------------------------------------------------------
+    llm_client = context.get("llm_client")
+    if llm_client and top_pairs:
+        sem = asyncio.Semaphore(5)  # Max 5 concurrent LLM calls
+
+        async def _gen_with_sem(a: dict, b: dict) -> tuple[str | None, float | None]:
+            async with sem:
+                return await _generate_hypothesis(llm_client, a, b)
+
+        tasks = [_gen_with_sem(a, b) for a, b in top_pair_rows]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        hyp_count = 0
+        for idx, result in enumerate(results):
+            if isinstance(result, Exception):
+                continue
+            hypothesis, confidence = result
+            if hypothesis:
+                top_pairs[idx]["hypothesis"] = hypothesis
+                top_pairs[idx]["confidence"] = confidence
+                hyp_count += 1
+
+        if hyp_count > 0:
+            logger.info("Pass 4: Generated %d LLM hypotheses for top pairs", hyp_count)
 
     corr_df = pd.DataFrame(top_pairs) if top_pairs else pd.DataFrame()
     context["correlations"] = corr_df
