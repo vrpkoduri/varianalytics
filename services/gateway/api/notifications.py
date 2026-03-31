@@ -9,6 +9,10 @@ from typing import Optional
 from fastapi import APIRouter, status
 from pydantic import BaseModel, Field
 
+from services.gateway.notifications.teams import TeamsNotifier
+from services.gateway.notifications.slack import SlackNotifier
+from services.gateway.notifications.smtp import SMTPNotifier
+
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 
@@ -62,12 +66,27 @@ async def send_test_notification(
     body: NotificationTestRequest,
 ) -> NotificationTestResponse:
     """Send a test notification through the specified channel to verify setup."""
-    # TODO: dispatch via TeamsNotifier / SlackNotifier / SMTPNotifier
-    return NotificationTestResponse(
-        channel=body.channel,
-        success=True,
-        detail=f"Test notification sent via {body.channel} (stub)",
-    )
+    from shared.config.settings import Settings
+    settings = Settings()
+
+    success = False
+    detail = ""
+
+    if body.channel == "teams":
+        notifier = TeamsNotifier(settings.teams_webhook_url)
+        success = await notifier.send(body.message or "Test notification", "This is a test from Marsh Vantage", webhook_url=body.recipient)
+        detail = "Sent to Teams" if success else "Teams webhook failed or not configured"
+    elif body.channel == "slack":
+        notifier = SlackNotifier(settings.slack_webhook_url)
+        success = await notifier.send(body.message or "Test notification", "This is a test from Marsh Vantage", webhook_url=body.recipient)
+        detail = "Sent to Slack" if success else "Slack webhook failed or not configured"
+    elif body.channel == "email":
+        notifier = SMTPNotifier(host=settings.smtp_host, port=settings.smtp_port, username=settings.smtp_user, password=settings.smtp_password, from_address=settings.notification_from_email)
+        recipients = [body.recipient] if body.recipient else []
+        success = await notifier.send(recipients, body.message or "Test", "<h2>Test</h2><p>This is a test from Marsh Vantage</p>") if recipients else False
+        detail = "Sent via email" if success else "SMTP not configured or no recipient"
+
+    return NotificationTestResponse(channel=body.channel, success=success, detail=detail)
 
 
 @router.get(
