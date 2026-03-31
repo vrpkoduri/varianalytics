@@ -298,47 +298,45 @@ This document is the single source of truth for sprint planning, deliverable tra
 
 ---
 
-## Sprint 3 — Narratives + Learning
+## Sprint 3 — Narratives + Learning [PLANNED]
 
-**Goal:** RAG pipeline, 4-level persona-aware narratives, synthesis.
+**Goal:** RAG pipeline, LLM-enhanced narratives, synthesis, knowledge base.
 **Duration:** Week 7–8
+**Dependencies:** Sprint 2 complete (593 tests, LLMClient ready, API key configured)
 
-### Deliverables
+### Build Plan (3 Checkpoints)
 
-1. **LLM Integration (LiteLLM)**
-   - Pass 4: Batched hypothesis generation
-   - Pass 5: Multi-level narrative generation
-   - Model routing per task
+#### CP-1: RAG Infrastructure
+- EmbeddingService (LiteLLM → 1536-dim vectors)
+- VectorStore (Qdrant MVP + InMemory fallback)
+- RAGRetriever (70% semantic + 15% account + 15% magnitude)
+- KnowledgeStore facade (embed + upsert + delete)
+- Qdrant Docker service in docker-compose
+- 13 new tests
 
-2. **RAG Pipeline**
-   - Embedding generation for variance context
-   - Vector store (Qdrant) setup
-   - Similarity search (70% semantic + 15% account + 15% magnitude)
-   - Few-shot example injection into prompts
+#### CP-2: LLM Narrative Generation
+- Pass 5 enhancement: LLM-first with RAG few-shot + template fallback
+- Pass 4 enhancement: batch hypothesis generation for correlations
+- Board narrative on-demand endpoint
+- Engine runner injects LLM + RAG into context
+- 8 new tests
 
-3. **4-Level Narratives**
-   - Detail (analyst, 3–5 sentences)
-   - Midlevel (BU leader, 2–3 sentences)
-   - Summary (CFO, 1–2 sentences)
-   - Oneliner (dashboard)
-   - Board (on-demand)
-
-4. **Bottom-Up Synthesis**
-   - Triggered by analyst approval
-   - Cascade upward through hierarchy
-   - Parent midlevel + summary from child commentaries
-
-5. **Knowledge Base**
-   - Auto-populate from review workflow
-   - Approved commentaries stored with embeddings
-   - Hypothesis feedback loop
+#### CP-3: Synthesis + Knowledge Base
+- Approval triggers: embed → store → populate knowledge_commentary_history
+- Synthesis execution: children approved → parent narrative generated
+- Synthesis trigger hook in AsyncReviewStore
+- KnowledgeCommentaryRecord ORM model
+- 9 new tests
 
 ### Acceptance Criteria
-- [ ] AI-generated narratives for material variances
-- [ ] RAG retrieval returns relevant prior commentaries
-- [ ] Synthesis produces parent-level narratives from children
-- [ ] CFO gets summary-level, analyst gets detail-level
+- [ ] AI-generated narratives via LLM for material variances (narrative_source="llm")
+- [ ] RAG retrieval returns relevant prior commentaries (weighted 70/15/15)
+- [ ] Synthesis produces parent-level narratives from approved children
+- [ ] CFO gets summary-level, analyst gets detail-level automatically
 - [ ] Knowledge base grows with each approval cycle
+- [ ] Template fallback always available when LLM unavailable
+- [ ] Qdrant Docker runs locally; InMemory fallback if unavailable
+- [ ] All tests pass (target: 620+)
 
 ---
 
