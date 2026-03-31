@@ -43,7 +43,7 @@ export default function DashboardView() {
   const { filters, setDimensionFilter } = useGlobalFilters()
   const { viewType, comparisonBase } = filters
   const dimensionFilter = filters.dimensionFilter
-  const { summary, waterfall, heatmap, trends, loading, usingMock } = useDashboard()
+  const { summary, waterfall, heatmap, trends, nettingAlerts, trendAlerts, loading, usingMock } = useDashboard()
   const { variances: apiVariances } = useVariances()
 
   const [heatmapFilter, setHeatmapFilter] = useState<{ bu: string; cat: string } | null>(null)
@@ -203,7 +203,7 @@ export default function DashboardView() {
       </div>
 
       <div className="animate-fade-up d2">
-        <AlertCards persona={persona} />
+        <AlertCards persona={persona} nettingAlerts={nettingAlerts} trendAlerts={trendAlerts} />
       </div>
 
       <div className="grid grid-cols-1 tablet:grid-cols-[5fr_4fr] gap-2.5 animate-fade-up d3">

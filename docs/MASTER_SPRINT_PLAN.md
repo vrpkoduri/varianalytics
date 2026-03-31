@@ -262,49 +262,38 @@ This document is the single source of truth for sprint planning, deliverable tra
 
 ---
 
-## Sprint 2 — Full P&L + Workflow
+## Sprint 2 — Full P&L + Workflow [IN PROGRESS]
 
-**Goal:** All P&L account types, decomposition, netting, NarrativeEditor.
+**Goal:** Wire real engine data to dashboard alerts, complete review workflow with persistence, add PostgreSQL durability.
 **Duration:** Week 5–6
+**Dependencies:** Sprint 1 complete (527 tests, 120+ components, real data flowing)
 
-### Deliverables
+### Build Plan (3 Checkpoints)
 
-1. **Full P&L Engine**
-   - COGS decomposition (Rate × Volume × Mix)
-   - OpEx decomposition (Rate × Volume × Timing × One-time)
-   - Non-Operating items
-   - All calculated rows (EBITDA, Gross Profit, Operating Income, etc.)
+#### CP-1: Wire Real Data to Existing UI [IN PROGRESS]
+- **D1: Netting/Trend Alert API** — Add `get_netting_alerts()` + `get_trend_alerts()` to DataService, expose via 2 new dashboard endpoints, wire to AlertCards on frontend
+- **D4: Modal Decomposition** — Fetch `/drilldown/decomposition/{id}` when modal opens, transform components for display
+- Tests: 13 new tests (6 alert service + 4 alert API + 3 drilldown)
 
-2. **Netting Detection (MVP Checks 1–4)**
-   - Gross offset check
-   - Dispersion check
-   - Directional split check
-   - Cross-account check
-   - Alert banners in dashboard
+#### CP-2: Complete Workflow Actions
+- **D2: NarrativeEditor Persistence** — POST edited narrative to `/review/actions`, extract shared `useReviewAction` hook
+- **D5: Hypothesis Feedback** — POST ✓/✗ feedback to `/review/actions`
+- **Bug fix:** `useReviewQueue` sends 'confirm' (invalid) → fix to 'approve'
+- Tests: 3 new review action tests
 
-3. **Trend Detection (MVP Rules 1–2)**
-   - Consecutive direction rule
-   - Cumulative YTD breach rule
-   - Trend indicators in P&L view
-
-4. **NarrativeEditor**
-   - Edit mode with rich text
-   - Diff view (AI original vs analyst edit)
-   - Hypothesis feedback (thumbs up/down)
-   - Save + submit for approval
-
-5. **P&L View — Full**
-   - All account categories
-   - Calculated row styling
-   - Drill-down to decomposition
-   - Netting/trend indicators
+#### CP-3: PostgreSQL Persistence
+- **D3: Database Integration** — Init PostgreSQL in gateway, create `AsyncReviewStore` (dual-write: DataFrame + PostgreSQL), graceful fallback if DB unavailable
+- Tests: 5 new async store tests
 
 ### Acceptance Criteria
-- [ ] Full P&L renders with all 36 account nodes
-- [ ] Decomposition available for Revenue, COGS, OpEx
-- [ ] Netting detected for APAC offset scenario
-- [ ] Trend detected for technology cost creep
-- [ ] Analyst can edit narrative and submit for review
+- [ ] Dashboard netting alerts from real engine data (not hardcoded)
+- [ ] Dashboard trend alerts from real engine data
+- [ ] Modal decomposition from drilldown API
+- [ ] Narrative edit → POST → persisted
+- [ ] Hypothesis feedback → POST → persisted
+- [ ] Review/approval state persists in PostgreSQL
+- [ ] Graceful fallback when PostgreSQL unavailable
+- [ ] All tests pass (target: 550+)
 
 ---
 

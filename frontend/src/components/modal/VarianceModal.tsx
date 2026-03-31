@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { useModal } from '@/context/ModalContext'
+import { api } from '@/utils/api'
+import { transformDecompositionComponents } from '@/utils/transformers'
 import { ModalHeader } from './ModalHeader'
 import { BigNumberCard } from './BigNumberCard'
 import { DecompositionSection } from './DecompositionSection'
@@ -10,7 +12,7 @@ import { PeriodTrend } from './PeriodTrend'
 import { ActionButtons } from './ActionButtons'
 
 export function VarianceModal() {
-  const { isOpen, varianceData, closeModal } = useModal()
+  const { isOpen, varianceData, closeModal, updateVariance } = useModal()
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -21,6 +23,21 @@ export function VarianceModal() {
     }
     return () => document.removeEventListener('keydown', handleEsc)
   }, [isOpen, closeModal])
+
+  // Fetch decomposition from API when modal opens
+  useEffect(() => {
+    if (!isOpen || !varianceData?.id) return
+    api.computation.get(`/drilldown/decomposition/${varianceData.id}`)
+      .then((resp: any) => {
+        if (resp?.components) {
+          const transformed = transformDecompositionComponents(resp.components)
+          if (transformed.length > 0) {
+            updateVariance({ decomposition: transformed })
+          }
+        }
+      })
+      .catch(() => {}) // Keep existing decomposition data
+  }, [isOpen, varianceData?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isOpen || !varianceData) return null
 

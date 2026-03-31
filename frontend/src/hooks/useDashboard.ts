@@ -24,6 +24,8 @@ export function useDashboard() {
   const [waterfall, setWaterfall] = useState<any>(null)
   const [heatmap, setHeatmap] = useState<any>(null)
   const [trends, setTrends] = useState<any>(null)
+  const [nettingAlerts, setNettingAlerts] = useState<any[] | undefined>(undefined)
+  const [trendAlerts, setTrendAlerts] = useState<any[] | undefined>(undefined)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [usingMock, setUsingMock] = useState(false)
@@ -48,8 +50,10 @@ export function useDashboard() {
       api.computation.get(
         `/dashboard/trends${buildParams({ base_id: comparisonBase, periods: 12, bu_id: businessUnit || undefined, view_id: viewType })}`,
       ),
+      api.computation.get(`/dashboard/alerts/netting${buildParams({ period_id: period, bu_id: businessUnit || undefined })}`),
+      api.computation.get(`/dashboard/alerts/trends${buildParams({ period_id: period, bu_id: businessUnit || undefined })}`),
     ])
-      .then(([s, w, h, t]) => {
+      .then(([s, w, h, t, na, ta]) => {
         setSummary({
           cards: transformSummaryCards(s?.cards || []),
           metrics: s?.metrics || MOCK_METRICS,
@@ -57,6 +61,8 @@ export function useDashboard() {
         setWaterfall({ steps: transformWaterfallSteps(w?.steps || []) })
         setHeatmap(transformHeatmap(h))
         setTrends({ data: transformTrendData(t?.data || []) })
+        setNettingAlerts(na?.alerts)
+        setTrendAlerts(ta?.alerts)
         setUsingMock(false)
         setLoading(false)
       })
@@ -66,10 +72,12 @@ export function useDashboard() {
         setWaterfall({ steps: MOCK_WATERFALL })
         setHeatmap(MOCK_HEATMAP)
         setTrends({ data: MOCK_TREND })
+        setNettingAlerts(undefined)
+        setTrendAlerts(undefined)
         setUsingMock(true)
         setLoading(false)
       })
   }, [viewType, comparisonBase, period, businessUnit])
 
-  return { summary, waterfall, heatmap, trends, loading, error, usingMock }
+  return { summary, waterfall, heatmap, trends, nettingAlerts, trendAlerts, loading, error, usingMock }
 }

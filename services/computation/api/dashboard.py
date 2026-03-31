@@ -136,3 +136,35 @@ async def get_trend_data(
         "account_id": account_id,
         "periods": periods,
     }
+
+
+# ---------------------------------------------------------------------------
+# GET /dashboard/alerts/netting
+# ---------------------------------------------------------------------------
+
+@router.get("/alerts/netting")
+async def get_netting_alerts(
+    request: Request,
+    period_id: str = Query(..., description="Period to filter"),
+    bu_id: str | None = Query(None, description="Business unit filter"),
+) -> dict[str, Any]:
+    """Get top netting alerts for the dashboard."""
+    ds = _get_ds(request)
+    alerts = ds.get_netting_alerts(period_id=period_id, bu_id=bu_id)
+    return {"alerts": alerts, "count": len(alerts)}
+
+
+# ---------------------------------------------------------------------------
+# GET /dashboard/alerts/trends
+# ---------------------------------------------------------------------------
+
+@router.get("/alerts/trends")
+async def get_trend_alerts(
+    request: Request,
+    period_id: str | None = Query(None, description="Period filter"),
+    bu_id: str | None = Query(None, description="Business unit filter"),
+) -> dict[str, Any]:
+    """Get top trend alerts for the dashboard."""
+    ds = _get_ds(request)
+    alerts = ds.get_trend_alerts(period_id=period_id, bu_id=bu_id)
+    return {"alerts": alerts, "count": len(alerts)}

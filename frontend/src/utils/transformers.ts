@@ -373,6 +373,40 @@ function transformTreeNode(node: any): TreeNodeData {
   }
 }
 
+// ============================================================
+// Decomposition Components (for modal)
+// ============================================================
+// API returns either an array of {componentName, amount, pctOfTotal}
+// or a dict like {volume: -160.95, price: -67.06, mix: ...}
+
+export function transformDecompositionComponents(
+  components: any
+): Array<{ label: string; value: number; pct: number }> {
+  if (!components) return []
+
+  if (Array.isArray(components)) {
+    return components.map((c: any) => ({
+      label: (c.componentName || c.component_name || c.label || 'Unknown').replace(/_/g, ' '),
+      value: round2(c.amount || c.value || 0),
+      pct: round2(c.pctOfTotal || c.pct_of_total || c.pct || 0),
+    }))
+  }
+
+  // Dict format: { volume: -160.95, price: -67.06, ... }
+  if (typeof components === 'object') {
+    const total = Object.values(components).reduce((sum: number, v: any) => sum + Math.abs(Number(v) || 0), 0)
+    return Object.entries(components)
+      .filter(([k]) => k !== 'residual' && k !== 'method' && k !== 'is_fallback' && k !== 'isFallback')
+      .map(([key, val]) => ({
+        label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        value: round2(Number(val) || 0),
+        pct: total > 0 ? round2((Math.abs(Number(val) || 0) / total) * 100) : 0,
+      }))
+  }
+
+  return []
+}
+
 function buildTreeFromFlat(items: any[]): TreeNodeData[] {
   const nodeMap = new Map<string, TreeNodeData>()
   const roots: TreeNodeData[] = []

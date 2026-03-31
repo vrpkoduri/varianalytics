@@ -903,3 +903,93 @@ class DataService:
         if periods.empty:
             return []
         return periods.sort_values("period_id").to_dict(orient="records")
+
+    # ------------------------------------------------------------------
+    # 13. Netting Alerts
+    # ------------------------------------------------------------------
+
+    def get_netting_alerts(self, period_id: str, bu_id: Optional[str] = None, limit: int = 5) -> list[dict]:
+        """Get top netting alerts from fact_netting_flags."""
+        import json as _json
+
+        df = self._tables.get("fact_netting_flags")
+        if df is None or df.empty:
+            return []
+
+        filtered = df[df["period_id"] == period_id].copy() if "period_id" in df.columns else df.copy()
+
+        # Sort by gross_variance descending (biggest offsetting movements first)
+        if "gross_variance" in filtered.columns:
+            filtered = filtered.sort_values("gross_variance", ascending=False)
+
+        alerts: list[dict] = []
+        for _, row in filtered.head(limit).iterrows():
+            # Extract child details to find the two biggest offsetting items
+            child_details = row.get("child_details", [])
+            if isinstance(child_details, str):
+                try:
+                    child_details = _json.loads(child_details)
+                except Exception:
+                    child_details = []
+
+            # Find largest positive and negative children
+            positives = [c for c in child_details if isinstance(c, dict) and c.get("variance", 0) > 0]
+            negatives = [c for c in child_details if isinstance(c, dict) and c.get("variance", 0) < 0]
+
+            left_name = positives[0].get("account", "Item A") if positives else "Item A"
+            left_val = positives[0].get("variance", 0) if positives else 0
+            right_name = negatives[0].get("account", "Item B") if negatives else "Item B"
+            right_val = negatives[0].get("variance", 0) if negatives else 0
+
+            net = row.get("net_variance", 0)
+
+            alerts.append({
+                "left": f"{left_name} +${abs(left_val/1000):.1f}K" if left_val > 0 else f"{left_name} -${abs(left_val/1000):.1f}K",
+                "right": f"{right_name} -${abs(right_val/1000):.1f}K" if right_val < 0 else f"{right_name} +${abs(right_val/1000):.1f}K",
+                "net": f"{'+'if net > 0 else '-'}${abs(net/1000):.1f}K",
+                "favorable": net > 0,
+                "netting_ratio": round(row.get("netting_ratio", 0), 1),
+            })
+
+        return alerts
+
+    # ------------------------------------------------------------------
+    # 14. Trend Alerts
+    # ------------------------------------------------------------------
+
+    def get_trend_alerts(self, period_id: Optional[str] = None, bu_id: Optional[str] = None, limit: int = 5) -> list[dict]:
+        """Get top trend alerts from fact_trend_flags."""
+        df = self._tables.get("fact_trend_flags")
+        if df is None or df.empty:
+            return []
+
+        filtered = df.copy()
+        if bu_id and "bu_id" in filtered.columns:
+            # Note: trend flags may not have bu_id directly
+            pass
+
+        # Sort by absolute cumulative_amount descending
+        if "cumulative_amount" in filtered.columns:
+            filtered["abs_cum"] = filtered["cumulative_amount"].abs()
+            filtered = filtered.sort_values("abs_cum", ascending=False)
+
+        # Deduplicate by account_id (take the longest streak per account)
+        if "account_id" in filtered.columns:
+            filtered = filtered.drop_duplicates(subset=["account_id"], keep="first")
+
+        alerts: list[dict] = []
+        for _, row in filtered.head(limit).iterrows():
+            acct = str(row.get("account_id", "Unknown")).replace("acct_", "").replace("_", " ").title()
+            periods = int(row.get("consecutive_periods", 0))
+            direction = row.get("direction", "increasing")
+            cum_amount = row.get("cumulative_amount", 0)
+
+            desc = f"{acct}: {periods} consecutive months {direction}"
+            proj = f"{'+'if cum_amount > 0 else ''}${cum_amount/1000:.0f}K projected YE" if cum_amount else ""
+
+            alerts.append({
+                "description": desc,
+                "projection": proj,
+            })
+
+        return alerts
