@@ -15,6 +15,7 @@ services:
       - SERVICE_NAME=gateway
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/variance_agent
       - COMPUTATION_SERVICE_URL=http://computation:8001
+      - QDRANT_URL=http://qdrant:6333
     depends_on:
       redis:
         condition: service_healthy
@@ -43,6 +44,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SERVICE_NAME=computation
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/variance_agent
+      - QDRANT_URL=http://qdrant:6333
     depends_on:
       redis:
         condition: service_healthy
@@ -116,6 +118,23 @@ services:
       retries: 5
     restart: unless-stopped
 
+  qdrant:
+    image: qdrant/qdrant:v1.12.1
+    container_name: variance-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - variance-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     container_name: variance-redis
@@ -164,6 +183,8 @@ networks:
 
 volumes:
   postgres-data:
+    driver: local
+  qdrant-data:
     driver: local
   redis-data:
     driver: local
