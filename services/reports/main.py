@@ -14,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from services.reports.api.distribution import router as distribution_router
 from services.reports.api.reports import router as reports_router
 from services.reports.api.scheduling import router as scheduling_router
+from services.reports.generators.data_provider import ReportDataProvider
+from services.reports.generators.storage import LocalReportStorage
 
 logging.basicConfig(
     level=logging.INFO,
@@ -27,9 +29,14 @@ logger = logging.getLogger("reports-service")
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Manage startup and shutdown lifecycle events."""
     logger.info("Reports service starting up")
-    # TODO: initialise template cache, Redis connection, scheduler
+    # Initialise report data provider and storage
+    app.state.data_provider = ReportDataProvider(
+        computation_url="http://localhost:8001",
+    )
+    app.state.storage = LocalReportStorage("data/reports")
     yield
     logger.info("Reports service shutting down")
+    await app.state.data_provider.close()
 
 
 app = FastAPI(

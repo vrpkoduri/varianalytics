@@ -340,39 +340,43 @@ This document is the single source of truth for sprint planning, deliverable tra
 
 ---
 
-## Sprint 4 — Reports + Notifications
+## Sprint 4 — Reports + Notifications [IN PROGRESS]
 
-**Goal:** Excel/PDF export, Teams/Slack notifications, scheduling.
+**Goal:** Real report generation (4 formats), notifications (3 channels), scheduling.
 **Duration:** Week 9–10
+**Dependencies:** Sprint 3 complete (645 tests, LLM narratives, RAG pipeline)
 
-### Deliverables
+### Build Plan (3 Checkpoints)
 
-1. **Excel Export**
-   - Formatted .xlsx with narratives
-   - P&L structure preserved
-   - Variance color coding
-   - Drill-down tabs per BU
+#### CP-1: Report Generators + API [IN PROGRESS]
+- **Data Provider** — fetch report context from computation service
+- **Storage Abstraction** — LocalStorage (MVP) + AzureBlobStorage (production)
+- **XLSX Generator** — Summary, variances, per-BU tabs, P&L with Marsh branding
+- **PDF Generator** — Executive Flash (1-page) + Period-End (multi-page)
+- **PPTX Generator** — 5 slides with KPIs, variances, risk items
+- **DOCX Generator** — Board narrative with Financial Performance, Recommendations
+- **API Wiring** — generate/status/download with background tasks
+- Tests: 18 new
 
-2. **PDF Report**
-   - Period-end formatted report
-   - Executive summary + detailed sections
-   - Charts embedded as images
+#### CP-2: Notifications
+- Teams adaptive cards, Slack Block Kit, SMTP email with attachments
+- Notification dispatcher: `notify_event()` → all configured channels
+- Tests: 6 new
 
-3. **Notifications**
-   - Teams adaptive cards (engine complete, review needed)
-   - Slack Block Kit messages
-   - Email (SMTP) for approvals and SLA warnings
-
-4. **Report Scheduling**
-   - Cron-based scheduling
-   - Distribution list management
-   - Report gate: only APPROVED variances distributed
+#### CP-3: Scheduling + Frontend
+- APScheduler cron-based scheduling
+- Frontend: replace mock data with real API calls
+- Tests: 8 new
 
 ### Acceptance Criteria
-- [ ] Excel export opens in Excel with correct formatting
-- [ ] PDF renders with charts and narratives
-- [ ] Teams notification fires on engine completion
-- [ ] Scheduled reports auto-generate and distribute
+- [ ] XLSX opens in Excel with Summary, Variance, BU tabs, P&L sheets
+- [ ] PDF renders with KPI boxes, narratives, variance table
+- [ ] PPTX has 5 slides with correct content
+- [ ] DOCX has Financial Performance, Recommendations sections
+- [ ] Storage abstraction allows swap to Azure Blob without code changes
+- [ ] Teams/Slack/Email notifications configurable via .env
+- [ ] Scheduled reports auto-generate at configured times
+- [ ] All tests pass (target: 677+)
 
 ---
 
