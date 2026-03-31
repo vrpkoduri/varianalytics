@@ -262,7 +262,7 @@ This document is the single source of truth for sprint planning, deliverable tra
 
 ---
 
-## Sprint 2 — Full P&L + Workflow [IN PROGRESS]
+## Sprint 2 — Full P&L + Workflow [COMPLETE]
 
 **Goal:** Wire real engine data to dashboard alerts, complete review workflow with persistence, add PostgreSQL durability.
 **Duration:** Week 5–6
@@ -270,19 +270,19 @@ This document is the single source of truth for sprint planning, deliverable tra
 
 ### Build Plan (3 Checkpoints)
 
-#### CP-1: Wire Real Data to Existing UI [IN PROGRESS]
+#### CP-1: Wire Real Data to Existing UI [COMPLETE]
 - **D1: Netting/Trend Alert API** — Add `get_netting_alerts()` + `get_trend_alerts()` to DataService, expose via 2 new dashboard endpoints, wire to AlertCards on frontend
 - **D4: Modal Decomposition** — Fetch `/drilldown/decomposition/{id}` when modal opens, transform components for display
 - Tests: 13 new tests (6 alert service + 4 alert API + 3 drilldown)
 
-#### CP-2: Complete Workflow Actions [IN PROGRESS]
+#### CP-2: Complete Workflow Actions [COMPLETE]
 - **D2: NarrativeEditor Persistence** — POST edited narrative to `/review/actions`, extract shared `useReviewAction` hook
 - **D5: Hypothesis Feedback** — POST ✓/✗ feedback to `/review/actions`
 - **Bug fix:** `useReviewQueue` sends 'confirm' (invalid) → fix to 'approve'
 - **Bug fix:** `review_store.py` accepts hypothesis_feedback but never stores it
 - Tests: 3 new review action tests
 
-#### CP-3: PostgreSQL Persistence [IN PROGRESS]
+#### CP-3: PostgreSQL Persistence [COMPLETE]
 - **D3: Database Integration** — Init PostgreSQL in gateway lifespan, create `AsyncReviewStore` (dual-write: DataFrame + PostgreSQL), await store methods in review/approval endpoints, seed on startup, graceful fallback if DB unavailable
 - Tests: 5 new async store tests
 
