@@ -16,7 +16,10 @@ import pandas as pd
 import pytest
 
 from services.computation.engine.pass5_narrative import (
-    _generate_llm_narrative,
+    _generate_llm_narrative_enriched,
+    _build_context_maps,
+    _build_enriched_prompt,
+    _generate_template_narrative,
     generate_narratives,
 )
 
@@ -263,7 +266,7 @@ class TestGenerateLLMNarrativeHelper:
     async def test_returns_none_when_llm_fails(self):
         mock_llm = MagicMock()
         mock_llm.complete = AsyncMock(side_effect=RuntimeError("boom"))
-        result = await _generate_llm_narrative(mock_llm, None, {}, {})
+        result = await _generate_llm_narrative_enriched(mock_llm, None, {}, {}, {"correlations": {}, "netting": {}, "trends": {}, "decomposition": {}, "siblings": {}})
         assert result is None
 
     @pytest.mark.asyncio
@@ -276,7 +279,7 @@ class TestGenerateLLMNarrativeHelper:
         mock_llm = MagicMock()
         mock_llm.complete = AsyncMock(return_value=mock_resp)
 
-        result = await _generate_llm_narrative(mock_llm, None, {}, {})
+        result = await _generate_llm_narrative_enriched(mock_llm, None, {}, {}, {"correlations": {}, "netting": {}, "trends": {}, "decomposition": {}, "siblings": {}})
         assert result is None
 
     @pytest.mark.asyncio
@@ -285,7 +288,7 @@ class TestGenerateLLMNarrativeHelper:
         mock_llm.complete = AsyncMock(
             return_value=_mock_llm_response("d", "m", "s", "o")
         )
-        result = await _generate_llm_narrative(mock_llm, None, {}, {})
+        result = await _generate_llm_narrative_enriched(mock_llm, None, {}, {}, {"correlations": {}, "netting": {}, "trends": {}, "decomposition": {}, "siblings": {}})
         assert result == {"detail": "d", "midlevel": "m", "summary": "s", "oneliner": "o"}
 
     @pytest.mark.asyncio
@@ -302,8 +305,9 @@ class TestGenerateLLMNarrativeHelper:
             return_value=_mock_llm_response("d", "m", "s", "o")
         )
 
-        result = await _generate_llm_narrative(
-            mock_llm, mock_rag, {"account_id": "acct_1"}, {"account_name": "Revenue"}
+        result = await _generate_llm_narrative_enriched(
+            mock_llm, mock_rag, {"account_id": "acct_1"}, {"account_name": "Revenue"},
+            {"correlations": {}, "netting": {}, "trends": {}, "decomposition": {}, "siblings": {}},
         )
         assert result is not None
         mock_rag.retrieve_similar.assert_called_once()
