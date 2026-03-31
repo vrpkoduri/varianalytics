@@ -101,7 +101,7 @@ async def submit_bulk_approval(body: BulkApprovalAction, request: Request) -> Bu
     Approved items become eligible for report distribution.
     """
     store = request.app.state.review_store
-    result = store.submit_bulk_approval(
+    result = await store.submit_bulk_approval(
         variance_ids=body.variance_ids,
         action=body.action,
         comment=body.comment,

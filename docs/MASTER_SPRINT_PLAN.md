@@ -282,8 +282,8 @@ This document is the single source of truth for sprint planning, deliverable tra
 - **Bug fix:** `review_store.py` accepts hypothesis_feedback but never stores it
 - Tests: 3 new review action tests
 
-#### CP-3: PostgreSQL Persistence
-- **D3: Database Integration** — Init PostgreSQL in gateway, create `AsyncReviewStore` (dual-write: DataFrame + PostgreSQL), graceful fallback if DB unavailable
+#### CP-3: PostgreSQL Persistence [IN PROGRESS]
+- **D3: Database Integration** — Init PostgreSQL in gateway lifespan, create `AsyncReviewStore` (dual-write: DataFrame + PostgreSQL), await store methods in review/approval endpoints, seed on startup, graceful fallback if DB unavailable
 - Tests: 5 new async store tests
 
 ### Acceptance Criteria

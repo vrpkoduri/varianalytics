@@ -60,9 +60,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     settings = Settings()
 
+    # Database initialization (graceful degradation)
+    session_factory = None
+    try:
+        from shared.database.engine import init_engine, init_db, get_session_factory, dispose_engine
+        from shared.database.seed import seed_review_status
+
+        init_engine(settings.database_url)
+        await init_db()
+        session_factory = get_session_factory()
+        seeded = await seed_review_status(session_factory)
+        if seeded > 0:
+            logger.info("Seeded %d review records from parquet", seeded)
+        logger.info("Database connected")
+    except Exception as exc:
+        logger.warning("Database unavailable, using in-memory only: %s", exc)
+        session_factory = None
+
     logger.info("Gateway starting up — initialising services …")
     app.state.data_service = DataService()
-    app.state.review_store = ReviewStore()
+
+    from shared.data.async_review_store import AsyncReviewStore
+    inner_store = ReviewStore()
+    app.state.review_store = AsyncReviewStore(inner_store, session_factory=session_factory)
+
     app.state.conversation_manager = ConversationManager()
     app.state.computation_client = ComputationClient(
         base_url=settings.computation_service_url,
@@ -79,6 +100,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
     logger.info("Gateway shutting down — closing connections …")
     await app.state.computation_client.close()
+    try:
+        from shared.database.engine import dispose_engine
+        await dispose_engine()
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------

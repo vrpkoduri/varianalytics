@@ -118,7 +118,7 @@ async def submit_review_action(body: ReviewAction, request: Request) -> ReviewAc
     """
     store = request.app.state.review_store
     try:
-        result = store.submit_review_action(
+        result = await store.submit_review_action(
             variance_id=body.variance_id,
             action=body.action,
             edited_narrative=body.edited_narrative,
