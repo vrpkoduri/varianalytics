@@ -1,5 +1,6 @@
 import { useUser } from '@/context/UserContext'
 import { useModal } from '@/context/ModalContext'
+import { useReviewAction } from '@/hooks/useReviewAction'
 import { fireConfetti } from '@/components/common/ConfettiContainer'
 import type { VarianceDetail } from '@/context/ModalContext'
 
@@ -10,14 +11,23 @@ interface ActionButtonsProps {
 export function ActionButtons({ data }: ActionButtonsProps) {
   const { persona } = useUser()
   const { updateVariance, closeModal } = useModal()
+  const { submitAction } = useReviewAction()
 
   const handleAction = (
     newStatus: VarianceDetail['status'],
     withConfetti = false,
+    backendAction?: string,
   ) => {
     if (withConfetti) fireConfetti()
     updateVariance({ status: newStatus })
     closeModal()
+    // Persist to backend
+    if (backendAction) {
+      submitAction({
+        variance_id: data.id,
+        action: backendAction as any,
+      })
+    }
   }
 
   // Already terminal states
@@ -66,14 +76,14 @@ export function ActionButtons({ data }: ActionButtonsProps) {
         <span className="section-label">ACTIONS</span>
         <div className="flex gap-1.5 mt-1.5">
           <button
-            onClick={() => handleAction('reviewed', true)}
+            onClick={() => handleAction('reviewed', true, 'approve')}
             className="text-[10px] font-semibold px-3 py-1.5 rounded-button text-white"
             style={{ background: 'linear-gradient(135deg, #002C77, #00A8C7)' }}
           >
             Confirm &amp; Review
           </button>
           <button
-            onClick={() => handleAction('reviewed')}
+            onClick={() => handleAction('reviewed', false, 'escalate')}
             className="text-[10px] font-semibold px-3 py-1.5 rounded-button"
             style={{
               background: 'var(--amber-surface)',
@@ -84,7 +94,7 @@ export function ActionButtons({ data }: ActionButtonsProps) {
             Escalate
           </button>
           <button
-            onClick={() => handleAction('autoclosed')}
+            onClick={() => handleAction('autoclosed', false, 'dismiss')}
             className="text-[10px] font-semibold px-3 py-1.5 rounded-button text-tx-tertiary"
             style={{ border: '1px solid var(--border)' }}
           >
@@ -102,7 +112,7 @@ export function ActionButtons({ data }: ActionButtonsProps) {
         <span className="section-label">ACTIONS</span>
         <div className="flex gap-1.5 mt-1.5">
           <button
-            onClick={() => handleAction('approved', true)}
+            onClick={() => handleAction('approved', true, 'director_approve')}
             className="text-[10px] font-semibold px-3 py-1.5 rounded-button text-white"
             style={{ background: 'linear-gradient(135deg, #002C77, #00A8C7)' }}
           >

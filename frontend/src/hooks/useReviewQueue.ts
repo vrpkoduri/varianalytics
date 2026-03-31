@@ -103,11 +103,12 @@ export function useReviewQueue(persona: string) {
   const batchMarkReviewed = useCallback(() => {
     if (!usingMock) {
       const ids = Array.from(checkedIds)
-      api.gateway
-        .post('/review/actions', {
-          variance_ids: ids,
-          action: 'confirm',
-        })
+      // POST individual review actions for each selected item
+      Promise.all(
+        ids.map((id) =>
+          api.gateway.post('/review/actions', { variance_id: id, action: 'approve' }).catch(() => {})
+        )
+      )
         .then(() => {
           // Refresh queue after action
           api.gateway.get('/review/queue?page_size=50').then((data: any) => {
@@ -143,7 +144,7 @@ export function useReviewQueue(persona: string) {
         api.gateway
           .post('/review/actions', {
             variance_id: id,
-            action: status === 'reviewed' ? 'confirm' : status,
+            action: status === 'reviewed' ? 'approve' : status,
           })
           .then(() => {
             api.gateway.get('/review/queue?page_size=50').then((data: any) => {
@@ -175,6 +176,15 @@ export function useReviewQueue(persona: string) {
           return { ...item, hypotheses: newHy }
         }),
       )
+      // Persist hypothesis feedback to backend
+      const feedbackStr = feedback === 1 ? 'thumbs_up' : feedback === -1 ? 'thumbs_down' : null
+      if (feedbackStr) {
+        api.gateway.post('/review/actions', {
+          variance_id: itemId,
+          action: 'edit',
+          hypothesis_feedback: feedbackStr,
+        }).catch(() => {})
+      }
     },
     [],
   )

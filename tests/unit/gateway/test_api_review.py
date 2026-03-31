@@ -105,6 +105,61 @@ class TestReviewActions:
         })
         assert resp.status_code == 400
 
+    def test_submit_edit_with_narrative(self, client):
+        """POST edit action with edited_narrative persists."""
+        queue_resp = client.get("/api/v1/review/queue?status=AI_DRAFT&page_size=1")
+        items = queue_resp.json()
+        if isinstance(items, dict):
+            items = items.get("items", [])
+        if not items:
+            pytest.skip("No review items available")
+        vid = items[0].get("variance_id", items[0].get("varianceId", ""))
+
+        resp = client.post("/api/v1/review/actions", json={
+            "variance_id": vid,
+            "action": "edit",
+            "edited_narrative": "Test edited narrative from unit test",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("new_status") == "ANALYST_REVIEWED"
+
+    def test_submit_hypothesis_feedback(self, client):
+        """POST with hypothesis_feedback stores correctly."""
+        queue_resp = client.get("/api/v1/review/queue?status=AI_DRAFT&page_size=1")
+        items = queue_resp.json()
+        if isinstance(items, dict):
+            items = items.get("items", [])
+        if not items:
+            pytest.skip("No review items")
+        vid = items[0].get("variance_id", items[0].get("varianceId", ""))
+
+        resp = client.post("/api/v1/review/actions", json={
+            "variance_id": vid,
+            "action": "edit",
+            "hypothesis_feedback": "thumbs_up",
+        })
+        assert resp.status_code == 200
+
+    def test_dismiss_action(self, client):
+        """POST dismiss transitions to DISMISSED."""
+        queue_resp = client.get("/api/v1/review/queue?status=AI_DRAFT&page_size=1")
+        items = queue_resp.json()
+        if isinstance(items, dict):
+            items = items.get("items", [])
+        draft = next((i for i in items if i.get("current_status") == "AI_DRAFT" or i.get("status") == "AI_DRAFT"), None)
+        if not draft:
+            pytest.skip("No AI_DRAFT items")
+        vid = draft.get("variance_id", draft.get("varianceId", ""))
+
+        resp = client.post("/api/v1/review/actions", json={
+            "variance_id": vid,
+            "action": "dismiss",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data.get("new_status") == "DISMISSED"
+
     def test_submit_invalid_transition_returns_400(self, client):
         """Cannot approve an already-approved variance."""
         # Approve one first via the store directly

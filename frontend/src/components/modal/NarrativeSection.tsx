@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useModal } from '@/context/ModalContext'
 import { useUser } from '@/context/UserContext'
+import { useReviewAction } from '@/hooks/useReviewAction'
 import { Badge } from '@/components/common/Badge'
 import type { VarianceDetail } from '@/context/ModalContext'
 
@@ -18,6 +19,7 @@ const personaNarrativeLevel: Record<string, keyof VarianceDetail['narratives']> 
 export function NarrativeSection({ data }: NarrativeSectionProps) {
   const { updateVariance } = useModal()
   const { persona } = useUser()
+  const { submitAction } = useReviewAction()
 
   const level = personaNarrativeLevel[persona] ?? 'detail'
   const currentNarrative = data.editedNarrative ?? data.narratives[level]
@@ -30,6 +32,12 @@ export function NarrativeSection({ data }: NarrativeSectionProps) {
   const handleSave = () => {
     updateVariance({ editedNarrative: editText, isEdited: true, editedBy: persona })
     setIsEditing(false)
+    // Persist to backend
+    submitAction({
+      variance_id: data.id,
+      action: 'edit',
+      edited_narrative: editText,
+    })
   }
 
   const handleCancel = () => {

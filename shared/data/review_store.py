@@ -204,6 +204,9 @@ class ReviewStore:
         if edited_narrative:
             self._review_status.loc[mask, "edited_narrative"] = edited_narrative
 
+        if hypothesis_feedback:
+            self._review_status.loc[mask, "hypothesis_feedback"] = hypothesis_feedback
+
         if comment:
             self._review_status.loc[mask, "review_notes"] = comment
 

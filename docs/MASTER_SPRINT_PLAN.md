@@ -275,10 +275,11 @@ This document is the single source of truth for sprint planning, deliverable tra
 - **D4: Modal Decomposition** — Fetch `/drilldown/decomposition/{id}` when modal opens, transform components for display
 - Tests: 13 new tests (6 alert service + 4 alert API + 3 drilldown)
 
-#### CP-2: Complete Workflow Actions
+#### CP-2: Complete Workflow Actions [IN PROGRESS]
 - **D2: NarrativeEditor Persistence** — POST edited narrative to `/review/actions`, extract shared `useReviewAction` hook
 - **D5: Hypothesis Feedback** — POST ✓/✗ feedback to `/review/actions`
 - **Bug fix:** `useReviewQueue` sends 'confirm' (invalid) → fix to 'approve'
+- **Bug fix:** `review_store.py` accepts hypothesis_feedback but never stores it
 - Tests: 3 new review action tests
 
 #### CP-3: PostgreSQL Persistence

@@ -1,4 +1,5 @@
 import { useModal } from '@/context/ModalContext'
+import { useReviewAction } from '@/hooks/useReviewAction'
 import type { VarianceDetail } from '@/context/ModalContext'
 
 interface HypothesisCardsProps {
@@ -13,6 +14,7 @@ const confidenceDot: Record<string, string> = {
 
 export function HypothesisCards({ data }: HypothesisCardsProps) {
   const { updateVariance } = useModal()
+  const { submitAction } = useReviewAction()
 
   if (data.hypotheses.length === 0) return null
 
@@ -21,6 +23,13 @@ export function HypothesisCards({ data }: HypothesisCardsProps) {
       i === index ? { ...h, feedback } : h,
     )
     updateVariance({ hypotheses: updated })
+    // Persist to backend
+    const feedbackStr = feedback === 1 ? 'thumbs_up' : 'thumbs_down'
+    submitAction({
+      variance_id: data.id,
+      action: 'edit',
+      hypothesis_feedback: feedbackStr,
+    })
   }
 
   return (
