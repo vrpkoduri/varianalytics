@@ -52,7 +52,20 @@ providers:
       temperature: 0.2
 
 embedding:
-  model: "azure/text-embedding-3-small"
+  # Auto-detected from available API keys. Override with 'provider' to force one.
+  # provider: "voyage"  # uncomment to force a specific provider
+  providers:
+    voyage:
+      model: "voyage-3-lite"
+      dimensions: 1024
+    openai:
+      model: "text-embedding-3-small"
+      dimensions: 1536
+    azure:
+      model: "azure/text-embedding-3-small"
+      dimensions: 1536
+  # Legacy fallback (used if auto-detection fails)
+  model: "text-embedding-3-small"
   dimensions: 1536
 
 rate_limits:

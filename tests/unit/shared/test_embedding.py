@@ -7,10 +7,19 @@ from shared.knowledge.embedding import EmbeddingService
 
 
 class TestEmbeddingService:
-    def test_loads_config(self):
-        svc = EmbeddingService()
-        assert svc.dimensions == 1536
-        assert svc._model is not None
+    def test_auto_detects_provider_with_voyage_key(self):
+        with patch.dict("os.environ", {"VOYAGE_API_KEY": "test-key"}, clear=True):
+            svc = EmbeddingService()
+            assert svc.provider == "voyage"
+            assert svc._model == "voyage-3-lite"
+            assert svc.dimensions == 1024
+
+    def test_auto_detects_provider_with_openai_key(self):
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}, clear=True):
+            svc = EmbeddingService()
+            assert svc.provider == "openai"
+            assert svc._model == "text-embedding-3-small"
+            assert svc.dimensions == 1536
 
     def test_custom_model(self):
         svc = EmbeddingService(model="custom-model", dimensions=768)
@@ -20,8 +29,8 @@ class TestEmbeddingService:
     def test_unavailable_without_api_key(self):
         with patch.dict("os.environ", {}, clear=True):
             svc = EmbeddingService()
-            svc._available = None  # Reset cache
             assert svc.is_available is False
+            assert svc.provider is None
 
     @pytest.mark.asyncio
     async def test_embed_returns_none_when_unavailable(self):
