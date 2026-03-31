@@ -254,3 +254,45 @@ PYTHONPATH=. pytest tests/integration/test_frontend_api.py -v
 # Filter validation integration
 PYTHONPATH=. pytest tests/integration/test_filter_validation.py -v
 ```
+
+## Sprint 1+2 Comprehensive Regression Test Suite
+
+### Test Suites (5 categories, ~44 tests)
+
+| Suite | File | Tests | What It Validates |
+|-------|------|-------|-------------------|
+| Cross-Service | `tests/integration/test_cross_service.py` | 10 | Gateway + computation work together |
+| Workflow | `tests/integration/test_workflow_roundtrip.py` | 8 | Full analyst -> director lifecycle |
+| Pipeline | `tests/integration/test_data_pipeline_integrity.py` | 12 | Mathematical correctness of calculations |
+| Scenarios | `tests/integration/test_scenario_validation.py` | 6 | 4 deliberate variance scenarios surface |
+| Regression | `tests/integration/test_persona_regression.py` | 8 | Persona filters, field contracts |
+
+### Run Commands
+
+```bash
+# Individual suites
+PYTHONPATH=. pytest tests/integration/test_cross_service.py -v
+PYTHONPATH=. pytest tests/integration/test_workflow_roundtrip.py -v
+PYTHONPATH=. pytest tests/integration/test_data_pipeline_integrity.py -v
+PYTHONPATH=. pytest tests/integration/test_scenario_validation.py -v
+PYTHONPATH=. pytest tests/integration/test_persona_regression.py -v
+
+# All integration tests
+PYTHONPATH=. pytest tests/integration/ -v
+
+# Full regression (all ~595 tests)
+PYTHONPATH=. pytest tests/ -q
+
+# Quick smoke test (cross-service only)
+PYTHONPATH=. pytest tests/integration/test_cross_service.py -v --tb=short
+```
+
+### When to Run
+
+| Event | Command |
+|-------|---------|
+| After any backend change | `pytest tests/integration/ -q` |
+| After any frontend API change | `pytest tests/integration/test_cross_service.py -v` |
+| After engine re-run | `pytest tests/integration/test_data_pipeline_integrity.py -v` |
+| Before Sprint release | `pytest tests/ -q` (full regression) |
+| After filter changes | `pytest tests/e2e/test_filter_scenarios.py -v` |

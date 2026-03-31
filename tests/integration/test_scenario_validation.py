@@ -1,7 +1,10 @@
-"""Scenario injection validation tests.
+"""Scenario Validation Tests.
 
-Verifies that the 4 deliberate scenarios in synthetic data trigger
-the expected engine detections (netting, trends, correlations).
+Verifies the 4 deliberate variance scenarios from synthetic data
+surface correctly through both raw parquet data AND API endpoints.
+
+Original coverage: APAC netting, tech cost trend, UK correlation, Q2 consulting.
+Added coverage: API-level validation that scenarios surface through endpoints.
 """
 
 import json
@@ -9,10 +12,18 @@ import json
 import numpy as np
 import pandas as pd
 import pytest
+from fastapi.testclient import TestClient
+from services.computation.main import app as computation_app
 
 DATA_DIR = "data/output"
 
 APAC_LEAF_GEOS = ["geo_anz", "geo_japan", "geo_india", "geo_singapore", "geo_hong_kong"]
+
+
+@pytest.fixture(scope="module")
+def comp():
+    with TestClient(computation_app, raise_server_exceptions=False) as c:
+        yield c
 
 
 @pytest.fixture(scope="module")
@@ -65,7 +76,6 @@ class TestScenarioAPACNetting:
         ]
         assert len(data) > 0, "No APAC advisory rows found for Marsh 2026-06"
         ratio = (data["actual_amount"] / data["budget_amount"]).mean()
-        # Multiplier is 1.15 but noise shifts it; verify it's above 1.0
         assert 0.95 <= ratio <= 1.35, f"Mean actual/budget ratio {ratio:.3f} outside expected range"
 
     def test_scenario_apac_consulting_offset(self, ff: pd.DataFrame) -> None:
@@ -78,7 +88,6 @@ class TestScenarioAPACNetting:
         ]
         assert len(data) > 0, "No APAC consulting rows found for OW 2026-06"
         ratio = (data["actual_amount"] / data["budget_amount"]).mean()
-        # Multiplier is 0.82 but noise shifts it; verify it's below 1.0
         assert 0.62 <= ratio <= 1.02, f"Mean actual/budget ratio {ratio:.3f} outside expected range"
 
     def test_scenario_apac_netting_detected(self, netting: pd.DataFrame) -> None:
@@ -114,9 +123,6 @@ class TestScenarioTechCostTrend:
                 ratios.append((data["actual_amount"] / data["budget_amount"]).mean())
 
         assert len(ratios) == 6, f"Expected 6 periods, got {len(ratios)}"
-        # With noise, strict monotonicity may not hold for every pair.
-        # Verify the last month ratio exceeds the first month ratio
-        # (overall upward trend).
         assert ratios[-1] > ratios[0], (
             f"Tech cost ratio should increase over H1 2026: "
             f"first={ratios[0]:.4f}, last={ratios[-1]:.4f}"
@@ -189,7 +195,6 @@ class TestScenarioQ2ConsultingSlowdown:
                 ratios.append((data["actual_amount"] / data["budget_amount"]).mean())
 
         assert len(ratios) == 3, f"Expected 3 periods, got {len(ratios)}"
-        # Each month's ratio should be less than the previous
         for i in range(1, len(ratios)):
             assert ratios[i] < ratios[i - 1], (
                 f"OW consulting ratio should decline: "
@@ -207,6 +212,59 @@ class TestScenarioQ2ConsultingSlowdown:
         assert len(consult_trends) >= 1, (
             "Expected at least 1 decreasing trend flag for consulting"
         )
+
+
+# ---------------------------------------------------------------------------
+# API-Level Scenario Validation (NEW — Sprint 1+2)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+class TestNettingScenarioAPI:
+    """Validate netting scenarios surface through API endpoints."""
+
+    def test_netting_flags_count(self, netting):
+        assert len(netting) >= 10, f"Expected >=10 netting flags, got {len(netting)}"
+
+    def test_netting_alert_api_returns_pairs(self, comp):
+        resp = comp.get("/api/v1/dashboard/alerts/netting?period_id=2026-06")
+        alerts = resp.json().get("alerts", [])
+        assert len(alerts) > 0, "No netting alerts returned"
+        alert = alerts[0]
+        assert "left" in alert and "right" in alert and "net" in alert
+
+
+@pytest.mark.integration
+class TestTrendScenarioAPI:
+    """Validate trend scenarios surface through API endpoints."""
+
+    def test_tech_trend_detected_in_parquet(self, trends):
+        tech = trends[trends["account_id"].str.contains("tech", na=False)]
+        assert len(tech) > 0, "No tech trend flags detected"
+        assert tech["consecutive_periods"].max() >= 3, "Tech trend should have >=3 consecutive periods"
+
+    def test_trend_alert_api_returns_alerts(self, comp):
+        resp = comp.get("/api/v1/dashboard/alerts/trends")
+        assert resp.status_code == 200
+        alerts = resp.json().get("alerts", [])
+        assert len(alerts) > 0, "No trend alerts returned from API"
+        # Each alert should have a description
+        for alert in alerts:
+            assert "description" in alert, "Alert missing description"
+
+    def test_consulting_decline_detected_in_parquet(self, trends):
+        consulting = trends[trends["account_id"].str.contains("consult", na=False)]
+        decreasing = consulting[consulting["direction"] == "decreasing"]
+        assert len(decreasing) > 0, "No consulting decline detected"
+
+
+@pytest.mark.integration
+class TestCorrelationScenarioAPI:
+    """Validate correlation scenarios surface through API endpoints."""
+
+    def test_correlation_pairs_exist(self, correlations):
+        assert len(correlations) == 20, f"Expected 20 correlation pairs, got {len(correlations)}"
+        assert correlations["correlation_score"].min() >= 0.3, "Minimum score should be >=0.3"
 
 
 # ---------------------------------------------------------------------------
