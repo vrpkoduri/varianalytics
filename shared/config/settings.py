@@ -74,4 +74,10 @@ class Settings(BaseSettings):
     synthetic_data_path: str = "data/output"
     synthetic_data_seed: int = 42
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "extra": "ignore",
+        # Also search project root for .env (handles different cwd)
+        "env_file": [".env", "../.env", "../../.env"],
+    }
