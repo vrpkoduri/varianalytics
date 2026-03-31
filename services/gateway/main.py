@@ -80,9 +80,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("Gateway starting up — initialising services …")
     app.state.data_service = DataService()
 
+    # Initialize knowledge store for approval-triggered RAG population
+    knowledge_store = None
+    try:
+        from shared.knowledge.embedding import EmbeddingService
+        from shared.knowledge.vector_store import create_vector_store
+        from shared.knowledge.knowledge_store import KnowledgeStore
+
+        embedding_svc = EmbeddingService()
+        vector_store = create_vector_store(qdrant_url=None)  # InMemory for now
+        knowledge_store = KnowledgeStore(embedding_svc, vector_store)
+        logger.info("Knowledge store initialised (in-memory vector store)")
+    except Exception as exc:
+        logger.warning("Knowledge store unavailable: %s", exc)
+
     from shared.data.async_review_store import AsyncReviewStore
     inner_store = ReviewStore()
-    app.state.review_store = AsyncReviewStore(inner_store, session_factory=session_factory)
+    app.state.review_store = AsyncReviewStore(
+        inner_store,
+        session_factory=session_factory,
+        knowledge_store=knowledge_store,
+    )
 
     app.state.conversation_manager = ConversationManager()
     app.state.computation_client = ComputationClient(

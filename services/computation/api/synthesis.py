@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
 router = APIRouter(prefix="/synthesis", tags=["synthesis"])
 
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/synthesis", tags=["synthesis"])
 # ---------------------------------------------------------------------------
 
 @router.post("/trigger/{variance_id}")
-async def trigger_synthesis(variance_id: str) -> dict[str, Any]:
+async def trigger_synthesis(variance_id: str, request: Request) -> dict[str, Any]:
     """Trigger bottom-up narrative synthesis for an approved variance.
 
     Preconditions:
@@ -35,11 +35,71 @@ async def trigger_synthesis(variance_id: str) -> dict[str, Any]:
     3. Update fact_variance_material with synthesized narratives.
     4. Log to audit_log.
     """
-    # TODO: validate approval status, run synthesis pipeline
+    ds = getattr(request.app.state, "data_service", None)
+    llm_client = getattr(request.app.state, "llm_client", None)
+    rag_retriever = getattr(request.app.state, "rag_retriever", None)
+
+    # Get child commentaries from data service
+    from shared.data.loader import DataLoader
+
+    loader = DataLoader("data/output")
+    dim_account = loader.load_table("dim_account")
+    vm = loader.load_table("fact_variance_material")
+
+    # Resolve account from variance_id if needed
+    target_account = variance_id
+    parent_row = dim_account[dim_account["account_id"] == variance_id]
+    if parent_row.empty:
+        # variance_id is not an account — try to find the account from the variance
+        var_row = vm[vm["variance_id"] == variance_id]
+        if var_row.empty:
+            return {
+                "variance_id": variance_id,
+                "status": "error",
+                "message": "Variance not found",
+            }
+        target_account = str(var_row.iloc[0].get("account_id", variance_id))
+        parent_row = dim_account[dim_account["account_id"] == target_account]
+
+    children = dim_account[dim_account["parent_id"] == target_account]
+    child_ids = children["account_id"].tolist()
+
+    # Get commentaries for child variances
+    child_variances = vm[vm["account_id"].isin(child_ids)]
+    child_commentaries = []
+    for _, row in child_variances.iterrows():
+        child_commentaries.append(
+            {
+                "variance_id": row.get("variance_id", ""),
+                "account_id": row.get("account_id", ""),
+                "narrative_detail": row.get("narrative_detail", ""),
+                "narrative_midlevel": row.get("narrative_midlevel", ""),
+            }
+        )
+
+    if not child_commentaries:
+        return {
+            "variance_id": variance_id,
+            "status": "no_children",
+            "message": "No child variances found",
+        }
+
+    # Run synthesis
+    from services.computation.synthesis.narrative_synthesis import synthesize_narratives
+
+    result = await synthesize_narratives(
+        variance_id=variance_id,
+        child_commentaries=child_commentaries,
+        llm_client=llm_client,
+        rag_retriever=rag_retriever,
+    )
+
     return {
         "variance_id": variance_id,
-        "status": "accepted",
-        "message": "Synthesis queued",
+        "status": result.status,
+        "child_count": result.child_count,
+        "narratives": result.narratives_synthesized,
+        "error": result.error,
     }
 
 
@@ -54,7 +114,7 @@ async def get_synthesis_status(variance_id: str) -> dict[str, Any]:
     Returns current synthesis state: pending, in_progress, completed,
     or failed, along with timestamps and any error details.
     """
-    # TODO: query synthesis job status
+    # TODO: query synthesis job status from persistent store
     return {
         "variance_id": variance_id,
         "synthesis_status": "not_started",

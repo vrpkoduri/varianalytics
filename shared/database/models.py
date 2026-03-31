@@ -58,6 +58,41 @@ class ReviewStatusRecord(Base):
 
 
 # ---------------------------------------------------------------------------
+# Knowledge Commentary (approved narratives for RAG retrieval)
+# ---------------------------------------------------------------------------
+
+class KnowledgeCommentaryRecord(Base):
+    """Approved commentaries stored for RAG retrieval."""
+
+    __tablename__ = "knowledge_commentary"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    variance_id: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
+    narrative_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    narrative_level: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    account_id: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True, index=True
+    )
+    period_id: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    bu_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    variance_amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    variance_pct: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    context_metadata: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSON, nullable=True
+    )
+    embedding_stored: Mapped[bool] = mapped_column(default=False)
+    approved_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    def __repr__(self) -> str:
+        return f"<KnowledgeCommentaryRecord(variance_id={self.variance_id!r})>"
+
+
+# ---------------------------------------------------------------------------
 # Conversations
 # ---------------------------------------------------------------------------
 

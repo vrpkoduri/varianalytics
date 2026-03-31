@@ -26,10 +26,12 @@ class AsyncReviewStore:
         self,
         store: ReviewStore,
         session_factory: Optional[async_sessionmaker[AsyncSession]] = None,
+        knowledge_store: Any = None,
     ) -> None:
         self._store = store
         self._session_factory = session_factory
         self._db_available = session_factory is not None
+        self._knowledge_store = knowledge_store
 
     # --- Read methods (sync, delegate to inner store) ---
 
@@ -75,6 +77,35 @@ class AsyncReviewStore:
                 comment=comment,
             )
 
+        # 3. Populate knowledge base on approval
+        if self._knowledge_store and result.get("new_status") == "APPROVED":
+            try:
+                rs_df = self._store._review_status
+                row = rs_df[rs_df["variance_id"] == variance_id]
+                if not row.empty:
+                    narrative = str(
+                        row.iloc[0].get("edited_narrative", "")
+                        or row.iloc[0].get("original_narrative", "")
+                    )
+                    if narrative:
+                        vm_df = self._store._variance_material
+                        vm_row = vm_df[vm_df["variance_id"] == variance_id]
+                        metadata: dict[str, Any] = {}
+                        if not vm_row.empty:
+                            metadata = {
+                                "account_id": str(vm_row.iloc[0].get("account_id", "")),
+                                "variance_amount": float(vm_row.iloc[0].get("variance_amount", 0)),
+                                "bu_id": str(vm_row.iloc[0].get("bu_id", "")),
+                                "period_id": str(vm_row.iloc[0].get("period_id", "")),
+                            }
+                        await self._knowledge_store.add_approved_commentary(
+                            variance_id=variance_id,
+                            narrative_text=narrative,
+                            metadata=metadata,
+                        )
+            except Exception as exc:
+                logger.warning("Knowledge base population failed for %s: %s", variance_id, exc)
+
         return result
 
     async def submit_bulk_approval(
@@ -98,6 +129,36 @@ class AsyncReviewStore:
                     new_status="APPROVED",
                     comment=comment,
                 )
+
+        # Populate knowledge base for each approved variance
+        if self._knowledge_store:
+            for vid in variance_ids:
+                try:
+                    rs_df = self._store._review_status
+                    row = rs_df[rs_df["variance_id"] == vid]
+                    if not row.empty:
+                        narrative = str(
+                            row.iloc[0].get("edited_narrative", "")
+                            or row.iloc[0].get("original_narrative", "")
+                        )
+                        if narrative:
+                            vm_df = self._store._variance_material
+                            vm_row = vm_df[vm_df["variance_id"] == vid]
+                            metadata: dict[str, Any] = {}
+                            if not vm_row.empty:
+                                metadata = {
+                                    "account_id": str(vm_row.iloc[0].get("account_id", "")),
+                                    "variance_amount": float(vm_row.iloc[0].get("variance_amount", 0)),
+                                    "bu_id": str(vm_row.iloc[0].get("bu_id", "")),
+                                    "period_id": str(vm_row.iloc[0].get("period_id", "")),
+                                }
+                            await self._knowledge_store.add_approved_commentary(
+                                variance_id=vid,
+                                narrative_text=narrative,
+                                metadata=metadata,
+                            )
+                except Exception as exc:
+                    logger.warning("Knowledge base population failed for %s: %s", vid, exc)
 
         return result
 
