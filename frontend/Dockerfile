@@ -1,29 +1,37 @@
-# Build stage
+# ---------------------------------------------------------------------------
+# Variance Agent — Frontend (React + Vite)
+# Multi-stage build: Node 20 + Nginx
+# Build context: project root (../)
+# ---------------------------------------------------------------------------
+
+# --- Stage 1: Build ---
 FROM node:20-alpine AS build
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+# Copy package files from frontend/ subdirectory
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
 
-COPY . .
+# Copy frontend source
+COPY frontend/ .
 RUN npm run build
 
-# Production stage
+# --- Stage 2: Serve with Nginx ---
 FROM nginx:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # SPA fallback: route all paths to index.html
 RUN echo 'server { \
-  listen 80; \
+  listen 3000; \
+  root /usr/share/nginx/html; \
+  index index.html; \
   location / { \
-    root /usr/share/nginx/html; \
-    index index.html; \
     try_files $uri $uri/ /index.html; \
   } \
 }' > /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 3000
 
 CMD ["nginx", "-g", "daemon off;"]

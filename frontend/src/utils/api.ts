@@ -91,6 +91,18 @@ async function request<T>(
     } catch {
       // Response body not JSON
     }
+
+    // Auto-redirect to login on 401 (token expired/invalid)
+    if (response.status === 401 && typeof window !== 'undefined') {
+      const isAuthEndpoint = path.startsWith('/auth/');
+      if (!isAuthEndpoint) {
+        // Clear token and redirect
+        authToken = null;
+        window.location.href = '/login';
+        return undefined as unknown as T;
+      }
+    }
+
     throw error;
   }
 

@@ -4,7 +4,14 @@ Provides reusable fixtures for:
 - Sample hierarchy trees (Geo, Account)
 - Sample fact data
 - Test configuration
+
+Loads .env automatically so tests can access API keys and config.
 """
+
+# Load .env BEFORE any other imports so env vars are available everywhere.
+# override=True ensures .env values replace any empty env vars from the shell.
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 import json
 from pathlib import Path

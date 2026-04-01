@@ -80,12 +80,22 @@ class TestDirectorWorkflow:
             assert "error" in resp.json().get("message", "").lower() or resp.json().get("new_status") != "APPROVED"
 
     def test_bulk_approval(self, gw):
-        # Get some reviewed items
+        # Self-contained: create reviewed items first by editing drafts
+        review_queue = gw.get("/api/v1/review/queue?status=AI_DRAFT&page_size=3").json()
+        draft_items = review_queue.get("items", []) if isinstance(review_queue, dict) else []
+        for item in draft_items[:3]:
+            gw.post("/api/v1/review/actions", json={
+                "variance_id": item.get("variance_id", ""),
+                "action": "edit",
+                "edited_narrative": "Edited for bulk approval test",
+            })
+
+        # Now get approval queue
         queue = gw.get("/api/v1/approval/queue").json()
         items = queue.get("items", []) if isinstance(queue, dict) else []
-        reviewed = [i.get("variance_id", "") for i in items if i.get("status") in ("ANALYST_REVIEWED", "reviewed")][:2]
+        reviewed = [i.get("variance_id", "") for i in items][:2]
         if not reviewed:
-            pytest.skip("No reviewed items for bulk approval")
+            pytest.skip("No reviewed items for bulk approval after seeding")
         resp = gw.post("/api/v1/approval/actions", json={
             "variance_ids": reviewed, "action": "approve"
         })

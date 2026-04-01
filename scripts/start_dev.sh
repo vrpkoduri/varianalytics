@@ -7,6 +7,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
+NO_DOCKER=false
+if [ "$1" = "--no-docker" ]; then
+    NO_DOCKER=true
+fi
+
 echo "🔄 Loading .env..."
 if [ -f .env ]; then
     set -a
@@ -15,6 +20,17 @@ if [ -f .env ]; then
     echo "   ✓ .env loaded"
 else
     echo "   ⚠ No .env file found — copy .env.example to .env and add your API keys"
+fi
+
+# Start infrastructure (PostgreSQL, Redis, Qdrant) unless --no-docker
+if [ "$NO_DOCKER" = false ]; then
+    echo ""
+    echo "🐳 Starting infrastructure (PostgreSQL, Redis, Qdrant)..."
+    if command -v docker >/dev/null 2>&1; then
+        ./scripts/start_infra.sh
+    else
+        echo "   ⚠ Docker not found — skipping infrastructure. Run manually or use --no-docker"
+    fi
 fi
 
 echo ""

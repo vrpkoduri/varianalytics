@@ -380,75 +380,221 @@ This document is the single source of truth for sprint planning, deliverable tra
 
 ---
 
-## Sprint 5 — Auth + RBAC + Polish
+## Sprint 5 — Auth + RBAC + Polish [IN PROGRESS]
 
-**Goal:** Azure AD, persona-narrative filtering, theme, admin.
+**Goal:** JWT auth (Azure AD swap-in), DB-driven RBAC, persona-narrative filtering, full admin panel, theme polish.
 **Duration:** Week 11
+**Dependencies:** Sprint 4 complete (677 tests, 3 services, 120+ components)
 
-### Deliverables
+### Key Decisions
+- **Auth:** Dev JWT system with Azure AD swap-in via env vars (no Azure credentials needed now)
+- **Role storage:** PostgreSQL tables (users, roles, permissions, user_roles) for maximum flexibility
+- **Admin:** Full admin panel with threshold editing, model routing config, user/role management, audit log viewer
 
-1. **Azure AD Integration**
-   - OAuth 2.0 flow
-   - JWT token validation
-   - User profile extraction
+### Build Plan (5 Checkpoints)
 
-2. **RBAC + Persona-Narrative Filtering**
-   - BU Leaders: own BU only, REVIEWED/APPROVED
-   - CFO: APPROVED only, summary level
-   - HR Finance: HC domain only
-   - Board Viewer: Board + Summary only
+#### CP-1: Auth Infrastructure (Backend) [IN PROGRESS]
 
-3. **Dark/Light Theme**
-   - Tailwind semantic tokens
-   - User toggle persisted
-   - All components themed
+**D1: Database Tables** (`shared/database/models.py`)
+- `UserRecord`: id, user_id, email, display_name, password_hash, is_active, created/updated_at
+- `RoleRecord`: id, role_name, description, persona_type, narrative_level, is_system
+- `UserRoleRecord`: id, user_id (FK), role_id (FK), bu_scope (JSON), assigned_by/at
+- `PermissionRecord`: id, role_id (FK), resource, action, scope_type
+- Seed: 6 system roles + 1 admin + 5 demo users (one per persona)
 
-4. **Admin View**
-   - Threshold configuration
-   - Model routing config
-   - User role management
-   - Audit log viewer
+**D2: JWT Service** (`shared/auth/jwt.py`)
+- `create_access_token()` / `create_refresh_token()` / `decode_token()`
+- HS256 signing, configurable expiry (access=1hr, refresh=24hr)
+- Payload: `{sub, email, roles, bu_scope, persona, exp, iat, jti}`
+
+**D3: Azure AD Provider** (`shared/auth/azure_ad.py`)
+- OAuth code exchange, Microsoft Graph user info, token refresh
+- Only activates when `AZURE_AD_TENANT_ID` set in env
+- Falls back to local credentials when not configured
+
+**D4: Auth Middleware** (`shared/auth/middleware.py`)
+- `get_current_user()` — FastAPI Depends: JWT extraction + validation
+- `require_role(*roles)` / `require_bu_access(bu_id)` / `require_admin()`
+- Dev mode: returns default dev user when no token + ENVIRONMENT=development
+
+**D5: Auth Endpoints Rewrite** (`services/gateway/api/auth.py`)
+- `POST /auth/login` — Azure AD mode OR dev mode (email/password)
+- `POST /auth/logout` — Invalidate refresh token
+- `GET /auth/me` — Full user profile with roles/permissions
+- `POST /auth/refresh` — New token pair from refresh token
+- `POST /auth/register` — Dev mode only
+
+**D6: RBAC Service** (`shared/auth/rbac.py`)
+- Role checks, BU scope resolution, narrative level mapping
+- `filter_by_persona()` — data-level persona enforcement
+
+**D7: UserStore** (`shared/auth/user_store.py`)
+- User CRUD, role assignment/removal, permission queries, bulk operations
+
+**Tests:** ~35 (JWT, RBAC, UserStore, auth endpoints, middleware integration)
+
+#### CP-2: RBAC Enforcement (Backend)
+
+**D8: Gateway Endpoint Protection**
+- Apply `get_current_user` / `require_role` to all gateway endpoints
+- Public: `/auth/login`, `/auth/register`. Admin: config writes, notifications. Role-specific: review (analyst), approval (director/cfo)
+
+**D9: Computation Service Protection**
+- Service-to-service token via `X-User-Context` header
+- BU filter applied to data queries based on user context
+
+**D10: Persona-Narrative Filtering**
+- Analyst → all (detail). BU Leader → own BU, REVIEWED/APPROVED (midlevel). CFO → APPROVED (summary). Board → Board+Summary. HR Finance → HC domain only.
+
+**D11: Audit Integration**
+- Auth events: login, logout, failed_login, token_refresh
+- RBAC events: unauthorized_access. Config events: threshold_update, role_assignment
+
+**Tests:** ~25 (endpoint protection, RBAC enforcement, persona data access)
+
+#### CP-3: Frontend Auth + Route Guards
+
+**D12: AuthContext + useAuth** — Replace UserContext, JWT in-memory, auto-refresh
+**D13: API Client Interceptor** — Auto-attach Bearer token, 401 refresh retry
+**D14: Login Page** — Email/password + "Sign in with Microsoft" button
+**D15: ProtectedRoute** — Auth + role checks, redirect to login/unauthorized
+**D16: Router Update** — Role-gated routes for review, approval, admin
+**D17: Persona-Aware UI** — Tab visibility, sidebar BU filtering, narrative level
+
+**Tests:** ~15 (auth context, route guards, persona navigation)
+
+#### CP-4: Admin View (Full)
+
+**D18: Config + Admin API** — CRUD thresholds/routing/users/roles/audit-log
+**D19: AdminView Rewrite** — 4 editable tabs (Thresholds, Model Routing, Users & Roles, Audit Log)
+**D20: Admin Hooks** — `useAdminConfig`, `useAdminUsers`, `useAdminAuditLog`
+
+**Tests:** ~20 (config CRUD, admin workflow)
+
+#### CP-5: Theme + Polish + Docs
+
+**D21: Theme Audit** — Verify all 120+ components use CSS variable tokens
+**D22: Polish** — Login animations, session timeout warning, loading states
+**D23: Documentation** — AUTH_GUIDE.md, API_REFERENCE.md update, ARCHITECTURE.md update
+**D24: Full Regression** — All 770+ tests pass
+
+**Tests:** ~5 (theme persistence, auth E2E flow)
+
+### Shared Components Centralized
+
+| Component | Location | Used By |
+|-----------|----------|---------|
+| JWTService | `shared/auth/jwt.py` | Gateway auth, middleware |
+| AzureADProvider | `shared/auth/azure_ad.py` | Gateway auth (when configured) |
+| RBACService | `shared/auth/rbac.py` | All protected endpoints |
+| UserStore | `shared/auth/user_store.py` | Gateway auth, admin API |
+| AuthMiddleware | `shared/auth/middleware.py` | All gateway routers |
+| AuthContext | `frontend/src/context/AuthContext.tsx` | All frontend components |
+| ProtectedRoute | `frontend/src/components/auth/ProtectedRoute.tsx` | Router |
+| useAuth | `frontend/src/hooks/useAuth.ts` | Login/logout/refresh |
+
+### Testing Plan
+
+| Checkpoint | New Unit | New Integration | New E2E | Running Total |
+|-----------|---------|----------------|---------|---------------|
+| CP-1 | ~25 | ~10 | — | ~717 |
+| CP-2 | ~10 | ~15 | — | ~742 |
+| CP-3 | ~15 | — | — | ~757 |
+| CP-4 | ~12 | ~8 | — | ~777 |
+| CP-5 | — | — | ~5 | ~782 |
 
 ### Acceptance Criteria
-- [ ] Login with Azure AD works
+- [ ] Login with JWT works (dev mode email/password)
+- [ ] Azure AD login activates when AZURE_AD_TENANT_ID configured
+- [ ] Unauthenticated requests return 401
 - [ ] BU Leader cannot see other BU data
 - [ ] CFO sees only approved summaries
-- [ ] Theme toggle works across all views
-- [ ] Admin can adjust thresholds
+- [ ] Board Viewer sees board + summary only
+- [ ] HR Finance sees HC domain only
+- [ ] Review queue restricted to analysts
+- [ ] Approval queue restricted to directors/CFO
+- [ ] Admin panel restricted to admin role
+- [ ] Admin can edit thresholds → YAML persisted
+- [ ] Admin can edit model routing → YAML persisted
+- [ ] Admin can manage users and roles
+- [ ] Audit log viewer shows all auth/config events
+- [ ] Theme toggle works across all views (persisted)
+- [ ] All tests pass (target: 780+)
 
 ---
 
-## Sprint 6 — Testing + Hardening
+## Sprint 6 — Testing + Hardening [COMPLETE]
 
-**Goal:** Full test suite, performance, edge cases, UAT prep.
-**Duration:** Week 12
+**Goal:** Full test suite, performance benchmarks, edge cases, Playwright E2E, UAT persona scenarios, documentation.
+**Duration:** Week 12 (Final MVP Sprint)
+**Dependencies:** Sprint 5 complete (826 tests, full Docker stack, auth/RBAC)
+**Result:** **947 tests, 0 skips, 0 failures. MVP complete.**
 
-### Deliverables
+### Key Decisions
+- **E2E:** Playwright browser automation for 7 user journeys
+- **UAT:** Automated persona isolation scenarios (not manual checklists)
+- **Performance:** pytest-based benchmarks with SLA thresholds
 
-1. **Comprehensive Test Suite**
-   - Unit tests: >80% coverage on shared + engine
-   - Integration tests: Full pipeline, service-to-service
-   - E2E tests: Key user journeys (Cypress/Playwright)
-   - Performance tests: Engine <5min, API <100ms p95
+### Build Plan (5 Checkpoints)
 
-2. **Edge Case Validation**
-   - Budget=0 handling
-   - Missing PY periods
-   - New accounts (no history)
-   - Empty hierarchy nodes
-   - Missing FX rates
-   - Negative budgets
+#### CP-1: Edge Case Tests + Coverage Gaps (~58 tests)
 
-3. **Documentation Finalization**
-   - API reference (all 50 endpoints)
-   - Architecture decision records
-   - Deployment guide
-   - User guide
+**D1: Engine Edge Cases** (`tests/unit/computation/test_edge_cases.py`)
+- Budget=0 → variance_pct=NaN, flagged "unbudgeted"
+- Negative budgets → sign convention applies
+- Empty hierarchy nodes → parent skipped
+- New accounts (1-2 periods) → trend detection skips
+- Missing FX → proportional fallback with `is_fallback=True`
+- Missing PY → comparison skipped
+- 4 synthetic scenario isolation tests
 
-4. **UAT Preparation**
-   - Test data refresh
-   - UAT environment setup
-   - Test scripts for each persona
+**D2: Shared Library Tests** (`test_config_thresholds.py`, `test_pydantic_models.py`, `test_hierarchy_cache.py`)
+**D3: Gateway Agent Tests** (`test_agents.py`)
+**D4: Notification Tests** (`test_notifications.py`)
+
+#### CP-2: Performance Tests (~18 tests)
+
+**D5: Engine Timing** — Full pipeline < 10s, Pass 1 < 3s, Memory < 500MB
+**D6: API Latency** — Dashboard < 200ms, Variance list < 300ms, P&L < 500ms
+**D7: Database Queries** — User lookup < 10ms, Bulk read < 100ms
+
+#### CP-3: Playwright E2E (~21 tests)
+
+**D8:** Playwright setup (npm install, config)
+**D9:** Auth journey (login/logout/redirect)
+**D10:** Dashboard journey (filters, charts, modal)
+**D11:** Review + Approval journey (edit → review → approve)
+**D12:** Chat journey (send → stream → response)
+**D13:** Admin journey (tabs, threshold edit)
+
+#### CP-4: Automated UAT Persona Scenarios (~18 tests)
+
+**D14:** 6 personas × data isolation:
+- Analyst: review access, no approval/admin
+- BU Leader: BU001 only, no other BU data
+- CFO: APPROVED only, summary level
+- Board: Dashboard+Reports only
+- Director: approval queue, bulk approve
+- Admin: full access
+
+#### CP-5: Documentation + Config + Regression
+
+**D15:** `docs/DEPLOYMENT_GUIDE.md`
+**D16:** `docs/USER_GUIDE.md`
+**D17:** Config persistence (read/write YAML)
+**D18:** Update MASTER_SPRINT_PLAN, TESTING_FRAMEWORK, API_REFERENCE
+**D19:** Final regression: 940+ tests, 0 skips, coverage >80%
+
+### Acceptance Criteria
+- [ ] All 6 edge cases have explicit isolated tests
+- [ ] 4 synthetic scenarios verified in isolation
+- [ ] Engine < 10 seconds (benchmarked)
+- [ ] Dashboard APIs < 200ms p95 (benchmarked)
+- [ ] Playwright: login → dashboard → review → approve lifecycle
+- [ ] 6 personas: correct data isolation + correct 403s
+- [ ] Deployment Guide + User Guide complete
+- [ ] Config read/write YAML working
+- [ ] Full regression: 940+ passed, 0 skipped
 
 ---
 

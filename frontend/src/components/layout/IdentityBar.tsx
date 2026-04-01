@@ -1,17 +1,27 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { cn } from '@/utils/theme'
+import { useAuth } from '@/context/AuthContext'
 import ThemeToggle from './ThemeToggle'
 import { NotificationDropdown } from './NotificationDropdown'
 
-const TABS = [
+interface TabDef {
+  key: string
+  label: string
+  route: string
+  /** Roles that can see this tab. Empty = all authenticated users. */
+  roles?: string[]
+}
+
+const ALL_TABS: TabDef[] = [
   { key: 'dash', label: 'Dashboard', route: '/' },
   { key: 'pl', label: 'P&L', route: '/pl' },
   { key: 'chat', label: 'Chat', route: '/chat' },
-  { key: 'review', label: 'Review', route: '/review' },
-  { key: 'approve', label: 'Approvals', route: '/approval' },
+  { key: 'review', label: 'Review', route: '/review', roles: ['analyst', 'admin'] },
+  { key: 'approve', label: 'Approvals', route: '/approval', roles: ['director', 'cfo', 'admin'] },
   { key: 'reports', label: 'Reports', route: '/reports' },
-] as const
+  { key: 'admin', label: 'Admin', route: '/admin', roles: ['admin'] },
+]
 
 function useClockTime() {
   const [time, setTime] = useState(() => {
@@ -35,6 +45,21 @@ export default function IdentityBar() {
   const location = useLocation()
   const clock = useClockTime()
   const [notifOpen, setNotifOpen] = useState(false)
+
+  // Get auth context for persona-filtered tabs
+  const auth = useAuth()
+  const userRoles = auth.user?.roles ?? []
+  const userName = auth.user?.displayName ?? ''
+  const logoutFn = auth.logout
+
+  // Filter tabs based on user roles
+  const TABS = useMemo(() => {
+    if (userRoles.length === 0) return ALL_TABS // dev mode: show all
+    return ALL_TABS.filter((tab) => {
+      if (!tab.roles) return true // no restriction
+      return tab.roles.some((r) => userRoles.includes(r) || userRoles.includes('admin'))
+    })
+  }, [userRoles])
 
   const activeTab = TABS.find((t) => t.route === location.pathname)?.key ?? 'dash'
 
@@ -139,6 +164,26 @@ export default function IdentityBar() {
         <span className="text-[11px] text-white/30 font-medium tracking-[0.3px] min-w-[56px] text-right">
           {clock}
         </span>
+
+        {/* User / Logout */}
+        {userName && (
+          <div className="flex items-center gap-2 ml-2 pl-2 border-l border-white/10">
+            <span className="text-[11px] text-white/50 truncate max-w-[100px]">{userName}</span>
+            {logoutFn && (
+              <button
+                onClick={() => { logoutFn?.(); navigate('/login') }}
+                className="w-[26px] h-[26px] rounded-[5px] border border-white/10 bg-white/[.04] flex items-center justify-center cursor-pointer hover:bg-white/[.08] transition-colors"
+                title="Sign out"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </header>
   )

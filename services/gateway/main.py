@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from services.gateway.api.admin import router as admin_router
 from services.gateway.api.approval import router as approval_router
 from services.gateway.api.auth import router as auth_router
 from services.gateway.api.chat import router as chat_router
@@ -60,22 +61,66 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     settings = Settings()
 
+    # Store environment for dev-mode auth fallback
+    app.state.environment = settings.environment
+
     # Database initialization (graceful degradation)
     session_factory = None
     try:
         from shared.database.engine import init_engine, init_db, get_session_factory, dispose_engine
-        from shared.database.seed import seed_review_status
+        from shared.database.seed import seed_review_status, seed_roles_and_permissions, seed_demo_users
 
         init_engine(settings.database_url)
         await init_db()
         session_factory = get_session_factory()
-        seeded = await seed_review_status(session_factory)
-        if seeded > 0:
-            logger.info("Seeded %d review records from parquet", seeded)
+
+        # Seed auth tables (roles, permissions, demo users)
+        roles_seeded = await seed_roles_and_permissions(session_factory)
+        if roles_seeded > 0:
+            logger.info("Seeded %d system roles with permissions", roles_seeded)
+        users_seeded = await seed_demo_users(session_factory)
+        if users_seeded > 0:
+            logger.info("Seeded %d demo users", users_seeded)
+
+        # Seed review status from parquet (separate try/catch — don't break auth if this fails)
+        try:
+            seeded = await seed_review_status(session_factory)
+            if seeded > 0:
+                logger.info("Seeded %d review records from parquet", seeded)
+        except Exception as exc:
+            logger.warning("Review status seeding failed (non-critical): %s", exc)
+
         logger.info("Database connected")
     except Exception as exc:
         logger.warning("Database unavailable, using in-memory only: %s", exc)
         session_factory = None
+
+    # JWT Service
+    from shared.auth.jwt import JWTService
+    app.state.jwt_service = JWTService(
+        secret_key=settings.secret_key,
+        algorithm=settings.jwt_algorithm,
+        access_token_expire_minutes=settings.jwt_access_token_expire_minutes,
+        refresh_token_expire_minutes=settings.jwt_refresh_token_expire_minutes,
+    )
+    logger.info("JWT service initialised (algorithm=%s)", settings.jwt_algorithm)
+
+    # User Store (requires database)
+    if session_factory:
+        from shared.auth.user_store import UserStore
+        app.state.user_store = UserStore(session_factory)
+        logger.info("User store initialised (PostgreSQL-backed)")
+    else:
+        app.state.user_store = None
+        logger.warning("User store unavailable — auth endpoints limited to dev mode")
+
+    # Azure AD Provider (optional — only when configured)
+    from shared.auth.azure_ad import create_azure_ad_provider
+    app.state.azure_ad_provider = create_azure_ad_provider(
+        tenant_id=settings.azure_ad_tenant_id,
+        client_id=settings.azure_ad_client_id,
+        client_secret=settings.azure_ad_client_secret,
+    )
 
     logger.info("Gateway starting up — initialising services …")
     app.state.data_service = DataService()
@@ -112,7 +157,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.info("LLM not available — using keyword intent + template responses")
     logger.info(
-        "Gateway ready — DataService + ReviewStore + ConversationManager + ComputationClient(%s)",
+        "Gateway ready — DataService + ReviewStore + ConversationManager + JWT + ComputationClient(%s)",
         settings.computation_service_url,
     )
     yield
@@ -158,6 +203,7 @@ app.include_router(config_router, prefix=API_V1)
 app.include_router(review_router, prefix=API_V1)
 app.include_router(approval_router, prefix=API_V1)
 app.include_router(notifications_router, prefix=API_V1)
+app.include_router(admin_router, prefix=API_V1)
 
 
 # ---------------------------------------------------------------------------

@@ -6,8 +6,10 @@ for use by the frontend filter panel and the chat agent's context resolution.
 
 from typing import Any, Optional
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from pydantic import BaseModel, Field
+
+from shared.auth.middleware import UserContext, get_current_user
 
 router = APIRouter(prefix="/dimensions", tags=["dimensions"])
 
@@ -70,7 +72,11 @@ class Period(BaseModel):
     response_model=HierarchyResponse,
     summary="Get hierarchy tree for a dimension",
 )
-async def get_hierarchy(dimension_name: str, request: Request) -> HierarchyResponse:
+async def get_hierarchy(
+    dimension_name: str,
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+) -> HierarchyResponse:
     """Return the full parent-child tree for the given dimension.
 
     Supported dimensions: geography, segment, lob, costcenter.
@@ -97,7 +103,10 @@ async def get_hierarchy(dimension_name: str, request: Request) -> HierarchyRespo
     response_model=list[BusinessUnit],
     summary="List all business units",
 )
-async def list_business_units(request: Request) -> list[BusinessUnit]:
+async def list_business_units(
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+) -> list[BusinessUnit]:
     """Return flat list of business units."""
     ds = request.app.state.data_service
     bus = ds.get_business_units()
@@ -116,7 +125,10 @@ async def list_business_units(request: Request) -> list[BusinessUnit]:
     response_model=list[Account],
     summary="List all accounts",
 )
-async def list_accounts(request: Request) -> list[Account]:
+async def list_accounts(
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+) -> list[Account]:
     """Return account dimension with parent-child relationships."""
     ds = request.app.state.data_service
     accounts = ds.get_accounts()
@@ -137,7 +149,10 @@ async def list_accounts(request: Request) -> list[Account]:
     response_model=list[Period],
     summary="List fiscal periods",
 )
-async def list_periods(request: Request) -> list[Period]:
+async def list_periods(
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+) -> list[Period]:
     """Return available fiscal periods."""
     ds = request.app.state.data_service
     periods = ds.get_periods()

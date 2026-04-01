@@ -9,10 +9,11 @@ import logging
 import uuid
 from typing import Any, Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from shared.auth.middleware import UserContext, get_current_user
 from shared.models.api import ChatMessage, ChatResponse
 from services.gateway.streaming import ConversationManager, StreamingContext
 
@@ -118,6 +119,7 @@ async def send_message(
     body: ChatMessage,
     request: Request,
     background_tasks: BackgroundTasks,
+    user: UserContext = Depends(get_current_user),
 ) -> SendMessageResponse:
     """Accept a user message and return a conversation reference.
 
@@ -210,7 +212,10 @@ async def stream_response(
     response_model=ConversationListResponse,
     summary="List conversations",
 )
-async def list_conversations(request: Request) -> ConversationListResponse:
+async def list_conversations(
+    request: Request,
+    user: UserContext = Depends(get_current_user),
+) -> ConversationListResponse:
     """Return list of the current user's conversations."""
     manager: ConversationManager = request.app.state.conversation_manager
     # TODO: extract user_id from auth token
@@ -227,7 +232,9 @@ async def list_conversations(request: Request) -> ConversationListResponse:
     summary="Delete a conversation",
 )
 async def delete_conversation(
-    conversation_id: str, request: Request
+    conversation_id: str,
+    request: Request,
+    user: UserContext = Depends(get_current_user),
 ) -> None:
     """Soft-delete a conversation by ID."""
     manager: ConversationManager = request.app.state.conversation_manager

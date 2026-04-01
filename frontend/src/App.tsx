@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { ThemeProvider } from '@/context/ThemeContext'
+import { AuthProvider } from '@/context/AuthContext'
 import { UserProvider } from '@/context/UserContext'
 import { GlobalFiltersProvider } from '@/context/GlobalFiltersContext'
 import { ReviewStatsProvider } from '@/context/ReviewStatsContext'
@@ -31,17 +32,19 @@ export default function App() {
   return (
     <ThemeProvider>
       <GlobalBackground />
-      <UserProvider>
-        <GlobalFiltersProvider>
-          <ReviewStatsProvider>
-            <ModalProvider>
-              <RouterProvider router={router} />
-              <VarianceModal />
-              <ConfettiContainer />
-            </ModalProvider>
-          </ReviewStatsProvider>
-        </GlobalFiltersProvider>
-      </UserProvider>
+      <AuthProvider>
+        <UserProvider>
+          <GlobalFiltersProvider>
+            <ReviewStatsProvider>
+              <ModalProvider>
+                <RouterProvider router={router} />
+                <VarianceModal />
+                <ConfettiContainer />
+              </ModalProvider>
+            </ReviewStatsProvider>
+          </GlobalFiltersProvider>
+        </UserProvider>
+      </AuthProvider>
     </ThemeProvider>
   )
 }

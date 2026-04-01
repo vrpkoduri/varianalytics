@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     secret_key: str = "change-me-in-production"
 
+    # JWT Authentication
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 60  # 1 hour
+    jwt_refresh_token_expire_minutes: int = 1440  # 24 hours
+
     # Service ports
     gateway_port: int = 8000
     computation_port: int = 8001

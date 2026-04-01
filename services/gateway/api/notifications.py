@@ -6,9 +6,10 @@ test notifications to verify connectivity before production use.
 
 from typing import Optional
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, Field
 
+from shared.auth.middleware import UserContext, require_admin
 from services.gateway.notifications.teams import TeamsNotifier
 from services.gateway.notifications.slack import SlackNotifier
 from services.gateway.notifications.smtp import SMTPNotifier
@@ -64,6 +65,7 @@ class NotificationConfig(BaseModel):
 )
 async def send_test_notification(
     body: NotificationTestRequest,
+    user: UserContext = Depends(require_admin()),
 ) -> NotificationTestResponse:
     """Send a test notification through the specified channel to verify setup."""
     from shared.config.settings import Settings
@@ -94,7 +96,9 @@ async def send_test_notification(
     response_model=NotificationConfig,
     summary="Get notification configuration",
 )
-async def get_notification_config() -> NotificationConfig:
+async def get_notification_config(
+    user: UserContext = Depends(require_admin()),
+) -> NotificationConfig:
     """Return current notification channel configuration."""
     # TODO: read from config store
     return NotificationConfig(
@@ -111,7 +115,10 @@ async def get_notification_config() -> NotificationConfig:
     response_model=NotificationConfig,
     summary="Update notification configuration",
 )
-async def update_notification_config(body: NotificationConfig) -> NotificationConfig:
+async def update_notification_config(
+    body: NotificationConfig,
+    user: UserContext = Depends(require_admin()),
+) -> NotificationConfig:
     """Update notification channel configuration."""
     # TODO: persist to config store, validate webhook URLs
     return body

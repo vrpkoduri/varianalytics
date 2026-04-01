@@ -9,19 +9,43 @@ from shared.data.service import DataService
 
 @pytest.fixture(scope="module")
 def approval_client():
-    """Create test client with ReviewStore that has some ANALYST_REVIEWED items."""
+    """Create test client with ReviewStore that has some ANALYST_REVIEWED items.
+
+    Explicitly seeds ANALYST_REVIEWED items by calling submit_review_action
+    on several AI_DRAFT variances, then verifies they moved before yielding.
+    """
     from services.gateway.main import app
 
     app.state.data_service = DataService()
     store = ReviewStore()
 
-    # Move first 3 items to ANALYST_REVIEWED for testing
-    queue = store.get_review_queue(status_filter="AI_DRAFT", page_size=3)
+    # Move first 5 items to ANALYST_REVIEWED for testing
+    queue = store.get_review_queue(status_filter="AI_DRAFT", page_size=5)
+    moved = 0
     for item in queue["items"]:
         try:
-            store.submit_review_action(item["variance_id"], "approve")
-        except ValueError:
+            result = store.submit_review_action(item["variance_id"], "approve")
+            if result.get("new_status") == "ANALYST_REVIEWED":
+                moved += 1
+        except (ValueError, KeyError):
             pass
+
+    # Also use 'edit' action which always transitions AI_DRAFT → ANALYST_REVIEWED
+    if moved < 3:
+        queue2 = store.get_review_queue(status_filter="AI_DRAFT", page_size=5)
+        for item in queue2["items"]:
+            try:
+                result = store.submit_review_action(
+                    item["variance_id"],
+                    "edit",
+                    edited_narrative="Test edit for approval testing",
+                )
+                if result.get("new_status") == "ANALYST_REVIEWED":
+                    moved += 1
+                if moved >= 3:
+                    break
+            except (ValueError, KeyError):
+                pass
 
     app.state.review_store = store
 
@@ -50,12 +74,26 @@ class TestApprovalQueue:
         assert "total_approved" in data
 
     def test_bulk_approve(self, approval_client):
-        """POST /api/v1/approval/actions approves multiple variances."""
-        # Get items to approve
+        """POST /api/v1/approval/actions approves multiple variances.
+
+        Self-contained: creates its own ANALYST_REVIEWED items if queue is empty.
+        """
+        # First, ensure we have reviewed items by editing some drafts
+        review_queue = approval_client.get("/api/v1/review/queue?status=AI_DRAFT&page_size=3")
+        if review_queue.status_code == 200:
+            items = review_queue.json().get("items", [])
+            for item in items[:3]:
+                approval_client.post("/api/v1/review/actions", json={
+                    "variance_id": item["variance_id"],
+                    "action": "edit",
+                    "edited_narrative": "Edited for bulk approve test",
+                })
+
+        # Now get approval queue
         queue_resp = approval_client.get("/api/v1/approval/queue?page_size=2")
-        items = queue_resp.json()["items"]
+        items = queue_resp.json().get("items", [])
         if not items:
-            pytest.skip("No ANALYST_REVIEWED items")
+            pytest.skip("No ANALYST_REVIEWED items available after seeding")
 
         vids = [item["variance_id"] for item in items]
         resp = approval_client.post("/api/v1/approval/actions", json={

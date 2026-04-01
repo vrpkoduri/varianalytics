@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import DashboardView from '@/views/DashboardView'
 import PLView from '@/views/PLView'
 import ChatView from '@/views/ChatView'
@@ -7,18 +8,74 @@ import ReviewView from '@/views/ReviewView'
 import ApprovalView from '@/views/ApprovalView'
 import ReportsView from '@/views/ReportsView'
 import AdminView from '@/views/AdminView'
+import LoginView from '@/views/LoginView'
+import UnauthorizedView from '@/views/UnauthorizedView'
 
 export const router = createBrowserRouter([
+  // Public routes
+  { path: '/login', element: <LoginView /> },
+  { path: '/unauthorized', element: <UnauthorizedView /> },
+
+  // Protected routes (require authentication)
   {
     element: <AppLayout />,
     children: [
-      { path: '/', element: <DashboardView /> },
-      { path: '/pl', element: <PLView /> },
-      { path: '/chat', element: <ChatView /> },
-      { path: '/review', element: <ReviewView /> },
-      { path: '/approval', element: <ApprovalView /> },
-      { path: '/reports', element: <ReportsView /> },
-      { path: '/admin', element: <AdminView /> },
+      {
+        path: '/',
+        element: (
+          <ProtectedRoute>
+            <DashboardView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/pl',
+        element: (
+          <ProtectedRoute>
+            <PLView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/chat',
+        element: (
+          <ProtectedRoute>
+            <ChatView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/review',
+        element: (
+          <ProtectedRoute roles={['analyst', 'admin']}>
+            <ReviewView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/approval',
+        element: (
+          <ProtectedRoute roles={['director', 'cfo', 'admin']}>
+            <ApprovalView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/reports',
+        element: (
+          <ProtectedRoute>
+            <ReportsView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/admin',
+        element: (
+          <ProtectedRoute roles={['admin']}>
+            <AdminView />
+          </ProtectedRoute>
+        ),
+      },
     ],
   },
 ])

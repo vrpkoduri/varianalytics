@@ -7,8 +7,10 @@ actions (approve / edit / escalate / dismiss), and view queue statistics.
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
+
+from shared.auth.middleware import UserContext, require_role
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +90,7 @@ async def get_review_queue(
     sort_by: str = Query("impact", description="Sort field: impact | sla | period"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
+    user: UserContext = Depends(require_role("analyst", "admin")),
 ) -> ReviewQueueResponse:
     """Return the analyst review queue with optional status filter and sorting."""
     store = request.app.state.review_store
@@ -111,7 +114,11 @@ async def get_review_queue(
     status_code=status.HTTP_200_OK,
     summary="Submit a review action",
 )
-async def submit_review_action(body: ReviewAction, request: Request) -> ReviewActionResponse:
+async def submit_review_action(
+    body: ReviewAction,
+    request: Request,
+    user: UserContext = Depends(require_role("analyst", "admin")),
+) -> ReviewActionResponse:
     """Process an analyst review action (approve / edit / escalate / dismiss).
 
     On approval, triggers bottom-up synthesis for parent nodes.
@@ -138,7 +145,10 @@ async def submit_review_action(body: ReviewAction, request: Request) -> ReviewAc
     response_model=ReviewStats,
     summary="Get review queue statistics",
 )
-async def get_review_stats(request: Request) -> ReviewStats:
+async def get_review_stats(
+    request: Request,
+    user: UserContext = Depends(require_role("analyst", "admin")),
+) -> ReviewStats:
     """Return aggregate counts and SLA metrics for the review queue."""
     store = request.app.state.review_store
     stats = store.get_review_stats()

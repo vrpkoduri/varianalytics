@@ -1,6 +1,7 @@
 # ---------------------------------------------------------------------------
 # Variance Agent — Gateway Service (Service 1)
 # Multi-stage build: Python 3.11-slim
+# Build context: project root (../)
 # ---------------------------------------------------------------------------
 
 # --- Stage 1: Install dependencies ---
@@ -8,14 +9,18 @@ FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
-COPY services/gateway/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# Install shared + service requirements
+COPY shared/requirements.txt ./shared-requirements.txt
+COPY services/gateway/requirements.txt ./service-requirements.txt
+RUN pip install --no-cache-dir --prefix=/install \
+    -r shared-requirements.txt \
+    -r service-requirements.txt
 
 # --- Stage 2: Runtime ---
 FROM python:3.11-slim AS runtime
 
-LABEL service="gateway" \
-      description="Variance Agent — Gateway (Auth, Chat, Dimensions, Config, Review, Approval, Notifications)" \
+LABEL service="variance-agent-gateway" \
+      description="Auth, Chat/SSE, Dimensions, Config, Review, Approval, Notifications" \
       port="8000"
 
 WORKDIR /app
@@ -27,9 +32,15 @@ COPY --from=builder /install /usr/local
 COPY shared/ /app/shared/
 COPY services/gateway/ /app/services/gateway/
 
-ENV PYTHONPATH=/app \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+# Copy synthetic data (parquet files needed for DataService + ReviewStore)
+COPY data/output/ /app/data/output/
+
+# Copy config files
+COPY shared/config/ /app/shared/config/
+
+ENV PYTHONPATH="/app" \
+    PYTHONUNBUFFERED="1" \
+    PYTHONDONTWRITEBYTECODE="1"
 
 EXPOSE 8000
 

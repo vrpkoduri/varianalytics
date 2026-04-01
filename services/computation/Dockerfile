@@ -1,13 +1,23 @@
-# ── Build stage ──────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Variance Agent — Computation Service (Service 2)
+# Multi-stage build: Python 3.11-slim
+# Build context: project root (../)
+# ---------------------------------------------------------------------------
+
+# --- Stage 1: Install dependencies ---
 FROM python:3.11-slim AS builder
 
 WORKDIR /build
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+# Install shared + service requirements
+COPY shared/requirements.txt ./shared-requirements.txt
+COPY services/computation/requirements.txt ./service-requirements.txt
+RUN pip install --no-cache-dir --prefix=/install \
+    -r shared-requirements.txt \
+    -r service-requirements.txt
 
-# ── Runtime stage ────────────────────────────────────────────────
-FROM python:3.11-slim
+# --- Stage 2: Runtime ---
+FROM python:3.11-slim AS runtime
 
 LABEL service="variance-agent-computation" \
       description="5.5-pass materiality-first computation engine" \
@@ -18,14 +28,19 @@ WORKDIR /app
 # Copy installed packages from builder
 COPY --from=builder /install /usr/local
 
-# Copy service code
-COPY . /app/services/computation/
+# Copy shared library and service code
+COPY shared/ /app/shared/
+COPY services/computation/ /app/services/computation/
 
-# Copy shared modules (mounted or copied at build time)
-# COPY shared/ /app/shared/
+# Copy synthetic data (parquet files needed at runtime)
+COPY data/output/ /app/data/output/
+
+# Copy config files
+COPY shared/config/ /app/shared/config/
 
 ENV PYTHONPATH="/app" \
-    PYTHONUNBUFFERED="1"
+    PYTHONUNBUFFERED="1" \
+    PYTHONDONTWRITEBYTECODE="1"
 
 EXPOSE 8001
 

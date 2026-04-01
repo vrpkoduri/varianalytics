@@ -8,8 +8,10 @@ Report distribution is gated on APPROVED status.
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
+
+from shared.auth.middleware import UserContext, require_role
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +79,7 @@ async def get_approval_queue(
     request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
+    user: UserContext = Depends(require_role("director", "cfo", "admin")),
 ) -> ApprovalQueueResponse:
     """Return items pending director approval (status = ANALYST_REVIEWED)."""
     store = request.app.state.review_store
@@ -95,7 +98,11 @@ async def get_approval_queue(
     status_code=status.HTTP_200_OK,
     summary="Bulk approve or reject variances",
 )
-async def submit_bulk_approval(body: BulkApprovalAction, request: Request) -> BulkApprovalResponse:
+async def submit_bulk_approval(
+    body: BulkApprovalAction,
+    request: Request,
+    user: UserContext = Depends(require_role("director", "cfo", "admin")),
+) -> BulkApprovalResponse:
     """Approve or reject multiple analyst-reviewed variances in one action.
 
     Approved items become eligible for report distribution.
@@ -114,7 +121,10 @@ async def submit_bulk_approval(body: BulkApprovalAction, request: Request) -> Bu
     response_model=ApprovalStats,
     summary="Get approval statistics",
 )
-async def get_approval_stats(request: Request) -> ApprovalStats:
+async def get_approval_stats(
+    request: Request,
+    user: UserContext = Depends(require_role("director", "cfo", "admin")),
+) -> ApprovalStats:
     """Return aggregate approval counts and metrics."""
     store = request.app.state.review_store
     stats = store.get_approval_stats()
