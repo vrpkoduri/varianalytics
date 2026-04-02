@@ -6,6 +6,7 @@ Provides typed query methods that return dicts/lists ready for API responses.
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 from typing import Any, Optional
@@ -616,9 +617,16 @@ class DataService:
             d_row = decomp[decomp["variance_id"] == variance_id]
             if not d_row.empty:
                 d = d_row.iloc[0]
+                components = d["components"]
+                # Parse JSON string if needed
+                if isinstance(components, str):
+                    try:
+                        components = json.loads(components)
+                    except Exception:
+                        components = {}
                 result["decomposition"] = {
                     "method": d["method"],
-                    "components": d["components"],
+                    "components": components,
                     "total_explained": self._safe_float(d["total_explained"]),
                     "residual": self._safe_float(d["residual"]),
                 }
@@ -836,7 +844,7 @@ class DataService:
         if dh.empty:
             return []
 
-        dim_nodes = dh[dh["dimension_name"] == dimension_name]
+        dim_nodes = dh[dh["dimension_name"].str.lower() == dimension_name.lower()]
         if dim_nodes.empty:
             return []
 
@@ -933,13 +941,19 @@ class DataService:
                     child_details = []
 
             # Find largest positive and negative children
-            positives = [c for c in child_details if isinstance(c, dict) and c.get("variance", 0) > 0]
-            negatives = [c for c in child_details if isinstance(c, dict) and c.get("variance", 0) < 0]
+            positives = sorted(
+                [c for c in child_details if isinstance(c, dict) and c.get("variance_amount", c.get("variance", 0)) > 0],
+                key=lambda x: x.get("variance_amount", x.get("variance", 0)), reverse=True,
+            )
+            negatives = sorted(
+                [c for c in child_details if isinstance(c, dict) and c.get("variance_amount", c.get("variance", 0)) < 0],
+                key=lambda x: abs(x.get("variance_amount", x.get("variance", 0))), reverse=True,
+            )
 
-            left_name = positives[0].get("account", "Item A") if positives else "Item A"
-            left_val = positives[0].get("variance", 0) if positives else 0
-            right_name = negatives[0].get("account", "Item B") if negatives else "Item B"
-            right_val = negatives[0].get("variance", 0) if negatives else 0
+            left_name = positives[0].get("account_name", positives[0].get("account_id", "Item A")) if positives else "Item A"
+            left_val = positives[0].get("variance_amount", positives[0].get("variance", 0)) if positives else 0
+            right_name = negatives[0].get("account_name", negatives[0].get("account_id", "Item B")) if negatives else "Item B"
+            right_val = negatives[0].get("variance_amount", negatives[0].get("variance", 0)) if negatives else 0
 
             net = row.get("net_variance", 0)
 

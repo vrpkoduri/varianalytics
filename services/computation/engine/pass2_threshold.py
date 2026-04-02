@@ -70,21 +70,21 @@ async def apply_threshold_filter(context: dict[str, Any]) -> None:
     threshold_config = ThresholdConfig()
 
     # -----------------------------------------------------------------
-    # Step 1: Filter to current period, BUDGET base, MTD view
+    # Step 1: Filter to current period, ALL bases, MTD view
     # -----------------------------------------------------------------
-    mtd_budget_mask = (
+    mtd_mask = (
         (all_variances["period_id"] == period_id)
-        & (all_variances["base_id"] == "BUDGET")
         & (all_variances["view_id"] == "MTD")
     )
-    mtd_df = all_variances[mtd_budget_mask].copy()
+    mtd_df = all_variances[mtd_mask].copy()
 
     if mtd_df.empty:
-        logger.warning("Pass 2: No MTD/BUDGET rows for period %s", period_id)
+        logger.warning("Pass 2: No MTD rows for period %s", period_id)
         context["material_variances"] = pd.DataFrame()
         return
 
-    logger.info("Pass 2: Evaluating %d MTD/BUDGET rows for period=%s", len(mtd_df), period_id)
+    logger.info("Pass 2: Evaluating %d MTD rows for period=%s across bases: %s",
+                len(mtd_df), period_id, list(mtd_df["base_id"].unique()))
 
     # -----------------------------------------------------------------
     # Step 2: Check materiality for each row
@@ -135,7 +135,6 @@ async def apply_threshold_filter(context: dict[str, Any]) -> None:
 
     other_views_mask = (
         (all_variances["period_id"] == period_id)
-        & (all_variances["base_id"] == "BUDGET")
         & (all_variances["view_id"].isin(["QTD", "YTD"]))
     )
     other_views = all_variances[other_views_mask].copy()
@@ -146,10 +145,9 @@ async def apply_threshold_filter(context: dict[str, Any]) -> None:
         )
         other_views = other_views[other_views["_dim_key"].isin(qualified_dim_keys)].copy()
 
-        # Carry forward flags from MTD row
-        key_to_flags = qualified_mtd.set_index("_dim_key")[
-            ["is_material", "is_netted", "is_trending"]
-        ].to_dict("index")
+        # Carry forward flags from MTD row (deduplicate keys across bases)
+        flag_df = qualified_mtd[["_dim_key", "is_material", "is_netted", "is_trending"]].drop_duplicates(subset=["_dim_key"])
+        key_to_flags = flag_df.set_index("_dim_key").to_dict("index")
 
         other_views["is_material"] = other_views["_dim_key"].map(
             lambda k: key_to_flags.get(k, {}).get("is_material", False)

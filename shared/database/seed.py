@@ -157,7 +157,7 @@ DEMO_USERS: list[dict[str, Any]] = [
         "email": "bu.leader@variance-agent.dev",
         "display_name": "James Morrison",
         "password": "password123",
-        "roles": [{"role_name": "bu_leader", "bu_scope": ["BU001"]}],
+        "roles": [{"role_name": "bu_leader", "bu_scope": ["marsh"]}],
     },
     {
         "user_id": "director-001",

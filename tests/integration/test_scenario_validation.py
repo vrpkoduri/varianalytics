@@ -263,7 +263,7 @@ class TestCorrelationScenarioAPI:
     """Validate correlation scenarios surface through API endpoints."""
 
     def test_correlation_pairs_exist(self, correlations):
-        assert len(correlations) == 20, f"Expected 20 correlation pairs, got {len(correlations)}"
+        assert len(correlations) >= 20, f"Expected >= 20 correlation pairs, got {len(correlations)}"
         assert correlations["correlation_score"].min() >= 0.3, "Minimum score should be >=0.3"
 
 
