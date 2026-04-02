@@ -56,6 +56,8 @@ class AsyncReviewStore:
         edited_narrative: Optional[str] = None,
         hypothesis_feedback: Optional[str] = None,
         comment: Optional[str] = None,
+        user_id: Optional[str] = None,
+        change_reason: Optional[str] = None,
     ) -> dict[str, str]:
         """Submit review action: update in-memory + persist to DB."""
         # 1. In-memory update (fast, always works)
@@ -65,6 +67,8 @@ class AsyncReviewStore:
             edited_narrative=edited_narrative,
             hypothesis_feedback=hypothesis_feedback,
             comment=comment,
+            user_id=user_id,
+            change_reason=change_reason,
         )
 
         # 2. Database persistence (async, graceful failure)

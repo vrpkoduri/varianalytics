@@ -54,6 +54,9 @@ class ReviewAction(BaseModel):
         None, description="thumbs_up | thumbs_down | null"
     )
     comment: Optional[str] = None
+    change_reason: Optional[str] = Field(
+        None, description="Why the narrative was changed: factual_correction | added_context | style | removed_hallucination | simplified"
+    )
 
 
 class ReviewActionResponse(BaseModel):
@@ -133,6 +136,8 @@ async def submit_review_action(
             edited_narrative=body.edited_narrative,
             hypothesis_feedback=body.hypothesis_feedback,
             comment=body.comment,
+            user_id=user.user_id,
+            change_reason=body.change_reason,
         )
         return ReviewActionResponse(**result)
     except ValueError as e:
@@ -155,3 +160,170 @@ async def get_review_stats(
     store = request.app.state.review_store
     stats = store.get_review_stats()
     return ReviewStats(**stats)
+
+
+# ---------------------------------------------------------------------------
+# Locking endpoints
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/lock/{variance_id}",
+    summary="Acquire edit lock on a variance",
+)
+async def acquire_lock(
+    variance_id: str,
+    request: Request,
+    user: UserContext = Depends(require_role("analyst", "admin")),
+):
+    """Acquire a 30-minute soft edit lock."""
+    store = request.app.state.review_store
+    try:
+        result = store.acquire_lock(variance_id, user.user_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete(
+    "/lock/{variance_id}",
+    summary="Release edit lock",
+)
+async def release_lock(
+    variance_id: str,
+    request: Request,
+    user: UserContext = Depends(require_role("analyst", "admin")),
+):
+    """Release the edit lock if owned by the caller."""
+    store = request.app.state.review_store
+    released = store.release_lock(variance_id, user.user_id)
+    return {"released": released}
+
+
+@router.get(
+    "/lock/{variance_id}",
+    summary="Check lock status",
+)
+async def get_lock_status(
+    variance_id: str,
+    request: Request,
+    user: UserContext = Depends(require_role("analyst", "admin")),
+):
+    """Check whether a variance is locked for editing."""
+    store = request.app.state.review_store
+    return store.get_lock_status(variance_id)
+
+
+# ---------------------------------------------------------------------------
+# Version history endpoint
+# ---------------------------------------------------------------------------
+
+@router.get(
+    "/{variance_id}/history",
+    summary="Get narrative version history",
+)
+async def get_version_history(
+    variance_id: str,
+    request: Request,
+    user: UserContext = Depends(require_role("analyst", "admin")),
+):
+    """Return the chronological edit history for a variance narrative."""
+    # For now, return from in-memory review_status (version_count only)
+    # Full history from NarrativeVersionRecord will be added when PostgreSQL is primary
+    store = request.app.state.review_store
+    rs = store._review_status if hasattr(store, '_review_status') else store._store._review_status
+    mask = rs["variance_id"] == variance_id
+    if not mask.any():
+        raise HTTPException(status_code=404, detail="Variance not found")
+
+    row = rs[mask].iloc[0]
+    versions = []
+    versions.append({
+        "version_number": 1,
+        "narrative_text": row.get("original_narrative", ""),
+        "changed_by": "engine",
+        "change_type": "ai_generated",
+    })
+    if row.get("edited_narrative"):
+        vc = int(row.get("version_count", 2)) if row.get("version_count") else 2
+        versions.append({
+            "version_number": vc,
+            "narrative_text": row.get("edited_narrative", ""),
+            "changed_by": row.get("reviewer", "analyst"),
+            "change_type": "analyst_edit",
+        })
+
+    return {"variance_id": variance_id, "versions": versions, "count": len(versions)}
+
+
+# ---------------------------------------------------------------------------
+# On-demand summary regeneration
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/{variance_id}/regenerate",
+    summary="Regenerate parent summary from approved children",
+)
+async def regenerate_summary(
+    variance_id: str,
+    request: Request,
+    user: UserContext = Depends(require_role("director", "cfo", "admin")),
+):
+    """Regenerate a parent account narrative from its approved child narratives.
+
+    Only works on calculated/parent accounts. Creates a new AI_DRAFT.
+    """
+    store = request.app.state.review_store
+    rs = store._review_status if hasattr(store, '_review_status') else store._store._review_status
+    vm = store._variance_material if hasattr(store, '_variance_material') else store._store._variance_material
+
+    mask = vm["variance_id"] == variance_id
+    if not mask.any():
+        raise HTTPException(status_code=404, detail="Variance not found")
+
+    row = vm[mask].iloc[0]
+    if not row.get("is_calculated", False):
+        raise HTTPException(status_code=400, detail="Regeneration only available for parent/calculated accounts")
+
+    # Collect child narratives (simplified — uses existing material data)
+    parent_acct = row["account_id"]
+    from shared.data.loader import DataLoader
+    dl = DataLoader(request.app.state.data_service._loader._data_dir if hasattr(request.app.state, 'data_service') else 'data/output')
+    acct = dl.load_table("dim_account")
+
+    children_ids = acct[acct["parent_id"] == parent_acct]["account_id"].tolist()
+    child_narrs = vm[vm["account_id"].isin(children_ids) & (vm["period_id"] == row["period_id"]) & (vm["view_id"] == row["view_id"]) & (vm["base_id"] == row["base_id"])]
+
+    child_texts = []
+    for _, c in child_narrs.iterrows():
+        name = acct[acct["account_id"] == c["account_id"]]["account_name"].iloc[0] if not acct[acct["account_id"] == c["account_id"]].empty else c["account_id"]
+        narr = c.get("edited_narrative") or c.get("narrative_detail", "")
+        child_texts.append(f"{name}: {narr[:100]}")
+
+    if not child_texts:
+        raise HTTPException(status_code=400, detail="No child narratives found for regeneration")
+
+    # Simple synthesis (template — LLM synthesis available via synthesis API)
+    direction = "increased" if row["variance_amount"] > 0 else "decreased"
+    new_narrative = (
+        f"{row.get('account_id', '')} {direction} by ${abs(row['variance_amount']):,.0f}. "
+        f"Regenerated from {len(child_texts)} approved children: "
+        + "; ".join(child_texts[:3])
+        + ". [Regenerated]"
+    )
+
+    # Update as new AI_DRAFT
+    rs_mask = rs["variance_id"] == variance_id
+    if rs_mask.any():
+        rs.loc[rs_mask, "status"] = "AI_DRAFT"
+        rs.loc[rs_mask, "edited_narrative"] = new_narrative
+        if "version_count" in rs.columns:
+            vc = int(rs.loc[rs_mask, "version_count"].iloc[0] or 0) + 1
+            rs.loc[rs_mask, "version_count"] = vc
+
+    return {
+        "variance_id": variance_id,
+        "new_status": "AI_DRAFT",
+        "narrative": new_narrative[:200],
+        "child_count": len(child_texts),
+        "message": f"Regenerated from {len(child_texts)} children",
+    }

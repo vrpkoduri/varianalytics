@@ -62,6 +62,12 @@ class ReviewStore:
             self._review_status["reviewed_at"] = pd.NaT
         if "approved_at" not in self._review_status.columns:
             self._review_status["approved_at"] = pd.NaT
+        if "version_count" not in self._review_status.columns:
+            self._review_status["version_count"] = 1
+        if "locked_by" not in self._review_status.columns:
+            self._review_status["locked_by"] = None
+        if "locked_until" not in self._review_status.columns:
+            self._review_status["locked_until"] = None
 
         logger.info(
             "ReviewStore loaded: %d review records, %d material variances",
@@ -157,6 +163,64 @@ class ReviewStore:
             "page_size": page_size,
         }
 
+    # ------------------------------------------------------------------
+    # Locking
+    # ------------------------------------------------------------------
+
+    def acquire_lock(self, variance_id: str, user_id: str) -> dict[str, Any]:
+        """Acquire a soft edit lock on a variance (30 min timeout)."""
+        mask = self._review_status["variance_id"] == variance_id
+        if not mask.any():
+            raise ValueError(f"Variance {variance_id} not found")
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        current_lock = self._review_status.loc[mask, "locked_by"].iloc[0] if "locked_by" in self._review_status.columns else None
+        lock_until = self._review_status.loc[mask, "locked_until"].iloc[0] if "locked_until" in self._review_status.columns else None
+
+        # Check if already locked by someone else
+        if current_lock and current_lock != user_id:
+            if lock_until and str(lock_until) > now.isoformat():
+                return {"locked": False, "locked_by": current_lock, "message": f"Locked by {current_lock}"}
+
+        # Acquire lock
+        expire = now + datetime.timedelta(minutes=30)
+        if "locked_by" not in self._review_status.columns:
+            self._review_status["locked_by"] = None
+            self._review_status["locked_until"] = None
+        self._review_status.loc[mask, "locked_by"] = user_id
+        self._review_status.loc[mask, "locked_until"] = expire.isoformat()
+        return {"locked": True, "locked_by": user_id, "locked_until": expire.isoformat()}
+
+    def release_lock(self, variance_id: str, user_id: str) -> bool:
+        """Release a lock if owned by the caller."""
+        mask = self._review_status["variance_id"] == variance_id
+        if not mask.any():
+            return False
+        if "locked_by" in self._review_status.columns:
+            current = self._review_status.loc[mask, "locked_by"].iloc[0]
+            if current == user_id or current is None:
+                self._review_status.loc[mask, "locked_by"] = None
+                self._review_status.loc[mask, "locked_until"] = None
+                return True
+        return False
+
+    def get_lock_status(self, variance_id: str) -> dict[str, Any]:
+        """Check the lock status of a variance."""
+        mask = self._review_status["variance_id"] == variance_id
+        if not mask.any():
+            return {"locked": False}
+        if "locked_by" not in self._review_status.columns:
+            return {"locked": False}
+        locked_by = self._review_status.loc[mask, "locked_by"].iloc[0]
+        locked_until = self._review_status.loc[mask, "locked_until"].iloc[0]
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        is_locked = bool(locked_by) and str(locked_until or "") > now
+        return {"locked": is_locked, "locked_by": locked_by if is_locked else None, "locked_until": locked_until if is_locked else None}
+
+    # ------------------------------------------------------------------
+    # Review action
+    # ------------------------------------------------------------------
+
     def submit_review_action(
         self,
         variance_id: str,
@@ -164,15 +228,19 @@ class ReviewStore:
         edited_narrative: Optional[str] = None,
         hypothesis_feedback: Optional[str] = None,
         comment: Optional[str] = None,
+        user_id: Optional[str] = None,
+        change_reason: Optional[str] = None,
     ) -> dict[str, str]:
         """Process an analyst review action.
 
         Args:
             variance_id: Target variance.
-            action: One of approve, edit, escalate, dismiss.
+            action: One of approve, edit, escalate, dismiss, director_approve, director_reject.
             edited_narrative: New narrative text (for edit action).
             hypothesis_feedback: thumbs_up or thumbs_down.
             comment: Review comment.
+            user_id: ID of the user performing the action (for locking and audit).
+            change_reason: Why the narrative was changed (factual_correction, added_context, etc.)
 
         Returns:
             Dict with variance_id, new_status, message.
@@ -183,6 +251,14 @@ class ReviewStore:
         mask = self._review_status["variance_id"] == variance_id
         if not mask.any():
             raise ValueError(f"Variance {variance_id} not found in review queue")
+
+        # Lock check: reject if locked by another user
+        if user_id and "locked_by" in self._review_status.columns:
+            locked_by = self._review_status.loc[mask, "locked_by"].iloc[0]
+            locked_until = self._review_status.loc[mask, "locked_until"].iloc[0]
+            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            if locked_by and locked_by != user_id and str(locked_until or "") > now:
+                raise ValueError(f"Variance is locked by {locked_by}")
 
         current_status = self._review_status.loc[mask, "status"].iloc[0]
         target_status = _ACTION_STATUS_MAP.get(action)
@@ -202,10 +278,10 @@ class ReviewStore:
 
         if target_status == "ANALYST_REVIEWED":
             self._review_status.loc[mask, "reviewed_at"] = now
-            self._review_status.loc[mask, "reviewer"] = "analyst"  # Placeholder
+            self._review_status.loc[mask, "reviewer"] = user_id or "analyst"
         elif target_status == "APPROVED":
             self._review_status.loc[mask, "approved_at"] = now
-            self._review_status.loc[mask, "approver"] = "director"
+            self._review_status.loc[mask, "approver"] = user_id or "director"
 
         if edited_narrative:
             self._review_status.loc[mask, "edited_narrative"] = edited_narrative
@@ -216,15 +292,29 @@ class ReviewStore:
         if comment:
             self._review_status.loc[mask, "review_notes"] = comment
 
+        # Version tracking
+        if "version_count" in self._review_status.columns:
+            current_vc = self._review_status.loc[mask, "version_count"].iloc[0]
+            new_vc = (int(current_vc) if current_vc and not (isinstance(current_vc, float) and current_vc != current_vc) else 0) + 1
+            self._review_status.loc[mask, "version_count"] = new_vc
+        else:
+            new_vc = 1
+
+        # Release lock after action
+        if user_id and "locked_by" in self._review_status.columns:
+            self._review_status.loc[mask, "locked_by"] = None
+            self._review_status.loc[mask, "locked_until"] = None
+
         logger.info(
-            "Review action: %s on %s (%s → %s)",
-            action, variance_id, current_status, target_status,
+            "Review action: %s on %s (%s → %s) by %s [v%d]",
+            action, variance_id, current_status, target_status, user_id or "unknown", new_vc,
         )
 
         return {
             "variance_id": variance_id,
             "new_status": target_status,
             "message": f"Action '{action}' applied: {current_status} → {target_status}",
+            "version": new_vc,
         }
 
     def get_review_stats(self) -> dict[str, Any]:
