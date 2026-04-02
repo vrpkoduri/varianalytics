@@ -392,7 +392,199 @@ def _generate_template_narrative(
 
 
 # ======================================================================
-# Main Function — parallel batching with asyncio.gather
+# Parent Narrative Generation (Stage 2 — uses children's narratives)
+# ======================================================================
+
+
+async def _generate_parent_llm_narrative(
+    llm_client: Any,
+    row_dict: dict[str, Any],
+    acct_meta_entry: dict[str, Any],
+    children: list[dict[str, Any]],
+    context_maps: dict[str, Any],
+) -> dict[str, str] | None:
+    """Generate parent narrative via LLM using children's narratives as context."""
+    account_name = acct_meta_entry.get("account_name", row_dict.get("account_id", ""))
+    variance = row_dict.get("variance_amount", 0)
+    pct = row_dict.get("variance_pct", 0)
+    direction = "increased" if variance > 0 else "decreased"
+    fav = "Favorable" if (variance > 0) == (acct_meta_entry.get("variance_sign") == "natural") else "Unfavorable"
+
+    # Build children context (top 5 by materiality)
+    top_children = children[:5]
+    child_lines = []
+    for c in top_children:
+        cv = c.get("variance_amount", 0)
+        cn = c.get("account_name", c.get("account_id", ""))
+        child_lines.append(f"- {cn}: ${abs(cv):,.0f} {'favorable' if cv > 0 else 'unfavorable'}")
+        if c.get("narrative_detail"):
+            child_lines.append(f"  Narrative: {c['narrative_detail'][:150]}")
+
+    remaining = len(children) - len(top_children)
+    remaining_total = sum(abs(c.get("variance_amount", 0)) for c in children[5:])
+    if remaining > 0:
+        child_lines.append(f"- ...and {remaining} other items totaling ${remaining_total:,.0f}")
+
+    children_text = "\n".join(child_lines) if child_lines else "No child details available."
+
+    system_prompt = (
+        "You are a senior FP&A analyst synthesizing child-level variance narratives "
+        "into a parent-level summary. Reference the key children by name. "
+        "Be specific with dollar amounts. Return JSON: {detail, midlevel, summary, oneliner}."
+    )
+
+    user_prompt = (
+        f"Parent Account: {account_name}\n"
+        f"Total Variance: ${abs(variance):,.0f} ({direction}, {fav})\n"
+        f"Percentage: {pct:+.1f}%\n\n"
+        f"Child Account Variances:\n{children_text}\n\n"
+        f"Synthesize a parent narrative that references the key children and explains "
+        f"what drove the parent-level variance. Return JSON with detail (2-3 sentences), "
+        f"midlevel (1-2 sentences), summary (1 sentence), oneliner (<10 words)."
+    )
+
+    try:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        response = await llm_client.generate("narrative_generation", messages)
+        if response:
+            parsed = json.loads(response.strip().removeprefix("```json").removesuffix("```").strip())
+            if all(k in parsed for k in ("detail", "midlevel", "summary", "oneliner")):
+                return parsed
+    except Exception as exc:
+        logger.debug("Parent LLM generation failed for %s: %s", account_name, exc)
+
+    return None
+
+
+def _generate_parent_template_narrative(
+    row_dict: dict[str, Any],
+    acct_meta_entry: dict[str, Any],
+    children: list[dict[str, Any]],
+    context_maps: dict[str, Any],
+) -> dict[str, str]:
+    """Generate parent narrative from template using children's context."""
+    account_name = acct_meta_entry.get("account_name", row_dict.get("account_id", ""))
+    variance = row_dict.get("variance_amount", 0)
+    pct = row_dict.get("variance_pct", 0) or 0
+    direction = "increased" if variance > 0 else "decreased"
+    sign = "+" if variance > 0 else ""
+    fav = "Favorable" if (variance > 0) == (acct_meta_entry.get("variance_sign") == "natural") else "Unfavorable"
+
+    # Build driver text from top 3 children
+    top_children = children[:3]
+    driver_parts = []
+    for c in top_children:
+        cn = c.get("account_name", c.get("account_id", ""))
+        cv = c.get("variance_amount", 0)
+        cs = "+" if cv > 0 else ""
+        driver_parts.append(f"{cn} ({cs}${abs(cv):,.0f})")
+
+    drivers_text = ", ".join(driver_parts) if driver_parts else "underlying account movements"
+
+    # Count positive/negative children
+    pos_count = sum(1 for c in children if c.get("variance_amount", 0) > 0)
+    neg_count = sum(1 for c in children if c.get("variance_amount", 0) < 0)
+
+    remaining = len(children) - len(top_children)
+    remaining_note = f" and {remaining} other items" if remaining > 0 else ""
+
+    # Trend context
+    trend_note = ""
+    trend_data = context_maps.get("trends", {}).get(row_dict.get("account_id", ""))
+    if trend_data:
+        trend_note = f" Trending {trend_data.get('direction', '?')} for {trend_data.get('consecutive_periods', '?')} consecutive months."
+
+    detail = (
+        f"{account_name} {direction} by ${abs(variance):,.0f} ({sign}{pct:.1f}%) vs Budget. {fav}. "
+        f"Driven by {drivers_text}{remaining_note}. "
+        f"{pos_count} of {len(children)} components contributed positively.{trend_note} [AI Draft]"
+    )
+
+    midlevel = (
+        f"{account_name}: ${abs(variance):,.0f} ({sign}{pct:.1f}%) {direction}. "
+        f"Key drivers: {drivers_text}.{trend_note}"
+    )
+
+    summary = f"{account_name} ${abs(variance):,.0f} {direction}. Driven by {driver_parts[0] if driver_parts else 'multiple factors'}."
+
+    oneliner = f"${abs(variance):,.0f} {direction}"
+
+    return {
+        "detail": detail,
+        "midlevel": midlevel,
+        "summary": summary,
+        "oneliner": oneliner,
+    }
+
+
+# ======================================================================
+# Numerical Accuracy Validation
+# ======================================================================
+
+
+def _validate_narrative_numbers(narrative: str, var_dict: dict[str, Any], tolerance: float = 2.0) -> bool:
+    """Validate dollar amounts in narrative text against source data.
+
+    Returns False if any mentioned amount is >tolerance× the actual variance.
+    This catches LLM hallucinations (e.g., "$500K" when actual is $50K).
+    """
+    import re
+
+    source_amount = abs(var_dict.get("variance_amount", 0))
+    if source_amount == 0:
+        return True
+
+    # Extract dollar amounts ($X, $XK, $X.XK, $XM)
+    dollar_pattern = r'\$([\d,]+(?:\.\d+)?)\s*([KMB])?'
+    matches = re.findall(dollar_pattern, narrative)
+
+    for num_str, suffix in matches:
+        try:
+            val = float(num_str.replace(",", ""))
+            if suffix == "K":
+                val *= 1000
+            elif suffix == "M":
+                val *= 1_000_000
+            elif suffix == "B":
+                val *= 1_000_000_000
+
+            if val > source_amount * tolerance and val > 1000:
+                logger.warning(
+                    "Hallucination: narrative mentions $%s%s but actual variance is $%.0f",
+                    num_str, suffix or "", source_amount,
+                )
+                return False
+        except ValueError:
+            continue
+
+    return True
+
+
+def _compute_narrative_confidence(var_dict: dict[str, Any], context_maps: dict[str, Any]) -> float:
+    """Compute confidence score for a narrative based on decomposition quality."""
+    variance_id = var_dict.get("variance_id", "")
+    decomp = context_maps.get("decomposition", {}).get(variance_id)
+
+    if not decomp:
+        return 0.3  # No decomposition available
+
+    is_fallback = decomp.get("is_fallback", True)
+    residual = abs(decomp.get("residual", 0))
+    total = abs(var_dict.get("variance_amount", 0)) or 1
+
+    if not is_fallback:
+        return 0.9  # Real decomposition with unit data
+    elif residual / total > 0.4:
+        return 0.3  # High residual — largely unexplained
+    else:
+        return 0.6  # Fallback but reasonable
+
+
+# ======================================================================
+# Main Function — layered parallel batching (leaves first, then parents)
 # ======================================================================
 
 
@@ -480,24 +672,121 @@ async def generate_narratives(context: dict[str, Any]) -> None:
             tmpl = _generate_template_narrative(row_dict, meta, context_maps)
             return {**tmpl, "_source": NarrativeSource.GENERATED.value}
 
-    row_dicts = [row.to_dict() for _, row in needs_generation.iterrows()]
-    tasks = [_process_one(rd) for rd in row_dicts]
-
-    if not tasks:
+    if needs_generation.empty:
         logger.info("Pass 5: All narratives preserved — no generation needed")
-        # Keep existing material as-is
         context["narratives"] = material
         context["review_status"] = []
         context["audit_entries"] = []
         return
 
+    # ------------------------------------------------------------------
+    # Step 2A: Split into leaves and parents for layered generation
+    # ------------------------------------------------------------------
+    if "is_calculated" in needs_generation.columns:
+        leaf_mask = needs_generation["is_calculated"] == False  # noqa: E712
+    else:
+        leaf_mask = pd.Series([True] * len(needs_generation), index=needs_generation.index)  # treat all as leaves
+    leaf_rows = needs_generation[leaf_mask]
+    parent_rows = needs_generation[~leaf_mask]
+
     logger.info(
-        "Pass 5: Processing %d variances (%d concurrent, LLM=%s)",
-        len(tasks),
-        _CONCURRENCY,
-        use_llm,
+        "Pass 5: Layered generation — %d leaves (Stage 1), %d parents (Stage 2)",
+        len(leaf_rows), len(parent_rows),
     )
-    results = await asyncio.gather(*tasks)
+
+    # ------------------------------------------------------------------
+    # Stage 1: Generate LEAF narratives first
+    # ------------------------------------------------------------------
+    leaf_dicts = [row.to_dict() for _, row in leaf_rows.iterrows()]
+    leaf_tasks = [_process_one(rd) for rd in leaf_dicts]
+
+    logger.info("Pass 5 Stage 1: Processing %d leaf variances (LLM=%s)", len(leaf_tasks), use_llm)
+    leaf_results = await asyncio.gather(*leaf_tasks) if leaf_tasks else []
+
+    # Build child narratives map for parent generation
+    child_narratives_map: dict[str, dict[str, Any]] = {}
+    for i, result in enumerate(leaf_results):
+        acct_id = leaf_dicts[i].get("account_id", "")
+        bu_id = leaf_dicts[i].get("bu_id", "")
+        # Key includes BU so parent can find children at same BU level
+        key = f"{acct_id}|{bu_id}"
+        child_narratives_map[key] = {
+            "account_id": acct_id,
+            "account_name": acct_meta.get(acct_id, {}).get("account_name", acct_id),
+            "narrative_detail": result.get("detail", ""),
+            "narrative_midlevel": result.get("midlevel", ""),
+            "variance_amount": leaf_dicts[i].get("variance_amount", 0),
+            "variance_pct": leaf_dicts[i].get("variance_pct", 0),
+            "bu_id": bu_id,
+        }
+
+    # ------------------------------------------------------------------
+    # Stage 2: Generate PARENT narratives using children's narratives
+    # ------------------------------------------------------------------
+    parent_dicts = [row.to_dict() for _, row in parent_rows.iterrows()]
+
+    async def _process_parent(row_dict: dict[str, Any]) -> dict[str, Any]:
+        """Process a parent/calculated account using children's narratives."""
+        parent_acct_id = row_dict.get("account_id", "")
+        parent_bu_id = row_dict.get("bu_id", "")
+        meta = acct_meta.get(parent_acct_id, {})
+
+        # Collect children's narratives (same BU)
+        # Children come from two sources:
+        # 1. Accounts with parent_id pointing to this account (e.g., acct_revenue → advisory_fees)
+        # 2. Calculated row dependencies (e.g., acct_ebitda depends on gross_profit, total_opex)
+        children = []
+        calc_deps = meta.get("calc_dependencies") or []
+        if isinstance(calc_deps, str):
+            try:
+                calc_deps = json.loads(calc_deps)
+            except Exception:
+                calc_deps = []
+
+        for cid, cmeta in acct_meta.items():
+            is_child = (
+                cmeta.get("parent_id") == parent_acct_id  # Direct children
+                or cid in calc_deps  # Calculation dependencies
+            )
+            if is_child:
+                key = f"{cid}|{parent_bu_id}"
+                if key in child_narratives_map:
+                    children.append(child_narratives_map[key])
+                else:
+                    # Child may be a parent itself (not in leaf map) — use its variance data
+                    for _, pr in parent_rows.iterrows():
+                        if pr["account_id"] == cid and pr["bu_id"] == parent_bu_id:
+                            children.append({
+                                "account_id": cid,
+                                "account_name": cmeta.get("account_name", cid),
+                                "narrative_detail": "",
+                                "variance_amount": pr.get("variance_amount", 0),
+                                "variance_pct": pr.get("variance_pct", 0),
+                                "bu_id": parent_bu_id,
+                            })
+                            break
+
+        # Sort by absolute variance (most material first)
+        children.sort(key=lambda c: abs(c.get("variance_amount", 0)), reverse=True)
+
+        async with semaphore:
+            if use_llm and children:
+                result = await _generate_parent_llm_narrative(
+                    llm_client, row_dict, meta, children, context_maps
+                )
+                if result:
+                    return {**result, "_source": "llm"}
+            # Template fallback with children context
+            tmpl = _generate_parent_template_narrative(row_dict, meta, children, context_maps)
+            return {**tmpl, "_source": NarrativeSource.GENERATED.value}
+
+    parent_tasks = [_process_parent(rd) for rd in parent_dicts]
+    logger.info("Pass 5 Stage 2: Processing %d parent variances", len(parent_tasks))
+    parent_results = await asyncio.gather(*parent_tasks) if parent_tasks else []
+
+    # Combine results in original order (leaves + parents)
+    row_dicts = leaf_dicts + parent_dicts
+    results = list(leaf_results) + list(parent_results)
 
     # ------------------------------------------------------------------
     # Step 3: Unpack results
@@ -508,6 +797,7 @@ async def generate_narratives(context: dict[str, Any]) -> None:
     oneliner_col: list[str | None] = []
     board_col: list[None] = []
     source_col: list[str] = []
+    confidence_col: list[float] = []
     review_entries: list[dict[str, Any]] = []
     llm_count = 0
     template_count = 0
@@ -525,6 +815,9 @@ async def generate_narratives(context: dict[str, Any]) -> None:
             llm_count += 1
         else:
             template_count += 1
+
+        # Confidence scoring
+        confidence_col.append(_compute_narrative_confidence(row_dicts[i], context_maps))
 
         # Review entry
         var_dict = row_dicts[i]
@@ -561,6 +854,7 @@ async def generate_narratives(context: dict[str, Any]) -> None:
     generated["narrative_oneliner"] = oneliner_col
     generated["narrative_board"] = board_col
     generated["narrative_source"] = source_col
+    generated["narrative_confidence"] = confidence_col
     generated["engine_run_id"] = engine_run_id
 
     # Merge newly generated with preserved (approved/reviewed) narratives
