@@ -1,5 +1,6 @@
 import { useGlobalFilters } from '@/context/GlobalFiltersContext'
 import { useUser } from '@/context/UserContext'
+import { usePeriods } from '@/hooks/usePeriods'
 import { ViewType, ComparisonBase } from '@/types/index'
 import { cn } from '@/utils/theme'
 
@@ -28,7 +29,12 @@ interface ContextStripProps {
 
 export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
   const { persona, setPersona } = useUser()
-  const { filters, setViewType, setComparisonBase } = useGlobalFilters()
+  const { filters, setPeriod, setViewType, setComparisonBase } = useGlobalFilters()
+  const { periods } = usePeriods()
+
+  const currentPeriodId = filters.period
+    ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}`
+    : ''
 
   return (
     <div className="h-10 bg-[rgba(0,26,77,.35)] backdrop-blur-lg border-b border-[rgba(0,168,199,.08)] flex items-center justify-between px-4 overflow-x-auto">
@@ -112,9 +118,28 @@ export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
           })}
         </div>
 
-        {/* E3: Period display */}
+        {/* E3: Period selector */}
         <div className="flex items-center gap-1 ml-2">
-          <span className="text-[9px] font-semibold" style={{ color: 'var(--teal)' }}>Jun 2026</span>
+          <select
+            value={currentPeriodId}
+            onChange={(e) => {
+              const selected = periods.find((p) => p.periodId === e.target.value)
+              if (selected) {
+                setPeriod({ year: selected.year, month: selected.month, label: selected.label })
+              }
+            }}
+            className="bg-white/[.03] border border-white/[.06] rounded-[5px] px-2 py-[3px] text-[10px] font-semibold text-teal cursor-pointer appearance-none focus:outline-none focus:border-[rgba(0,168,199,.3)] transition-colors"
+            style={{ minWidth: '90px' }}
+          >
+            {periods.length === 0 && (
+              <option value="">Loading...</option>
+            )}
+            {periods.map((p) => (
+              <option key={p.periodId} value={p.periodId} className="bg-[#0a0e23] text-white">
+                {p.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 

@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useReducer,
   type ReactNode,
 } from 'react';
@@ -64,6 +65,40 @@ const GlobalFiltersContext = createContext<GlobalFiltersContextValue | undefined
 
 export function GlobalFiltersProvider({ children }: { children: ReactNode }) {
   const [filters, dispatch] = useReducer(filtersReducer, initialFilters);
+
+  // Initialize default period from available data on mount
+  useEffect(() => {
+    if (filters.period) return; // Already set
+    import('@/utils/api').then(({ api }) => {
+      api.gateway.get<any[]>('/dimensions/periods').then((data) => {
+        if (data && data.length > 0) {
+          // Sort by periodId descending, pick latest
+          const sorted = [...data].sort((a, b) =>
+            (b.periodId || b.period_id || '').localeCompare(a.periodId || a.period_id || '')
+          );
+          const latest = sorted[0];
+          const pid = latest.periodId || latest.period_id || '';
+          const [yearStr, monthStr] = pid.split('-');
+          const MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          const month = parseInt(monthStr, 10);
+          dispatch({
+            type: 'SET_PERIOD',
+            payload: {
+              year: parseInt(yearStr, 10),
+              month,
+              label: `${MONTHS[month]} ${yearStr}`,
+            },
+          });
+        }
+      }).catch(() => {
+        // Fallback: use 2026-06
+        dispatch({
+          type: 'SET_PERIOD',
+          payload: { year: 2026, month: 6, label: 'Jun 2026' },
+        });
+      });
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setPeriod = useCallback(
     (period: Period | null) => dispatch({ type: 'SET_PERIOD', payload: period }),
