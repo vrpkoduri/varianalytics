@@ -41,8 +41,19 @@ def _clean_dict(d: dict[str, Any]) -> dict[str, Any]:
     for k, v in d.items():
         if isinstance(v, dict):
             cleaned[k] = _clean_dict(v)
+        elif isinstance(v, np.ndarray):
+            cleaned[k] = _clean_list(v.tolist())
         elif isinstance(v, list):
             cleaned[k] = _clean_list(v)
+        elif isinstance(v, str):
+            # Try to parse JSON strings (from parquet)
+            if v.startswith('[') or v.startswith('{'):
+                try:
+                    cleaned[k] = json.loads(v)
+                except (json.JSONDecodeError, ValueError):
+                    cleaned[k] = v
+            else:
+                cleaned[k] = v
         else:
             cleaned[k] = _to_native(v)
     return cleaned
@@ -136,6 +147,8 @@ class DataService:
             "dim_hierarchy",
             "dim_business_unit",
             "dim_period",
+            "fact_section_narrative",
+            "fact_executive_summary",
         ]
         for name in table_names:
             if self._loader.table_exists(name):
@@ -1028,7 +1041,7 @@ class DataService:
             & (df["base_id"] == base_id)
             & (df["view_id"] == view_id)
         ]
-        return self._clean_list(filtered)
+        return [_clean_dict(row.to_dict()) for _, row in filtered.iterrows()]
 
     # ------------------------------------------------------------------
     # 16. Executive Summary (Phase 2C)
@@ -1053,4 +1066,4 @@ class DataService:
         if filtered.empty:
             return None
 
-        return self._clean_dict(filtered.iloc[0])
+        return _clean_dict(filtered.iloc[0].to_dict())
