@@ -387,10 +387,39 @@ def _generate_template_narrative(
                 elif abs(curr_pct) < abs(prior_pct):
                     carry_note = f" Variance narrowed from {prior_pct:+.1f}% in {month_label} to {curr_pct:+.1f}%."
 
+    # Seasonal context
+    seasonal_note = ""
+    try:
+        from shared.config.seasonal import SeasonalConfig
+        _seasonal = SeasonalConfig()
+        _period = var_dict.get("period_id", "")
+        _month = int(_period[5:7]) if _period and "-" in _period else 0
+        _pl_cat = var_dict.get("pl_category", "")
+        if _month > 0 and _pl_cat:
+            s_note = _seasonal.get_seasonal_note(_pl_cat, _month)
+            if s_note:
+                seasonal_note = f" {s_note}"
+    except Exception:
+        pass
+
+    # FX context
+    fx_note = ""
+    try:
+        decomp_data = context_maps.get("decomposition", {}).get(var_dict.get("variance_id", ""), {})
+        fx_effect = decomp_data.get("fx", 0) if isinstance(decomp_data, dict) else 0
+        if isinstance(fx_effect, str):
+            fx_effect = 0
+        variance_amt = abs(var_dict.get("variance_amount", 0)) or 1
+        if fx_effect and abs(fx_effect) > variance_amt * 0.01:  # > 1% of total variance
+            fx_dir = "favorable" if fx_effect > 0 else "unfavorable"
+            fx_note = f" FX impact: ${abs(fx_effect):,.0f} {fx_dir}."
+    except Exception:
+        pass
+
     detail = (
         f"{account_name} {direction} by {formatted_amount} "
         f"({formatted_pct}) vs {base_label}. "
-        f"{favorable}.{trend_note}{decomp_note}{carry_note} [AI Draft]"
+        f"{favorable}.{trend_note}{decomp_note}{carry_note}{seasonal_note}{fx_note} [AI Draft]"
     )
     midlevel = (
         f"{account_name}: {formatted_amount} ({formatted_pct}) "

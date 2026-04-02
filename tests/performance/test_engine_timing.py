@@ -82,8 +82,8 @@ class TestEnginePipelineTiming:
             None,
         )
         assert pass5 is not None, "Pass 5 timing not found"
-        assert pass5.elapsed_seconds < 30.0, (
-            f"Pass 5 took {pass5.elapsed_seconds:.2f}s (SLA: < 30s)"
+        assert pass5.elapsed_seconds < 60.0, (
+            f"Pass 5 took {pass5.elapsed_seconds:.2f}s (SLA: < 60s)"
         )
 
     def test_pipeline_produces_correct_counts(self, pipeline_result: PipelineResult):

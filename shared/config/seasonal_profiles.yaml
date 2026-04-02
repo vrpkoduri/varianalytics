@@ -1,0 +1,27 @@
+# =============================================================================
+# Seasonal Profile Configuration
+# =============================================================================
+# Expected seasonal multipliers by P&L category and month (Jan=1, Dec=12).
+# Used to contextualize variances in narratives and adjust trend detection.
+# Multiplier of 1.0 = average month. 1.4 = 40% above average.
+
+profiles:
+  Revenue:
+    multipliers: [0.90, 0.92, 0.98, 1.02, 1.00, 0.95, 0.88, 0.85, 0.95, 1.05, 1.10, 1.40]
+    description: "Insurance revenue peaks in December (renewals), troughs in August"
+  COGS:
+    multipliers: [0.95, 0.95, 1.00, 1.00, 1.00, 0.98, 0.92, 0.90, 0.98, 1.02, 1.05, 1.25]
+    description: "Cost of revenue follows revenue seasonality with smaller amplitude"
+  OpEx:
+    multipliers: [0.95, 0.95, 1.00, 1.00, 1.00, 0.98, 0.92, 0.90, 0.98, 1.02, 1.05, 1.25]
+    description: "Operating expenses follow cost seasonality pattern"
+  NonOp:
+    multipliers: [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00]
+    description: "Non-operating items have no seasonal pattern"
+
+# Tolerance: variance within this % of seasonal expectation is "in line with seasonal pattern"
+seasonal_tolerance: 0.10  # 10%
+
+# Month classifications for narrative context
+high_season_months: [11, 12, 1]   # Nov, Dec, Jan — peak period
+low_season_months: [7, 8]          # Jul, Aug — trough period
