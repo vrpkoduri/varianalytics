@@ -119,15 +119,25 @@ def main() -> None:
     all_executive_summaries = []
     total_result = None
 
-    for period in periods:
-        print(f"\n--- Running period: {period} ---")
+    for i, period in enumerate(periods):
+        print(f"\n--- Running period: {period} ({i+1}/{len(periods)}) ---")
+
+        # Build cumulative material for carry-forward (prior periods' narratives)
+        if i > 0 and all_material:
+            cumulative_material = pd.concat(
+                [existing_material] + all_material if existing_material is not None else all_material,
+                ignore_index=True,
+            )
+        else:
+            cumulative_material = existing_material
+
         result = asyncio.run(runner.run_full_pipeline(
             period_id=period,
             data_dir=args.data_dir,
             llm_client=llm_client,
             rag_retriever=rag_retriever,
             existing_review_status=existing_review_status,
-            existing_material=existing_material,
+            existing_material=cumulative_material,  # Includes prior periods for carry-forward
         ))
 
         ctx = runner._last_context

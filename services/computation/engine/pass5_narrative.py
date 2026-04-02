@@ -369,10 +369,28 @@ def _generate_template_narrative(
             top_k, top_v = max(valid.items(), key=lambda x: abs(x[1]))
             decomp_note = f" Primary driver: {top_k} (${top_v:,.0f})."
 
+    # Carry-forward note (compare to prior period)
+    carry_note = ""
+    prior_narr_map = context_maps.get("prior_narratives", {})
+    if prior_narr_map:
+        dim_key = f"{var_dict.get('account_id','')}|{var_dict.get('bu_id','')}|{var_dict.get('costcenter_node_id','')}|{var_dict.get('geo_node_id','')}|{var_dict.get('segment_node_id','')}|{var_dict.get('lob_node_id','')}"
+        prior = prior_narr_map.get(dim_key)
+        if prior and prior.get("variance_pct") is not None:
+            prior_pct = prior["variance_pct"]
+            curr_pct = var_dict.get("variance_pct", 0) or 0
+            prior_month = context_maps.get("prior_period", "")
+            if prior_pct != 0 or curr_pct != 0:
+                from shared.utils.period_utils import get_month_short
+                month_label = get_month_short(prior_month) if prior_month else "prior"
+                if abs(curr_pct) > abs(prior_pct):
+                    carry_note = f" Variance widened from {prior_pct:+.1f}% in {month_label} to {curr_pct:+.1f}%."
+                elif abs(curr_pct) < abs(prior_pct):
+                    carry_note = f" Variance narrowed from {prior_pct:+.1f}% in {month_label} to {curr_pct:+.1f}%."
+
     detail = (
         f"{account_name} {direction} by {formatted_amount} "
         f"({formatted_pct}) vs {base_label}. "
-        f"{favorable}.{trend_note}{decomp_note} [AI Draft]"
+        f"{favorable}.{trend_note}{decomp_note}{carry_note} [AI Draft]"
     )
     midlevel = (
         f"{account_name}: {formatted_amount} ({formatted_pct}) "
@@ -694,6 +712,34 @@ async def generate_narratives(context: dict[str, Any]) -> None:
         "Pass 5: Layered generation — %d leaves (Stage 1), %d parents (Stage 2)",
         len(leaf_rows), len(parent_rows),
     )
+
+    # ------------------------------------------------------------------
+    # Stage 0.5: Build carry-forward context from prior period
+    # ------------------------------------------------------------------
+    from shared.utils.period_utils import get_prior_period, get_month_name as _get_month
+
+    prior_period = get_prior_period(context.get("period_id", ""))
+    prior_narrative_map: dict[str, dict[str, Any]] = {}
+
+    existing_mat = context.get("existing_material")
+    if prior_period and existing_mat is not None and isinstance(existing_mat, pd.DataFrame) and not existing_mat.empty:
+        prior_mtd = existing_mat[
+            (existing_mat["period_id"] == prior_period)
+            & (existing_mat["view_id"] == "MTD")
+        ]
+        for _, row in prior_mtd.iterrows():
+            dim_key = f"{row.get('account_id','')}|{row.get('bu_id','')}|{row.get('costcenter_node_id','')}|{row.get('geo_node_id','')}|{row.get('segment_node_id','')}|{row.get('lob_node_id','')}"
+            prior_narrative_map[dim_key] = {
+                "narrative": str(row.get("narrative_detail", "")),
+                "variance_amount": row.get("variance_amount", 0),
+                "variance_pct": row.get("variance_pct", 0),
+                "period_id": prior_period,
+            }
+        logger.info("Pass 5: Carry-forward — %d prior period narratives loaded from %s", len(prior_narrative_map), prior_period)
+
+    # Inject carry-forward into context_maps for prompt building
+    context_maps["prior_narratives"] = prior_narrative_map
+    context_maps["prior_period"] = prior_period
 
     # ------------------------------------------------------------------
     # Stage 1: Generate LEAF narratives first
