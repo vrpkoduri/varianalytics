@@ -165,9 +165,52 @@ class ReviewStatusRecord(Base):
     )
     reviewed_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
     approved_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+    # Phase 2A additions
+    version_count: Mapped[int] = mapped_column(default=1, nullable=False)
+    locked_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    locked_until: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+    period_id: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
+    fiscal_year: Mapped[Optional[int]] = mapped_column(nullable=True, index=True)
 
     def __repr__(self) -> str:
         return f"<ReviewStatusRecord(variance_id={self.variance_id!r}, status={self.status!r})>"
+
+
+# ---------------------------------------------------------------------------
+# Narrative Version History (append-only audit trail)
+# ---------------------------------------------------------------------------
+
+class NarrativeVersionRecord(Base):
+    """Immutable audit trail of every narrative change.
+
+    Append-only: no UPDATE or DELETE operations should ever be performed.
+    Records AI generation, analyst edits, director feedback, and approvals.
+    """
+
+    __tablename__ = "narrative_version_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    variance_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    entity_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="variance"
+    )
+    version_number: Mapped[int] = mapped_column(nullable=False)
+    narrative_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    changed_by: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    change_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="ai_generated"
+    )
+    change_reason: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        Index("ix_version_history_var_ver", "variance_id", "version_number"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<NarrativeVersionRecord(variance_id={self.variance_id!r}, v={self.version_number})>"
 
 
 # ---------------------------------------------------------------------------

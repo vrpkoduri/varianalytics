@@ -24,10 +24,10 @@ including variance_id, is_material, is_netted, is_trending columns.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from datetime import datetime, timezone
 from typing import Any
-from uuid import uuid4
 
 import pandas as pd
 
@@ -171,9 +171,21 @@ async def apply_threshold_filter(context: dict[str, Any]) -> None:
     # Drop helper column
     combined = combined.drop(columns=["_dim_key"], errors="ignore")
 
-    # Assign unique variance_id
-    combined["variance_id"] = [str(uuid4()) for _ in range(len(combined))]
+    # Assign deterministic variance_id (hash of dimension keys)
+    # Same variance always gets the same ID across engine re-runs.
+    _ID_COLS = ["period_id", "account_id", "bu_id", "costcenter_node_id",
+                "geo_node_id", "segment_node_id", "lob_node_id", "view_id", "base_id"]
+    combined["variance_id"] = combined[_ID_COLS].apply(
+        lambda row: hashlib.sha256("|".join(str(v) for v in row).encode()).hexdigest()[:16],
+        axis=1,
+    )
     combined["created_at"] = datetime.now(timezone.utc)
+
+    # Verify uniqueness
+    dup_count = combined["variance_id"].duplicated().sum()
+    if dup_count > 0:
+        logger.warning("Pass 2: %d duplicate variance_ids detected — de-duplicating", dup_count)
+        combined = combined.drop_duplicates(subset=["variance_id"], keep="first")
 
     context["material_variances"] = combined
 

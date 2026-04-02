@@ -86,6 +86,8 @@ class EngineRunner:
         data_dir: str = "data/output",
         llm_client: Any | None = None,
         rag_retriever: Any | None = None,
+        existing_review_status: Any | None = None,
+        existing_material: Any | None = None,
     ) -> PipelineResult:
         """Execute all passes of the computation engine in sequence.
 
@@ -110,6 +112,8 @@ class EngineRunner:
             "data_dir": data_dir,
             "llm_client": llm_client,
             "rag_retriever": rag_retriever,
+            "existing_review_status": existing_review_status,
+            "existing_material": existing_material,
         }
 
         # Order: 1 → 1.5 → 2.5 → 2 → 3 → 4 → 5

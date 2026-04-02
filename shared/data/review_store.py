@@ -75,6 +75,7 @@ class ReviewStore:
         sort_by: str = "impact",
         page: int = 1,
         page_size: int = 50,
+        fiscal_year: Optional[int] = None,
     ) -> dict[str, Any]:
         """Get the analyst review queue.
 
@@ -83,6 +84,7 @@ class ReviewStore:
             sort_by: Sort field — impact (abs variance), sla, period
             page: Page number (1-indexed)
             page_size: Items per page
+            fiscal_year: Filter to specific fiscal year (e.g. 2026)
 
         Returns:
             Dict with items, total, page, page_size.
@@ -99,6 +101,10 @@ class ReviewStore:
             how="left",
             suffixes=("", "_vm"),
         )
+
+        # Apply fiscal year filter
+        if fiscal_year and "period_id" in merged.columns:
+            merged = merged[merged["period_id"].str.startswith(str(fiscal_year))]
 
         # Apply status filter
         if status_filter:

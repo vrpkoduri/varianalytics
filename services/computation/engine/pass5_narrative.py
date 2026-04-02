@@ -418,6 +418,27 @@ async def generate_narratives(context: dict[str, Any]) -> None:
     acct_meta: dict[str, dict[str, Any]] = context.get("acct_meta", {})
     engine_run_id = str(uuid4())
 
+    # ------------------------------------------------------------------
+    # Step 0: Check for existing approved/reviewed narratives to preserve
+    # ------------------------------------------------------------------
+    existing_review = context.get("existing_review_status")
+    preserved_ids: set[str] = set()
+    if existing_review is not None and isinstance(existing_review, pd.DataFrame) and not existing_review.empty:
+        # Keep narratives that have been reviewed or approved (don't regenerate)
+        preserve_mask = existing_review["status"].isin(["ANALYST_REVIEWED", "APPROVED"])
+        preserved_ids = set(existing_review[preserve_mask]["variance_id"].unique())
+        if preserved_ids:
+            logger.info("Pass 5: Preserving %d reviewed/approved narratives", len(preserved_ids))
+
+    # Filter material to only variances that need (re)generation
+    needs_generation = material[~material["variance_id"].isin(preserved_ids)]
+    preserved = material[material["variance_id"].isin(preserved_ids)]
+
+    logger.info(
+        "Pass 5: %d total material, %d need generation, %d preserved",
+        len(material), len(needs_generation), len(preserved),
+    )
+
     # LLM availability
     llm_client = context.get("llm_client")
     rag_retriever = context.get("rag_retriever")
@@ -459,8 +480,16 @@ async def generate_narratives(context: dict[str, Any]) -> None:
             tmpl = _generate_template_narrative(row_dict, meta, context_maps)
             return {**tmpl, "_source": NarrativeSource.GENERATED.value}
 
-    row_dicts = [row.to_dict() for _, row in material.iterrows()]
+    row_dicts = [row.to_dict() for _, row in needs_generation.iterrows()]
     tasks = [_process_one(rd) for rd in row_dicts]
+
+    if not tasks:
+        logger.info("Pass 5: All narratives preserved — no generation needed")
+        # Keep existing material as-is
+        context["narratives"] = material
+        context["review_status"] = []
+        context["audit_entries"] = []
+        return
 
     logger.info(
         "Pass 5: Processing %d variances (%d concurrent, LLM=%s)",
@@ -499,6 +528,8 @@ async def generate_narratives(context: dict[str, Any]) -> None:
 
         # Review entry
         var_dict = row_dicts[i]
+        period_id = var_dict.get("period_id", "")
+        fiscal_year = int(period_id.split("-")[0]) if period_id and "-" in period_id else None
         review_entries.append(
             {
                 "review_id": str(uuid4()),
@@ -512,6 +543,8 @@ async def generate_narratives(context: dict[str, Any]) -> None:
                 "edit_diff": None,
                 "hypothesis_feedback": None,
                 "review_notes": None,
+                "period_id": period_id,
+                "fiscal_year": fiscal_year,
                 "created_at": datetime.now(timezone.utc),
                 "reviewed_at": None,
                 "approved_at": None,
@@ -519,16 +552,37 @@ async def generate_narratives(context: dict[str, Any]) -> None:
         )
 
     # ------------------------------------------------------------------
-    # Step 4: Update DataFrame
+    # Step 4: Update DataFrame (needs_generation only, then merge with preserved)
     # ------------------------------------------------------------------
-    material = material.copy()
-    material["narrative_detail"] = detail_col
-    material["narrative_midlevel"] = midlevel_col
-    material["narrative_summary"] = summary_col
-    material["narrative_oneliner"] = oneliner_col
-    material["narrative_board"] = board_col
-    material["narrative_source"] = source_col
-    material["engine_run_id"] = engine_run_id
+    generated = needs_generation.copy()
+    generated["narrative_detail"] = detail_col
+    generated["narrative_midlevel"] = midlevel_col
+    generated["narrative_summary"] = summary_col
+    generated["narrative_oneliner"] = oneliner_col
+    generated["narrative_board"] = board_col
+    generated["narrative_source"] = source_col
+    generated["engine_run_id"] = engine_run_id
+
+    # Merge newly generated with preserved (approved/reviewed) narratives
+    if not preserved.empty:
+        # Preserved rows already have narrative columns from existing data
+        existing_material = context.get("existing_material")
+        if existing_material is not None and isinstance(existing_material, pd.DataFrame) and not existing_material.empty:
+            # Get narrative columns from existing material for preserved IDs
+            narr_cols = ["narrative_detail", "narrative_midlevel", "narrative_summary",
+                        "narrative_oneliner", "narrative_board", "narrative_source", "engine_run_id"]
+            existing_narrs = existing_material[existing_material["variance_id"].isin(preserved_ids)]
+            if not existing_narrs.empty:
+                for col in narr_cols:
+                    if col in existing_narrs.columns:
+                        preserved = preserved.copy()
+                        preserved[col] = preserved["variance_id"].map(
+                            existing_narrs.set_index("variance_id")[col].to_dict()
+                        ).fillna("")
+
+        material = pd.concat([generated, preserved], ignore_index=True)
+    else:
+        material = generated
 
     context["narratives"] = material
     context["material_variances"] = material

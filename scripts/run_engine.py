@@ -90,6 +90,23 @@ def main() -> None:
     print()
 
     import pandas as pd
+    from pathlib import Path as _Path
+
+    # Load existing data for narrative preservation
+    _out = _Path(args.data_dir)
+    existing_review_status = None
+    existing_material = None
+    try:
+        rs_path = _out / "fact_review_status.parquet"
+        if rs_path.exists():
+            existing_review_status = pd.read_parquet(rs_path)
+            approved = existing_review_status[existing_review_status["status"].isin(["APPROVED", "ANALYST_REVIEWED"])]
+            print(f"  Existing: {len(existing_review_status)} review records ({len(approved)} approved/reviewed — will preserve)")
+        vm_path = _out / "fact_variance_material.parquet"
+        if vm_path.exists():
+            existing_material = pd.read_parquet(vm_path)
+    except Exception as exc:
+        print(f"  Warning: Could not load existing data for preservation: {exc}")
 
     runner = EngineRunner()
     all_material = []
@@ -107,6 +124,8 @@ def main() -> None:
             data_dir=args.data_dir,
             llm_client=llm_client,
             rag_retriever=rag_retriever,
+            existing_review_status=existing_review_status,
+            existing_material=existing_material,
         ))
 
         ctx = runner._last_context
