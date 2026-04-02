@@ -168,3 +168,29 @@ async def get_trend_alerts(
     ds = _get_ds(request)
     alerts = ds.get_trend_alerts(period_id=period_id, bu_id=bu_id)
     return {"alerts": alerts, "count": len(alerts)}
+
+
+@router.get("/section-narratives")
+async def get_section_narratives(
+    request: Request,
+    period_id: str = Query(..., description="Period"),
+    base_id: str = Query("BUDGET"),
+    view_id: str = Query("MTD"),
+) -> dict[str, Any]:
+    """Return P&L section narratives (Revenue, COGS, OpEx, Non-Op, Profitability)."""
+    ds = _get_ds(request)
+    sections = ds.get_section_narratives(period_id=period_id, base_id=base_id, view_id=view_id)
+    return {"sections": sections, "count": len(sections)}
+
+
+@router.get("/executive-summary")
+async def get_executive_summary(
+    request: Request,
+    period_id: str = Query(..., description="Period"),
+    base_id: str = Query("BUDGET"),
+    view_id: str = Query("MTD"),
+) -> dict[str, Any]:
+    """Return the CFO-level executive summary with headline, narrative, and risks."""
+    ds = _get_ds(request)
+    summary = ds.get_executive_summary(period_id=period_id, base_id=base_id, view_id=view_id)
+    return summary or {"headline": None, "full_narrative": None, "key_risks": []}

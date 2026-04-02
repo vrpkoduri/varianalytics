@@ -1007,3 +1007,50 @@ class DataService:
             })
 
         return alerts
+
+    # ------------------------------------------------------------------
+    # 15. Section Narratives (Phase 2C)
+    # ------------------------------------------------------------------
+
+    def get_section_narratives(
+        self,
+        period_id: str,
+        base_id: str = "BUDGET",
+        view_id: str = "MTD",
+    ) -> list[dict[str, Any]]:
+        """Return section narratives for each P&L section."""
+        df = self._tables.get("fact_section_narrative")
+        if df is None or df.empty:
+            return []
+
+        filtered = df[
+            (df["period_id"] == period_id)
+            & (df["base_id"] == base_id)
+            & (df["view_id"] == view_id)
+        ]
+        return self._clean_list(filtered)
+
+    # ------------------------------------------------------------------
+    # 16. Executive Summary (Phase 2C)
+    # ------------------------------------------------------------------
+
+    def get_executive_summary(
+        self,
+        period_id: str,
+        base_id: str = "BUDGET",
+        view_id: str = "MTD",
+    ) -> Optional[dict[str, Any]]:
+        """Return the executive summary for a period."""
+        df = self._tables.get("fact_executive_summary")
+        if df is None or df.empty:
+            return None
+
+        filtered = df[
+            (df["period_id"] == period_id)
+            & (df["base_id"] == base_id)
+            & (df["view_id"] == view_id)
+        ]
+        if filtered.empty:
+            return None
+
+        return self._clean_dict(filtered.iloc[0])

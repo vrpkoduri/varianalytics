@@ -45,14 +45,19 @@ def _build_minimal_context(n_rows: int = 3, llm_client=None, rag_retriever=None)
                 "variance_pct": (i + 1) * 2.5,
                 "actual_amount": 100_000 + (i + 1) * 10_000,
                 "budget_amount": 100_000.0,
+                "comparator_amount": 100_000.0,
+                "is_calculated": False,
+                "pl_category": "Revenue",
             }
         )
     material = pd.DataFrame(rows)
     ctx: dict = {
         "period_id": "2026-03",
+        "comparison_base": "BUDGET",
+        "view": "MTD",
         "material_variances": material,
         "acct_meta": {
-            f"acct_{i}": {"account_name": f"Account {i}", "variance_sign": "natural"}
+            f"acct_{i}": {"account_name": f"Account {i}", "variance_sign": "natural", "is_calculated": False}
             for i in range(n_rows)
         },
     }

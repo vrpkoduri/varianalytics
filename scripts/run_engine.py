@@ -115,6 +115,8 @@ def main() -> None:
     all_trend = []
     all_correlations = []
     all_review = []
+    all_section_narratives = []
+    all_executive_summaries = []
     total_result = None
 
     for period in periods:
@@ -158,6 +160,14 @@ def main() -> None:
                 if isinstance(rv, pd.DataFrame) and not rv.empty:
                     all_review.append(rv)
 
+            # Section narratives + executive summary (Phase 2C)
+            sn = ctx.get("section_narratives")
+            if isinstance(sn, list) and sn:
+                all_section_narratives.extend(sn)
+            es = ctx.get("executive_summary")
+            if isinstance(es, dict) and es:
+                all_executive_summaries.append(es)
+
         total_result = result
         print(f"  Material: {result.material_variances:,}, Errors: {len(result.errors)}")
 
@@ -192,6 +202,20 @@ def main() -> None:
         combined.to_parquet(out / f"{name}.parquet", index=False)
         combined.to_csv(out / f"{name}.csv", index=False)
         print(f"  Saved {name}: {len(combined):,} rows")
+
+    # Save section narratives (list of dicts)
+    if all_section_narratives:
+        sn_df = pd.DataFrame(all_section_narratives)
+        sn_df.to_parquet(out / "fact_section_narrative.parquet", index=False)
+        sn_df.to_csv(out / "fact_section_narrative.csv", index=False)
+        print(f"  Saved fact_section_narrative: {len(sn_df):,} rows")
+
+    # Save executive summaries (list of dicts)
+    if all_executive_summaries:
+        es_df = pd.DataFrame(all_executive_summaries)
+        es_df.to_parquet(out / "fact_executive_summary.parquet", index=False)
+        es_df.to_csv(out / "fact_executive_summary.csv", index=False)
+        print(f"  Saved fact_executive_summary: {len(es_df):,} rows")
 
     print("\nEngine run complete.")
 

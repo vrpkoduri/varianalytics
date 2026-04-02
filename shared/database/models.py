@@ -214,6 +214,64 @@ class NarrativeVersionRecord(Base):
 
 
 # ---------------------------------------------------------------------------
+# Section Narratives (P&L section-level synthesis)
+# ---------------------------------------------------------------------------
+
+class SectionNarrativeRecord(Base):
+    """Synthesized narrative for a P&L section (Revenue, COGS, OpEx, etc.)."""
+
+    __tablename__ = "section_narratives"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    section_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    period_id: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    section_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    base_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    view_id: Mapped[str] = mapped_column(String(10), nullable=False)
+    narrative: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    key_drivers: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    narrative_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="AI_DRAFT")
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    approved_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<SectionNarrativeRecord(section={self.section_name!r}, period={self.period_id!r})>"
+
+
+# ---------------------------------------------------------------------------
+# Executive Summary (CFO-level period narrative)
+# ---------------------------------------------------------------------------
+
+class ExecutiveSummaryRecord(Base):
+    """CFO-ready executive summary for a period."""
+
+    __tablename__ = "executive_summaries"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    summary_id: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    period_id: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    base_id: Mapped[str] = mapped_column(String(50), nullable=False)
+    view_id: Mapped[str] = mapped_column(String(10), nullable=False)
+    headline: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    full_narrative: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    carry_forward_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    key_risks: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    cross_bu_themes: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    narrative_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="AI_DRAFT")
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+    approved_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
+
+    def __repr__(self) -> str:
+        return f"<ExecutiveSummaryRecord(period={self.period_id!r}, base={self.base_id!r})>"
+
+
+# ---------------------------------------------------------------------------
 # Knowledge Commentary (approved narratives for RAG retrieval)
 # ---------------------------------------------------------------------------
 

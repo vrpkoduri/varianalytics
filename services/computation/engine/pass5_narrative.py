@@ -21,6 +21,7 @@ and context["audit_entries"].
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import math
@@ -904,11 +905,194 @@ async def generate_narratives(context: dict[str, Any]) -> None:
     )
     context["audit_entries"] = [audit_entry]
 
+    # ------------------------------------------------------------------
+    # Stage 3 (Pass 5C): Section Narratives
+    # ------------------------------------------------------------------
+    period_id = context.get("period_id", "")
+    base_id = context.get("comparison_base", "BUDGET")
+    # Normalize base_id to uppercase key
+    _BASE_NORM = {"Budget": "BUDGET", "Forecast": "FORECAST", "PY": "PRIOR_YEAR", "Prior Year": "PRIOR_YEAR"}
+    base_id = _BASE_NORM.get(base_id, base_id)
+    view_id = context.get("view", "MTD")
+
+    _BASE_LABELS = {"BUDGET": "Budget", "FORECAST": "Forecast", "PRIOR_YEAR": "Prior Year"}
+    base_label = _BASE_LABELS.get(base_id, base_id)
+
+    MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June",
+                   "July", "August", "September", "October", "November", "December"]
+
+    section_narratives: list[dict[str, Any]] = []
+    # Sections and their parent accounts
+    SECTION_MAP = {
+        "Revenue": ["acct_revenue", "acct_gross_revenue"],
+        "COGS": ["acct_cor", "acct_total_cor"],
+        "OpEx": ["acct_opex", "acct_total_opex"],
+        "Non-Operating": ["acct_non_op", "acct_total_nonop"],
+    }
+
+    mtd_rows = material[(material["view_id"] == "MTD") & (material["base_id"] == base_id)] if "base_id" in material.columns else material[material["view_id"] == "MTD"]
+
+    for section_name, section_accounts in SECTION_MAP.items():
+        # Collect narratives for this section (parent + leaves)
+        section_rows = mtd_rows[mtd_rows["account_id"].isin(section_accounts)]
+        # Also get leaf children
+        leaf_ids = [aid for aid, meta in acct_meta.items() if meta.get("parent_id") in section_accounts and not meta.get("is_calculated", False)]
+        leaf_rows = mtd_rows[mtd_rows["account_id"].isin(leaf_ids)]
+
+        # Aggregate variance across all BUs for this section
+        parent_row = section_rows.groupby("account_id").agg({"variance_amount": "sum", "actual_amount": "sum", "comparator_amount": "sum"}).reset_index()
+        leaf_agg = leaf_rows.groupby("account_id").agg({"variance_amount": "sum", "variance_pct": "mean"}).reset_index()
+
+        total_var = parent_row["variance_amount"].sum() if not parent_row.empty else 0
+        total_pct = (total_var / parent_row["comparator_amount"].sum() * 100) if not parent_row.empty and parent_row["comparator_amount"].sum() != 0 else 0
+        direction = "increased" if total_var > 0 else "decreased"
+        sign = "+" if total_var > 0 else ""
+
+        # Top drivers from leaves
+        if not leaf_agg.empty:
+            leaf_agg["abs_var"] = leaf_agg["variance_amount"].abs()
+            top_leaves = leaf_agg.nlargest(3, "abs_var")
+            drivers = []
+            for _, lr in top_leaves.iterrows():
+                lname = acct_meta.get(lr["account_id"], {}).get("account_name", lr["account_id"])
+                lvar = lr["variance_amount"]
+                ls = "+" if lvar > 0 else ""
+                drivers.append({"account_name": lname, "amount": round(float(lvar), 0), "direction": "favorable" if lvar > 0 else "unfavorable"})
+        else:
+            drivers = []
+
+        driver_text = ", ".join(f"{d['account_name']} ({'+' if d['amount']>0 else ''}{d['amount']:,.0f})" for d in drivers[:3]) if drivers else "underlying account movements"
+
+        pos_count = len(leaf_agg[leaf_agg["variance_amount"] > 0]) if not leaf_agg.empty else 0
+        total_count = len(leaf_agg) if not leaf_agg.empty else 0
+
+        section_id = hashlib.sha256(f"{period_id}|{section_name}|{base_id}|{view_id}".encode()).hexdigest()[:16]
+        narrative = (
+            f"{section_name} {direction} by ${abs(total_var):,.0f} ({sign}{total_pct:.1f}%) vs {base_label}. "
+            f"Key drivers: {driver_text}. "
+            f"{pos_count} of {total_count} lines contributed positively."
+        )
+
+        section_narratives.append({
+            "section_id": section_id,
+            "period_id": period_id,
+            "section_name": section_name,
+            "base_id": base_id,
+            "view_id": view_id,
+            "narrative": narrative,
+            "key_drivers": drivers,
+            "narrative_confidence": 0.7,
+            "status": "AI_DRAFT",
+        })
+
+    # Profitability section (derived from calculated rows)
+    profit_accounts = {"acct_gross_profit": "Gross Profit", "acct_ebitda": "EBITDA", "acct_operating_income": "Operating Income", "acct_net_income": "Net Income"}
+    profit_parts = []
+    for pid, pname in profit_accounts.items():
+        prows = mtd_rows[mtd_rows["account_id"] == pid]
+        if not prows.empty:
+            pvar = prows["variance_amount"].sum()
+            pact = prows["actual_amount"].sum()
+            pcomp = prows["comparator_amount"].sum()
+            ppct = (pvar / pcomp * 100) if pcomp != 0 else 0
+            margin = (pact / mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["actual_amount"].sum() * 100) if not mtd_rows[mtd_rows["account_id"] == "acct_revenue"].empty and mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["actual_amount"].sum() != 0 else 0
+            profit_parts.append(f"{pname} {'increased' if pvar>0 else 'decreased'} by ${abs(pvar):,.0f} ({'+' if pvar>0 else ''}{ppct:.1f}%), margin {margin:.1f}%")
+
+    profit_id = hashlib.sha256(f"{period_id}|Profitability|{base_id}|{view_id}".encode()).hexdigest()[:16]
+    profit_narrative = ". ".join(profit_parts[:3]) + "." if profit_parts else "Profitability metrics not available."
+    section_narratives.append({
+        "section_id": profit_id,
+        "period_id": period_id,
+        "section_name": "Profitability",
+        "base_id": base_id,
+        "view_id": view_id,
+        "narrative": profit_narrative,
+        "key_drivers": [{"account_name": k, "amount": 0, "direction": ""} for k in profit_accounts.values()],
+        "narrative_confidence": 0.7,
+        "status": "AI_DRAFT",
+    })
+
+    context["section_narratives"] = section_narratives
+    logger.info("Pass 5C: Generated %d section narratives", len(section_narratives))
+
+    # ------------------------------------------------------------------
+    # Stage 4 (Pass 5D): Executive Summary
+    # ------------------------------------------------------------------
+    # Aggregate KPIs
+    rev_total = mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["variance_amount"].sum() if not mtd_rows[mtd_rows["account_id"] == "acct_revenue"].empty else 0
+    rev_pct = (rev_total / mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["comparator_amount"].sum() * 100) if not mtd_rows[mtd_rows["account_id"] == "acct_revenue"].empty and mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["comparator_amount"].sum() != 0 else 0
+    ebitda_total = mtd_rows[mtd_rows["account_id"] == "acct_ebitda"]["variance_amount"].sum() if not mtd_rows[mtd_rows["account_id"] == "acct_ebitda"].empty else 0
+    ebitda_pct = (ebitda_total / mtd_rows[mtd_rows["account_id"] == "acct_ebitda"]["comparator_amount"].sum() * 100) if not mtd_rows[mtd_rows["account_id"] == "acct_ebitda"].empty and mtd_rows[mtd_rows["account_id"] == "acct_ebitda"]["comparator_amount"].sum() != 0 else 0
+
+    # Cross-BU themes
+    bu_rev = mtd_rows[(mtd_rows["account_id"] == "acct_revenue")].groupby("bu_id")["variance_amount"].sum()
+    pos_bus = [bu for bu, v in bu_rev.items() if v > 0]
+    neg_bus = [bu for bu, v in bu_rev.items() if v < 0]
+    total_bus = len(bu_rev)
+    cross_bu = f"{len(pos_bus)} of {total_bus} BUs exceeded revenue targets" if pos_bus else f"All {total_bus} BUs fell short of revenue targets"
+
+    # Risks from trends + netting
+    trend_flags = context.get("trend_flags", pd.DataFrame())
+    netting_flags = context.get("netting_flags", pd.DataFrame())
+    risk_count = len(trend_flags) + len(netting_flags) if not isinstance(trend_flags, pd.DataFrame) or not trend_flags.empty else 0
+    risks = []
+    if not isinstance(trend_flags, pd.DataFrame) or not trend_flags.empty:
+        risks.append({"risk": f"{len(trend_flags)} trending variances identified", "severity": "medium"})
+    if not isinstance(netting_flags, pd.DataFrame) or not netting_flags.empty:
+        risks.append({"risk": f"{len(netting_flags)} netting offsets detected", "severity": "medium"})
+
+    # Parse month from period_id
+    month_num = int(period_id.split("-")[1]) if "-" in period_id else 1
+    month_name = MONTH_NAMES[month_num]
+    year = period_id.split("-")[0] if "-" in period_id else "2026"
+
+    # Build section narrative references
+    section_refs = {s["section_name"]: s["narrative"] for s in section_narratives}
+
+    headline = (
+        f"{month_name} {year} close: Revenue {'up' if rev_total>0 else 'down'} {abs(rev_pct):.1f}%, "
+        f"EBITDA {'up' if ebitda_total>0 else 'down'} {abs(ebitda_pct):.1f}%. "
+        f"{cross_bu}."
+    )
+
+    p1 = (
+        f"{month_name} {year} financial performance vs {base_label}: "
+        f"{section_refs.get('Revenue', 'Revenue data not available.')}"
+    )
+    p2 = (
+        f"Cost management: {section_refs.get('COGS', '')} "
+        f"{section_refs.get('OpEx', '')} "
+        f"{section_refs.get('Profitability', '')}"
+    )
+    p3 = (
+        f"{len(risks)} risk items identified. "
+        + " ".join(r["risk"] + "." for r in risks)
+    ) if risks else "No significant risk items identified."
+
+    full_narrative = f"{p1}\n\n{p2}\n\n{p3}"
+
+    summary_id = hashlib.sha256(f"{period_id}|{base_id}|{view_id}".encode()).hexdigest()[:16]
+    context["executive_summary"] = {
+        "summary_id": summary_id,
+        "period_id": period_id,
+        "base_id": base_id,
+        "view_id": view_id,
+        "headline": headline,
+        "full_narrative": full_narrative,
+        "carry_forward_note": None,
+        "key_risks": risks,
+        "cross_bu_themes": [{"theme": cross_bu, "bus_affected": pos_bus + neg_bus}],
+        "narrative_confidence": 0.7,
+        "status": "AI_DRAFT",
+    }
+    logger.info("Pass 5D: Executive summary generated — headline: %s", headline[:100])
+
     logger.info(
         "Pass 5: Generated %d narratives (llm=%d, template=%d), "
-        "engine_run_id=%s",
+        "%d section narratives, 1 executive summary, engine_run_id=%s",
         len(results),
         llm_count,
         template_count,
+        len(section_narratives),
         engine_run_id,
     )
