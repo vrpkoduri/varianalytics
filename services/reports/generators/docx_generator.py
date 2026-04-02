@@ -40,19 +40,52 @@ class DOCXGenerator:
                 row[3].text = f"${card.get('variance_amount', 0):,.0f}"
                 row[4].text = f"{card.get('variance_pct', 0):.1f}%"
 
-        # Executive Summary Narrative
-        top_fav = next((v for v in context.variances if v.get("variance_amount", 0) > 0), None)
-        if top_fav and top_fav.get("narrative_detail"):
-            doc.add_paragraph(top_fav["narrative_detail"])
+        # Executive Summary Narrative (from narrative pyramid)
+        doc.add_heading("Executive Summary", level=1).runs[0].font.color.rgb = COBALT
+        exec_narr = context.executive_summary.get("full_narrative") or context.executive_summary.get("fullNarrative", "")
+        if exec_narr:
+            for para in exec_narr.split("\n\n"):
+                if para.strip():
+                    doc.add_paragraph(para.strip())
+        else:
+            # Fallback
+            top_fav = next((v for v in context.variances if v.get("variance_amount", 0) > 0), None)
+            if top_fav and top_fav.get("narrative_detail"):
+                doc.add_paragraph(top_fav["narrative_detail"])
 
-        # Areas of Attention
+        # Section Narratives (Revenue, Costs, Profitability)
+        if context.section_narratives:
+            doc.add_heading("Section Analysis", level=1).runs[0].font.color.rgb = COBALT
+            for section in context.section_narratives:
+                s_name = section.get("section_name") or section.get("sectionName", "")
+                s_narr = section.get("narrative", "")
+                if s_name and s_narr:
+                    p = doc.add_paragraph()
+                    run = p.add_run(f"{s_name}: ")
+                    run.bold = True
+                    p.add_run(s_narr)
+
+        # Areas of Attention (upgraded to midlevel narratives)
         doc.add_heading("Areas of Attention", level=1).runs[0].font.color.rgb = COBALT
-        unfavorable = [v for v in context.variances if v.get("variance_amount", 0) < 0][:5]
+        unfavorable = sorted(
+            [v for v in context.variances if v.get("variance_amount", 0) < 0],
+            key=lambda v: abs(v.get("variance_amount", 0)), reverse=True,
+        )[:5]
         for v in unfavorable:
             p = doc.add_paragraph()
             run = p.add_run(f"{v.get('account_name', '')}: ")
             run.bold = True
-            p.add_run(v.get("narrative_oneliner", ""))
+            # Use midlevel narrative (richer than oneliner)
+            narr = v.get("narrative_midlevel") or v.get("narrativeMidlevel") or v.get("narrative_oneliner", "")
+            p.add_run(narr)
+
+        # Key Risks
+        risks = context.executive_summary.get("key_risks") or context.executive_summary.get("keyRisks", [])
+        if risks:
+            doc.add_heading("Key Risks", level=1).runs[0].font.color.rgb = COBALT
+            for risk in risks:
+                r_text = risk.get("risk", str(risk)) if isinstance(risk, dict) else str(risk)
+                doc.add_paragraph(f"- {r_text}")
 
         # Recommendations
         doc.add_heading("Outlook & Recommendations", level=1).runs[0].font.color.rgb = COBALT

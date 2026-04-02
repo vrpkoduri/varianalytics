@@ -64,16 +64,38 @@ class PDFGenerator:
             elements.append(kpi_table)
             elements.append(Spacer(1, 16))
 
-        # Executive Summary
+        # Executive Summary (from narrative pyramid)
         elements.append(Paragraph("Executive Summary", heading_style))
-        top_fav = next((v for v in context.variances if v.get("variance_amount", 0) > 0), None)
-        top_unfav = next((v for v in context.variances if v.get("variance_amount", 0) < 0), None)
-        summary_text = f"Analysis of {len(context.variances)} material variances for {context.period_id}."
-        if top_fav:
-            summary_text += f" Largest favorable: {top_fav.get('account_name', '')} (+${abs(top_fav.get('variance_amount', 0)):,.0f})."
-        if top_unfav:
-            summary_text += f" Largest unfavorable: {top_unfav.get('account_name', '')} (-${abs(top_unfav.get('variance_amount', 0)):,.0f})."
-        elements.append(Paragraph(summary_text, body_style))
+        exec_narr = context.executive_summary.get("full_narrative") or context.executive_summary.get("fullNarrative", "")
+        if exec_narr:
+            for para in exec_narr.split("\n\n"):
+                if para.strip():
+                    elements.append(Paragraph(para.strip(), body_style))
+                    elements.append(Spacer(1, 4))
+        else:
+            # Fallback to hardcoded summary
+            summary_text = f"Analysis of {len(context.variances)} material variances for {context.period_id}."
+            elements.append(Paragraph(summary_text, body_style))
+
+        # Section Narratives
+        if context.section_narratives:
+            elements.append(Spacer(1, 8))
+            for section in context.section_narratives:
+                s_name = section.get("section_name") or section.get("sectionName", "")
+                s_narr = section.get("narrative", "")
+                if s_name and s_narr:
+                    elements.append(Paragraph(f"{s_name}: {s_narr}", body_style))
+                    elements.append(Spacer(1, 4))
+
+        # Key Risks
+        risks = context.executive_summary.get("key_risks") or context.executive_summary.get("keyRisks", [])
+        if risks:
+            elements.append(Spacer(1, 8))
+            elements.append(Paragraph("Key Risks", heading_style))
+            for risk in risks:
+                r_text = risk.get("risk", str(risk)) if isinstance(risk, dict) else str(risk)
+                elements.append(Paragraph(f"• {r_text}", body_style))
+
         elements.append(Spacer(1, 12))
 
         # Top Variances Table

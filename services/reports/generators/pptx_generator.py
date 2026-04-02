@@ -59,8 +59,13 @@ class PPTXGenerator:
         p.alignment = PP_ALIGN.CENTER
 
         p2 = tf.add_paragraph()
-        p2.text = f"{context.period_id} | {context.view} vs {context.comparison_base}"
-        p2.font.size = Pt(18)
+        # Use executive headline if available
+        headline = context.executive_summary.get("headline") or context.executive_summary.get("fullNarrative", "")
+        if headline:
+            p2.text = headline[:120]
+        else:
+            p2.text = f"{context.period_id} | {context.view} vs {context.comparison_base}"
+        p2.font.size = Pt(16)
         p2.font.color.rgb = TEAL
         p2.alignment = PP_ALIGN.CENTER
 
@@ -140,10 +145,31 @@ class PPTXGenerator:
 
     def _add_summary_slide(self, prs, context):
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        body = slide.shapes.add_textbox(Inches(1), Inches(2.5), Inches(11), Inches(2))
+
+        # Executive narrative (from pyramid)
+        exec_narr = context.executive_summary.get("full_narrative") or context.executive_summary.get("fullNarrative", "")
+        if exec_narr:
+            narr_box = slide.shapes.add_textbox(Inches(0.8), Inches(0.8), Inches(11.5), Inches(5))
+            tf = narr_box.text_frame
+            tf.word_wrap = True
+            p = tf.paragraphs[0]
+            p.text = "Executive Summary"
+            p.font.size = Pt(20)
+            p.font.bold = True
+            p.font.color.rgb = COBALT
+
+            for para in exec_narr.split("\n\n")[:3]:
+                if para.strip():
+                    p2 = tf.add_paragraph()
+                    p2.text = para.strip()[:300]
+                    p2.font.size = Pt(11)
+                    p2.space_after = Pt(8)
+
+        # Footer
+        body = slide.shapes.add_textbox(Inches(1), Inches(6.5), Inches(11), Inches(0.5))
         tf = body.text_frame
         p = tf.paragraphs[0]
         p.text = "Marsh Vantage - Confidential"
-        p.font.size = Pt(14)
+        p.font.size = Pt(10)
         p.font.color.rgb = TEAL
         p.alignment = PP_ALIGN.CENTER

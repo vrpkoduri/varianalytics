@@ -22,6 +22,8 @@ class ReportContext:
     waterfall_steps: list[dict] = field(default_factory=list)
     netting_alerts: list[dict] = field(default_factory=list)
     trend_alerts: list[dict] = field(default_factory=list)
+    executive_summary: dict = field(default_factory=dict)
+    section_narratives: list[dict] = field(default_factory=list)
 
 
 class ReportDataProvider:
@@ -60,13 +62,15 @@ class ReportDataProvider:
                 logger.warning("Failed to fetch %s: %s", path, exc)
             return {}
 
-        summary, variances, pl, waterfall, netting, trends = await asyncio.gather(
+        summary, variances, pl, waterfall, netting, trends, exec_summary, sections = await asyncio.gather(
             _get(f"/dashboard/summary?{params}"),
             _get(f"/variances/?{params}&page_size=500"),
             _get(f"/pl/statement?{params}"),
             _get(f"/dashboard/waterfall?{params}"),
             _get(f"/dashboard/alerts/netting?period_id={period_id}"),
             _get(f"/dashboard/alerts/trends?period_id={period_id}"),
+            _get(f"/dashboard/executive-summary?{params}"),
+            _get(f"/dashboard/section-narratives?{params}"),
         )
 
         return ReportContext(
@@ -80,4 +84,6 @@ class ReportDataProvider:
             waterfall_steps=waterfall.get("steps", []),
             netting_alerts=netting.get("alerts", []),
             trend_alerts=trends.get("alerts", []),
+            executive_summary=exec_summary or {},
+            section_narratives=sections.get("sections", []),
         )

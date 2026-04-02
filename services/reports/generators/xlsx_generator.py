@@ -60,6 +60,23 @@ class XLSXGenerator:
             ws_pl = wb.create_sheet("P&L")
             self._build_pl_sheet(ws_pl, context.pl_rows)
 
+        # Section Narratives sheet (from narrative pyramid)
+        if context.section_narratives:
+            sn_ws = wb.create_sheet("Section Narratives")
+            sn_ws.sheet_properties.tabColor = "00A8C7"
+            sn_ws["A1"] = "Section"
+            sn_ws["B1"] = "Narrative"
+            sn_ws["A1"].font = Font(bold=True, color=COBALT)
+            sn_ws["B1"].font = Font(bold=True, color=COBALT)
+            sn_ws.column_dimensions["A"].width = 20
+            sn_ws.column_dimensions["B"].width = 100
+
+            for i, section in enumerate(context.section_narratives, 2):
+                s_name = section.get("section_name") or section.get("sectionName", "")
+                s_narr = section.get("narrative", "")
+                sn_ws[f"A{i}"] = s_name
+                sn_ws[f"B{i}"] = s_narr
+
         # Write to bytes
         buffer = io.BytesIO()
         wb.save(buffer)
@@ -71,7 +88,12 @@ class XLSXGenerator:
 
         # Title
         ws.merge_cells("A1:G1")
-        ws["A1"] = f"Variance Analysis — {context.period_id} {context.view} vs {context.comparison_base}"
+        # Executive headline (from narrative pyramid)
+        headline = context.executive_summary.get("headline") or context.executive_summary.get("fullNarrative", "")
+        if headline:
+            ws["A1"] = headline[:200]
+        else:
+            ws["A1"] = f"Variance Analysis — {context.period_id} {context.view} vs {context.comparison_base}"
         ws["A1"].font = Font(name="Calibri", bold=True, size=14, color=COBALT)
         ws["A1"].alignment = Alignment(horizontal="center")
 
