@@ -14,6 +14,7 @@ interface TabDef {
 }
 
 const ALL_TABS: TabDef[] = [
+  { key: 'executive', label: 'Exec Summary', route: '/executive', roles: ['director', 'cfo', 'admin'] },
   { key: 'dash', label: 'Dashboard', route: '/' },
   { key: 'pl', label: 'P&L', route: '/pl' },
   { key: 'chat', label: 'Chat', route: '/chat' },

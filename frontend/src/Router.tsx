@@ -8,6 +8,7 @@ import ReviewView from '@/views/ReviewView'
 import ApprovalView from '@/views/ApprovalView'
 import ReportsView from '@/views/ReportsView'
 import AdminView from '@/views/AdminView'
+import ExecSummaryView from '@/views/ExecSummaryView'
 import LoginView from '@/views/LoginView'
 import UnauthorizedView from '@/views/UnauthorizedView'
 
@@ -25,6 +26,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <DashboardView />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: '/executive',
+        element: (
+          <ProtectedRoute roles={['director', 'cfo', 'admin']}>
+            <ExecSummaryView />
           </ProtectedRoute>
         ),
       },
