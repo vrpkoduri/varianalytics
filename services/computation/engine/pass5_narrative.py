@@ -496,11 +496,30 @@ async def _generate_parent_llm_narrative(
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ]
-        response = await llm_client.generate("narrative_generation", messages)
+        raw_response = await llm_client.complete("narrative_generation", messages)
+        if isinstance(raw_response, dict) and raw_response.get("fallback"):
+            return None
+        response = raw_response.choices[0].message.content if hasattr(raw_response, "choices") else str(raw_response)
         if response:
-            parsed = json.loads(response.strip().removeprefix("```json").removesuffix("```").strip())
+            # Clean LLM response — handle markdown wrapping and extra text
+            clean = response.strip()
+            # Remove markdown code fences
+            if "```json" in clean:
+                clean = clean.split("```json")[-1].split("```")[0].strip()
+            elif "```" in clean:
+                clean = clean.split("```")[1].split("```")[0].strip()
+            # Try to find JSON object
+            if "{" in clean:
+                start = clean.index("{")
+                end = clean.rindex("}") + 1
+                clean = clean[start:end]
+            parsed = json.loads(clean)
             if all(k in parsed for k in ("detail", "midlevel", "summary", "oneliner")):
                 return parsed
+            # If keys are different case, try to normalize
+            normalized = {k.lower(): v for k, v in parsed.items()}
+            if all(k in normalized for k in ("detail", "midlevel", "summary", "oneliner")):
+                return {k: normalized[k] for k in ("detail", "midlevel", "summary", "oneliner")}
     except Exception as exc:
         logger.debug("Parent LLM generation failed for %s: %s", account_name, exc)
 
