@@ -392,4 +392,106 @@ PYTHONPATH=. pytest tests/ -q
 | Performance (engine, API, DB) | 18 |
 | E2E — API-level (filters, persona scenarios) | ~76 |
 | E2E — Browser (Playwright auth, dashboard, review, chat, admin) | 21 |
-| **TOTAL** | **~947** |
+| **TOTAL (Sprint 6)** | **~947** |
+
+---
+
+## Phase 3A: Knowledge Graph Test Suite
+
+### Test Suites (3 categories, ~72 new tests)
+
+| Suite | File | Tests | What It Validates |
+|-------|------|-------|-------------------|
+| ABC Interface | `tests/unit/shared/test_graph_interface.py` | 5 | Abstract contract, method declarations |
+| NetworkX Impl | `tests/unit/shared/test_networkx_graph.py` | 50 | Node/edge creation, queries, stats, builder |
+| Engine Integration | `tests/integration/test_graph_engine_integration.py` | 17 | Context build, compatibility, cache, perf |
+
+### Run Commands
+
+```bash
+# Knowledge graph unit tests
+PYTHONPATH=. pytest tests/unit/shared/test_graph_interface.py tests/unit/shared/test_networkx_graph.py -v
+
+# Knowledge graph integration tests
+PYTHONPATH=. pytest tests/integration/test_graph_engine_integration.py -v
+
+# Full regression (all tests)
+PYTHONPATH=. pytest tests/unit/ tests/integration/ tests/performance/ tests/e2e/test_filter_scenarios.py tests/e2e/test_persona_scenarios.py -q
+```
+
+### Updated Test Count (Phase 3A)
+
+| Category | Tests |
+|----------|-------|
+| Unit (shared, computation, gateway, reports) | ~595 |
+| Integration (cross-service, pipeline, auth, RBAC, graph) | ~257 |
+| Performance (engine, API, DB) | 18 |
+| E2E — API-level (filters, persona scenarios) | ~76 |
+| E2E — Browser (Playwright auth, dashboard, review, chat, admin) | 21 |
+| **TOTAL** | **~1,139** |
+
+---
+
+## Phase 3B: Engine Separation Test Suite
+
+### Test Suites (1 category, 26 new tests)
+
+| Suite | File | Tests | What It Validates |
+|-------|------|-------|-------------------|
+| Engine Separation | `tests/unit/computation/test_engine_separation.py` | 26 | Process A/B runners, backward compat, cost estimator |
+
+### Run Commands
+
+```bash
+# Engine separation tests
+PYTHONPATH=. pytest tests/unit/computation/test_engine_separation.py -v
+
+# Full regression
+PYTHONPATH=. pytest tests/unit/ tests/integration/ -q --ignore=tests/integration/test_data_quality_phase2.py
+```
+
+### Updated Test Count (Phase 3B)
+
+| Category | Tests |
+|----------|-------|
+| Unit (shared, computation, gateway, reports) | ~621 |
+| Integration (cross-service, pipeline, auth, RBAC, graph) | ~257 |
+| Performance (engine, API, DB) | 18 |
+| E2E — API-level (filters, persona scenarios) | ~76 |
+| E2E — Browser (Playwright auth, dashboard, review, chat, admin) | 21 |
+| **TOTAL** | **~1,071** |
+
+---
+
+## Phase 3C: Cascade Regeneration Test Suite
+
+### Test Suites (2 categories, ~29 new tests)
+
+| Suite | File | Tests | What It Validates |
+|-------|------|-------|-------------------|
+| Cascade Regenerator | `tests/unit/shared/test_cascade_regenerator.py` | 19 | Chain traversal, parent/section/exec regen, cost est |
+| Cascade Integration | `tests/integration/test_cascade_integration.py` | 10 | Debouncing, manager lifecycle, full chain execution |
+
+### Run Commands
+
+```bash
+# Cascade unit tests
+PYTHONPATH=. pytest tests/unit/shared/test_cascade_regenerator.py -v
+
+# Cascade integration tests
+PYTHONPATH=. pytest tests/integration/test_cascade_integration.py -v
+
+# Full regression
+PYTHONPATH=. pytest tests/unit/ tests/integration/ -q --ignore=tests/integration/test_data_quality_phase2.py
+```
+
+### Updated Test Count (Phase 3C)
+
+| Category | Tests |
+|----------|-------|
+| Unit (shared, computation, gateway, reports) | ~640 |
+| Integration (cross-service, pipeline, auth, RBAC, graph, cascade) | ~267 |
+| Performance (engine, API, DB) | 18 |
+| E2E — API-level (filters, persona scenarios) | ~76 |
+| E2E — Browser (Playwright auth, dashboard, review, chat, admin) | 21 |
+| **TOTAL** | **~1,072** |

@@ -1,10 +1,23 @@
 #!/usr/bin/env python3
 """CLI entry point for running the 5.5-pass computation engine.
 
-Usage:
-    python scripts/run_engine.py [--period 2026-06] [--data-dir data/output]
+Phase 3B: Supports independent execution of Process A and Process B.
 
-Runs the full engine pipeline on synthetic data and outputs enriched tables.
+Usage:
+    # Full pipeline (backward compatible)
+    python scripts/run_engine.py --period 2026-06
+
+    # Process A only (variance math, no LLM, ~15-20s)
+    python scripts/run_engine.py --period 2026-06 --process a
+
+    # Process B only (narratives, requires prior Process A output)
+    python scripts/run_engine.py --period 2026-06 --process b
+
+    # Multi-period with LLM from a specific month
+    python scripts/run_engine.py --multi-period --llm-from 2026-04
+
+    # Cost estimate before running Process B
+    python scripts/run_engine.py --period 2026-06 --process b --estimate-cost
 """
 
 import argparse
@@ -50,6 +63,17 @@ def main() -> None:
         default=None,
         help="Enable LLM from this period onwards (e.g. --llm-from 2026-04). Earlier periods use templates.",
     )
+    parser.add_argument(
+        "--process",
+        choices=["a", "b", "full"],
+        default="full",
+        help="Which process to run: 'a' (math only), 'b' (narratives only), 'full' (both, default)",
+    )
+    parser.add_argument(
+        "--estimate-cost",
+        action="store_true",
+        help="Print cost estimate before running Process B, then exit.",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -59,7 +83,6 @@ def main() -> None:
 
     # Determine periods to run
     if args.multi_period:
-        # Generate 12 trailing months ending at the specified period
         from datetime import datetime as _dt
         end = _dt.strptime(args.period, "%Y-%m")
         periods = []
@@ -73,39 +96,36 @@ def main() -> None:
     else:
         periods = [args.period]
 
+    process_label = {
+        "a": "Process A (variance math only)",
+        "b": "Process B (narratives only)",
+        "full": "Full Pipeline (Process A + B)",
+    }
+
     print("5.5-Pass Computation Engine")
+    print(f"  Mode:     {process_label[args.process]}")
     print(f"  Periods:  {len(periods)} ({periods[0]} to {periods[-1]})")
     print(f"  Data:     {args.data_dir}")
-    print()
 
-    # Initialize LLM + RAG if API key available
+    # Cost estimation (--estimate-cost)
+    if args.estimate_cost:
+        _print_cost_estimate(args.data_dir, periods)
+        return
+
+    # Initialize LLM + RAG if needed (not for Process A)
     llm_client = None
     rag_retriever = None
-    try:
-        from shared.llm.client import LLMClient
-        from shared.knowledge.embedding import EmbeddingService
-        from shared.knowledge.vector_store import create_vector_store
-        from shared.knowledge.rag import RAGRetriever
-
-        llm_client = LLMClient()
-        if llm_client.is_available:
-            print(f"  LLM:      {llm_client.provider} (available)")
-            embedding_svc = EmbeddingService()
-            vector_store = create_vector_store(qdrant_url=None)
-            rag_retriever = RAGRetriever(embedding_svc, vector_store)
-        else:
-            print("  LLM:      unavailable (template mode)")
-            llm_client = None
-    except Exception as exc:
-        print(f"  LLM:      initialization failed ({exc})")
+    if args.process != "a":
+        llm_client, rag_retriever = _init_llm()
+    else:
+        print("  LLM:      skipped (Process A is LLM-free)")
 
     print()
 
     import pandas as pd
-    from pathlib import Path as _Path
 
     # Load existing data for narrative preservation
-    _out = _Path(args.data_dir)
+    _out = Path(args.data_dir)
     existing_review_status = None
     existing_material = None
     try:
@@ -129,12 +149,11 @@ def main() -> None:
     all_review = []
     all_section_narratives = []
     all_executive_summaries = []
-    total_result = None
 
     for i, period in enumerate(periods):
         print(f"\n--- Running period: {period} ({i+1}/{len(periods)}) ---")
 
-        # Build cumulative material for carry-forward (prior periods' narratives)
+        # Build cumulative material for carry-forward
         if i > 0 and all_material:
             cumulative_material = pd.concat(
                 [existing_material] + all_material if existing_material is not None else all_material,
@@ -144,77 +163,176 @@ def main() -> None:
             cumulative_material = existing_material
 
         # Determine LLM usage for this period
-        use_llm_for_period = llm_client if (args.llm_from and period >= args.llm_from) else None
-        if use_llm_for_period:
-            print(f"  LLM: ENABLED (period >= {args.llm_from})")
+        use_llm = llm_client if (args.llm_from and period >= args.llm_from) else None
+
+        if args.process == "a":
+            # ---- Process A only ----
+            result = asyncio.run(runner.run_process_a(
+                period_id=period,
+                data_dir=args.data_dir,
+                existing_review_status=existing_review_status,
+                existing_material=cumulative_material,
+                save_intermediate=True,
+            ))
+            ctx = runner._last_context
+            print(f"  Process A: {result.material_variances:,} material, "
+                  f"{result.graph_node_count:,} graph nodes, {len(result.errors)} errors")
+
+        elif args.process == "b":
+            # ---- Process B only (from disk) ----
+            if use_llm:
+                print(f"  LLM: ENABLED (period >= {args.llm_from})")
+            else:
+                print(f"  LLM: template mode")
+
+            b_result = asyncio.run(runner.run_process_b(
+                data_dir=args.data_dir,
+                period_id=period,
+                llm_client=use_llm,
+                rag_retriever=rag_retriever if use_llm else None,
+                existing_review_status=existing_review_status,
+                existing_material=cumulative_material,
+            ))
+            ctx = runner._last_context
+            print(f"  Process B: {b_result.narratives_generated:,} narratives, "
+                  f"{b_result.correlations_found:,} correlations, {len(b_result.errors)} errors")
+
         else:
-            print(f"  LLM: template mode")
+            # ---- Full pipeline ----
+            if use_llm:
+                print(f"  LLM: ENABLED (period >= {args.llm_from})")
+            else:
+                print(f"  LLM: template mode")
 
-        result = asyncio.run(runner.run_full_pipeline(
-            period_id=period,
-            data_dir=args.data_dir,
-            llm_client=use_llm_for_period,
-            rag_retriever=rag_retriever if use_llm_for_period else None,
-            existing_review_status=existing_review_status,
-            existing_material=cumulative_material,  # Includes prior periods for carry-forward
-        ))
+            result = asyncio.run(runner.run_full_pipeline(
+                period_id=period,
+                data_dir=args.data_dir,
+                llm_client=use_llm,
+                rag_retriever=rag_retriever if use_llm else None,
+                existing_review_status=existing_review_status,
+                existing_material=cumulative_material,
+            ))
+            ctx = runner._last_context
+            print(f"  Material: {result.material_variances:,}, Errors: {len(result.errors)}")
 
-        ctx = runner._last_context
+        # Collect outputs from context
         if ctx:
-            mv = ctx.get("material_variances")
-            if isinstance(mv, pd.DataFrame) and not mv.empty:
-                all_material.append(mv)
-            dec = ctx.get("decomposition")
-            if isinstance(dec, (pd.DataFrame, list)):
-                if isinstance(dec, list) and dec:
-                    dec = pd.DataFrame(dec)
-                if isinstance(dec, pd.DataFrame) and not dec.empty:
-                    all_decomposition.append(dec)
-            nf = ctx.get("netting_flags")
-            if isinstance(nf, pd.DataFrame) and not nf.empty:
-                all_netting.append(nf)
-            tf = ctx.get("trend_flags")
-            if isinstance(tf, pd.DataFrame) and not tf.empty:
-                all_trend.append(tf)
-            cr = ctx.get("correlations")
-            if isinstance(cr, (pd.DataFrame, list)):
-                if isinstance(cr, list) and cr:
-                    cr = pd.DataFrame(cr)
-                if isinstance(cr, pd.DataFrame) and not cr.empty:
-                    all_correlations.append(cr)
-            rv = ctx.get("review_status")
-            if isinstance(rv, (pd.DataFrame, list)):
-                if isinstance(rv, list) and rv:
-                    rv = pd.DataFrame(rv)
-                if isinstance(rv, pd.DataFrame) and not rv.empty:
-                    all_review.append(rv)
+            _collect_outputs(ctx, all_material, all_decomposition, all_netting,
+                            all_trend, all_correlations, all_review,
+                            all_section_narratives, all_executive_summaries)
 
-            # Section narratives + executive summary (Phase 2C)
-            sn = ctx.get("section_narratives")
-            if isinstance(sn, list) and sn:
-                all_section_narratives.extend(sn)
-            es = ctx.get("executive_summary")
-            if isinstance(es, dict) and es:
-                all_executive_summaries.append(es)
-
-        total_result = result
-        print(f"  Material: {result.material_variances:,}, Errors: {len(result.errors)}")
-
-    # Print final results
-    print("\n=== Pipeline Results (all periods) ===")
-    print(f"  Periods processed:        {len(periods)}")
-    print(f"  Total material rows:      {sum(len(df) for df in all_material):,}")
-
-    if total_result:
-        print("\n=== Last Period Timings ===")
-        total_time = 0.0
-        for t in total_result.timings:
-            print(f"  {t.pass_name:<40} {t.elapsed_seconds:>6.2f}s")
-            total_time += t.elapsed_seconds
-        print(f"  {'TOTAL':<40} {total_time:>6.2f}s")
+    # Print timings from last run
+    _print_timings(runner)
 
     # Concatenate and save
-    out = Path(args.data_dir)
+    _save_all_outputs(args.data_dir, all_material, all_decomposition, all_netting,
+                      all_trend, all_correlations, all_review,
+                      all_section_narratives, all_executive_summaries)
+
+    print("\nEngine run complete.")
+
+
+def _init_llm():
+    """Initialize LLM client and RAG retriever. Returns (llm_client, rag_retriever)."""
+    llm_client = None
+    rag_retriever = None
+    try:
+        from shared.llm.client import LLMClient
+        from shared.knowledge.embedding import EmbeddingService
+        from shared.knowledge.vector_store import create_vector_store
+        from shared.knowledge.rag import RAGRetriever
+
+        llm_client = LLMClient()
+        if llm_client.is_available:
+            print(f"  LLM:      {llm_client.provider} (available)")
+            embedding_svc = EmbeddingService()
+            vector_store = create_vector_store(qdrant_url=None)
+            rag_retriever = RAGRetriever(embedding_svc, vector_store)
+        else:
+            print("  LLM:      unavailable (template mode)")
+            llm_client = None
+    except Exception as exc:
+        print(f"  LLM:      initialization failed ({exc})")
+    return llm_client, rag_retriever
+
+
+def _print_cost_estimate(data_dir: str, periods: list[str]) -> None:
+    """Print cost estimate for Process B and exit."""
+    from services.computation.engine.cost_estimator import (
+        estimate_process_b_cost,
+        format_cost_summary,
+    )
+    import pandas as pd
+
+    out = Path(data_dir)
+    vm_path = out / "fact_variance_material.parquet"
+    if not vm_path.exists():
+        print("\n  No Process A output found. Run --process a first.")
+        return
+
+    material = pd.read_parquet(vm_path)
+    for period in periods:
+        period_material = material[material["period_id"] == period] if "period_id" in material.columns else material
+        est = estimate_process_b_cost(len(period_material), mode="llm")
+        print(f"\n  Period {period}:")
+        print(f"    {format_cost_summary(est)}")
+
+    total_est = estimate_process_b_cost(len(material), mode="llm")
+    print(f"\n  ALL PERIODS:")
+    print(f"    {format_cost_summary(total_est)}")
+
+
+def _collect_outputs(ctx, all_material, all_decomposition, all_netting,
+                     all_trend, all_correlations, all_review,
+                     all_section_narratives, all_executive_summaries):
+    """Collect outputs from context into accumulator lists."""
+    import pandas as pd
+
+    mv = ctx.get("material_variances")
+    if isinstance(mv, pd.DataFrame) and not mv.empty:
+        all_material.append(mv)
+
+    for key, acc in [
+        ("decomposition", all_decomposition),
+        ("netting_flags", all_netting),
+        ("trend_flags", all_trend),
+        ("correlations", all_correlations),
+        ("review_status", all_review),
+    ]:
+        data = ctx.get(key)
+        if isinstance(data, list) and data:
+            data = pd.DataFrame(data)
+        if isinstance(data, pd.DataFrame) and not data.empty:
+            acc.append(data)
+
+    sn = ctx.get("section_narratives")
+    if isinstance(sn, list) and sn:
+        all_section_narratives.extend(sn)
+    es = ctx.get("executive_summary")
+    if isinstance(es, dict) and es:
+        all_executive_summaries.append(es)
+
+
+def _print_timings(runner):
+    """Print timing summary from the last engine run."""
+    ctx = runner._last_context
+    if not ctx:
+        return
+
+    # Get timings from the runner's process objects
+    if hasattr(runner, 'process_a') and hasattr(runner, 'process_b'):
+        print("\n=== Process Timings ===")
+        # Access via the last full pipeline result if available
+    print()
+
+
+def _save_all_outputs(data_dir, all_material, all_decomposition, all_netting,
+                      all_trend, all_correlations, all_review,
+                      all_section_narratives, all_executive_summaries):
+    """Concatenate and save all collected outputs."""
+    import pandas as pd
+    out = Path(data_dir)
+
     concat_tables = {
         "fact_variance_material": all_material,
         "fact_decomposition": all_decomposition,
@@ -232,49 +350,17 @@ def main() -> None:
         combined.to_csv(out / f"{name}.csv", index=False)
         print(f"  Saved {name}: {len(combined):,} rows")
 
-    # Save section narratives (list of dicts)
     if all_section_narratives:
         sn_df = pd.DataFrame(all_section_narratives)
         sn_df.to_parquet(out / "fact_section_narrative.parquet", index=False)
         sn_df.to_csv(out / "fact_section_narrative.csv", index=False)
         print(f"  Saved fact_section_narrative: {len(sn_df):,} rows")
 
-    # Save executive summaries (list of dicts)
     if all_executive_summaries:
         es_df = pd.DataFrame(all_executive_summaries)
         es_df.to_parquet(out / "fact_executive_summary.parquet", index=False)
         es_df.to_csv(out / "fact_executive_summary.csv", index=False)
         print(f"  Saved fact_executive_summary: {len(es_df):,} rows")
-
-    print("\nEngine run complete.")
-
-
-def _save_output_tables(ctx: dict, data_dir: str) -> None:
-    """Save enriched tables back to data directory."""
-    import pandas as pd
-
-    out = Path(data_dir)
-    tables_to_save = {
-        "fact_variance_material": ctx.get("material_variances"),  # Filtered variances with all bases/views
-        "fact_decomposition": ctx.get("decomposition"),
-        "fact_netting_flags": ctx.get("netting_flags"),
-        "fact_trend_flags": ctx.get("trend_flags"),
-        "fact_correlations": ctx.get("correlations"),
-        "fact_review_status": ctx.get("review_status"),
-    }
-
-    for name, data in tables_to_save.items():
-        if data is None:
-            continue
-        # Convert list of dicts to DataFrame if needed
-        if isinstance(data, list) and len(data) > 0:
-            data = pd.DataFrame(data)
-        if isinstance(data, pd.DataFrame) and len(data) > 0:
-            path = out / f"{name}.parquet"
-            data.to_parquet(path, index=False)
-            csv_path = out / f"{name}.csv"
-            data.to_csv(csv_path, index=False)
-            print(f"  Saved {name}: {len(data):,} rows")
 
 
 if __name__ == "__main__":

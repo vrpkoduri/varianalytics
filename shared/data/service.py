@@ -112,9 +112,11 @@ class DataService:
 
     def __init__(self, data_dir: str = "data/output") -> None:
         self._loader = DataLoader(data_dir)
+        self._data_dir = data_dir
         self._tables: dict[str, pd.DataFrame] = {}
         self._account_lookup: dict[str, dict[str, Any]] = {}
         self._account_children: dict[str, list[str]] = {}
+        self._graph_cache: dict[str, Any] = {}  # period_id → VarianceGraph
         self._load_all_tables()
         self._build_account_metadata()
 
@@ -174,6 +176,36 @@ class DataService:
             pid = row.get("parent_id")
             if pid and pd.notna(pid):
                 self._account_children.setdefault(pid, []).append(row["account_id"])
+
+    # ------------------------------------------------------------------
+    # Knowledge Graph access
+    # ------------------------------------------------------------------
+
+    def get_graph(self, period_id: Optional[str] = None) -> Any:
+        """Return a cached VarianceGraph, building on first access.
+
+        Args:
+            period_id: Optional period filter.  Graph is cached per key
+                (period_id or '__all__').
+
+        Returns:
+            VarianceGraph instance.
+        """
+        cache_key = period_id or "__all__"
+        if cache_key not in self._graph_cache:
+            self._graph_cache[cache_key] = self._build_graph(period_id)
+        return self._graph_cache[cache_key]
+
+    def _build_graph(self, period_id: Optional[str] = None) -> Any:
+        """Build a knowledge graph from loaded tables."""
+        from shared.knowledge.graph_builder import build_variance_graph_from_data
+
+        return build_variance_graph_from_data(self._data_dir, period_id=period_id)
+
+    def invalidate_graph_cache(self) -> None:
+        """Clear all cached graphs.  Call after engine re-run."""
+        self._graph_cache.clear()
+        logger.info("Knowledge graph cache invalidated")
 
     def _table(self, name: str) -> pd.DataFrame:
         """Get a table, returning empty DataFrame if not loaded."""

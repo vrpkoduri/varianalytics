@@ -199,22 +199,29 @@ Primary purpose: **"Is this mine (isolated) or ours (systemic)?"**
 
 ---
 
-## 7. Variance Knowledge Graph
+## 7. Variance Knowledge Graph — IMPLEMENTED (Phase 3A)
 
-Foundation for all intelligence. Built at engine startup, queried during narrative generation.
+NetworkX in-memory directed graph. Foundation for all intelligence dimensions. Built after Pass 4, queried during narrative generation. See `docs/KNOWLEDGE_GRAPH.md` for full architecture.
 
-### Node Types
-Account, Dimension, Period, BusinessUnit, Variance, Narrative, Hypothesis, MarketContext
+### Node Types (8) — ~10,919 per period
+Account (38), Dimension (80), Period (36), BusinessUnit (5), Variance (~10,695), Narrative (Phase 3F), Hypothesis (~60), Section (5)
 
-### Edge Types
-parent_of, calc_depends_on, correlates_with, likely_causes, same_pattern_as, explained_by_dimension, leads/lags, peer_of, prior_period_of, section_member_of, approved_version_of, fx_impacted_by, derived_from (data lineage)
+### Edge Types (13) — ~40,148 per period
+parent_of, calc_depends_on, belongs_to, correlates_with, nets_with, has_trend, prior_period_of, peer_of, section_member_of, has_narrative, likely_causes (3G), explained_by_dimension (3G), derived_from (3G)
 
-### Query API
-- `get_full_context(variance_id)` → all 15 intelligence dimensions in one call
-- `get_cascade_chain(account_id)` → what to regenerate
-- `get_peer_pattern(account_id, period)` → systemic/isolated
-- `get_causal_ancestors(account_id)` → root cause chain
-- `estimate_cascade_cost(account_id)` → LLM calls + $
+### Query API (Implemented)
+- `get_full_context(variance_id)` — correlations, netting, trends, decomposition, siblings, peers, parent chain, history
+- `get_cascade_chain(variance_id)` — ordered list of narratives/sections to regenerate
+- `get_peer_variances(variance_id)` — same account across BUs
+- `get_account_ancestors(account_id)` — parent chain to root
+- `get_period_history(account_id, bu_id)` — variance trend over prior periods
+- `get_siblings(variance_id)` — sibling variances under same parent
+- `get_correlations(variance_id)` — correlated variance partners
+
+### Future Query API (Phase 3G)
+- `get_causal_ancestors(account_id)` — root cause chain
+- `estimate_cascade_cost(account_id)` — LLM calls + $
+- `get_peer_pattern(account_id, period)` — systemic/isolated/outlier
 
 ---
 

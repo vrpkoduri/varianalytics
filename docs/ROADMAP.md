@@ -33,6 +33,14 @@
 
 **Current state: 1,067 tests, 106,590 variance rows, 12 periods, all features working.**
 
+### Phase 3: Intelligence Engine — IN PROGRESS
+
+| Phase | What | Tests |
+|---|---|---|
+| 3A | Knowledge Graph (NetworkX) + data lineage edges | 1,139 |
+| 3B | Engine separation (Process A vs B) + stage independence + cost estimator | 1,071 |
+| 3C | Cascade regeneration (auto on edit, debounced, topological) | 1,072 |
+
 ---
 
 ## Planned Work

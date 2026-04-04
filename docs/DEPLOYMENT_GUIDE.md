@@ -182,7 +182,38 @@ Seeding is idempotent — safe to call on every startup.
 
 ---
 
-## 6. Running Tests
+## 6. Running the Engine (Phase 3B)
+
+### Process A: Variance Math Only (no LLM, ~15-20s)
+```bash
+PYTHONPATH=. python scripts/run_engine.py --period 2026-06 --process a
+```
+
+### Process B: Narratives Only (requires prior Process A output)
+```bash
+PYTHONPATH=. python scripts/run_engine.py --period 2026-06 --process b
+PYTHONPATH=. python scripts/run_engine.py --period 2026-06 --process b --llm-from 2026-06
+```
+
+### Full Pipeline (Process A + B, backward compatible)
+```bash
+PYTHONPATH=. python scripts/run_engine.py --period 2026-06
+PYTHONPATH=. python scripts/run_engine.py --period 2026-06 --process full
+```
+
+### Multi-Period with LLM
+```bash
+PYTHONPATH=. python scripts/run_engine.py --multi-period --llm-from 2026-04
+```
+
+### Cost Estimate (before committing to LLM run)
+```bash
+PYTHONPATH=. python scripts/run_engine.py --period 2026-06 --process b --estimate-cost
+```
+
+---
+
+## 7. Running Tests
 
 ```bash
 # Full regression (non-browser)

@@ -60,6 +60,109 @@ _CONCURRENCY = 10
 def _build_context_maps(context: dict[str, Any]) -> dict[str, Any]:
     """Pre-index all relationship data from prior passes for O(1) lookup.
 
+    If a knowledge graph is available in context["knowledge_graph"],
+    delegates to _context_maps_from_graph() for graph-backed lookups.
+    Otherwise falls back to the legacy dict-building logic.
+
+    Returns dict with 5 maps: correlations, netting, trends,
+    decomposition, siblings.
+    """
+    graph = context.get("knowledge_graph")
+    if graph is not None:
+        try:
+            return _context_maps_from_graph(graph, context)
+        except Exception:
+            logger.warning(
+                "Graph-backed context maps failed — falling back to legacy",
+                exc_info=True,
+            )
+
+    return _build_context_maps_legacy(context)
+
+
+def _context_maps_from_graph(graph: Any, context: dict[str, Any]) -> dict[str, Any]:
+    """Build the 5 context maps using knowledge graph queries.
+
+    Produces the same output format as _build_context_maps_legacy() so
+    callers (_build_enriched_prompt, template/LLM generators) are unaffected.
+    """
+    from shared.knowledge.graph_interface import VarianceGraph
+
+    assert isinstance(graph, VarianceGraph)
+
+    # 1. Correlations map: variance_id → [correlated partners]
+    corr_map: dict[str, list[dict]] = {}
+    material = context.get("material_variances")
+    if isinstance(material, pd.DataFrame) and not material.empty:
+        for vid in material["variance_id"].dropna().unique():
+            vid_str = str(vid)
+            correlations = graph.get_correlations(vid_str)
+            if correlations:
+                corr_map[vid_str] = correlations
+
+    # 2. Netting map: parent_node_id → netting details
+    netting_map: dict[str, dict] = {}
+    netting = context.get("netting_flags")
+    if isinstance(netting, pd.DataFrame) and not netting.empty:
+        for _, row in netting.iterrows():
+            key = str(row.get("parent_node_id", ""))
+            node_data = graph.get_node(key)
+            if node_data and "netting" in node_data:
+                netting_map[key] = node_data["netting"]
+            else:
+                # Fallback: read directly from DataFrame
+                netting_map[key] = {
+                    "net_variance": row.get("net_variance", 0),
+                    "gross_variance": row.get("gross_variance", 0),
+                    "netting_ratio": row.get("netting_ratio", 0),
+                    "check_type": row.get("check_type", ""),
+                }
+
+    # 3. Trends map: account_id → best trend
+    trend_map: dict[str, dict] = {}
+    acct_meta = context.get("acct_meta", {})
+    for acct_id in acct_meta:
+        trend = graph._get_trend_for_account(acct_id) if hasattr(graph, '_get_trend_for_account') else None
+        if trend:
+            trend_map[acct_id] = trend
+
+    # 4. Decomposition map: variance_id → components
+    decomp_map: dict[str, dict] = {}
+    if isinstance(material, pd.DataFrame) and not material.empty:
+        for vid in material["variance_id"].dropna().unique():
+            vid_str = str(vid)
+            node = graph.get_node(vid_str)
+            if node and "decomposition" in node:
+                decomp_map[vid_str] = node["decomposition"]
+
+    # 5. Siblings map: parent_account → [sibling variance summaries]
+    sibling_map: dict[str, list[dict]] = {}
+    if isinstance(material, pd.DataFrame) and not material.empty:
+        for _, row in material.iterrows():
+            acct_id = str(row.get("account_id", ""))
+            parent = acct_meta.get(acct_id, {}).get("parent_id")
+            if parent:
+                sibling_map.setdefault(parent, []).append({
+                    "account_id": acct_id,
+                    "account_name": acct_meta.get(acct_id, {}).get("account_name", acct_id),
+                    "variance_amount": row.get("variance_amount", 0),
+                    "variance_pct": row.get("variance_pct", 0),
+                })
+
+    logger.info("Context maps built from knowledge graph")
+
+    return {
+        "correlations": corr_map,
+        "netting": netting_map,
+        "trends": trend_map,
+        "decomposition": decomp_map,
+        "siblings": sibling_map,
+    }
+
+
+def _build_context_maps_legacy(context: dict[str, Any]) -> dict[str, Any]:
+    """Legacy context map builder — pre-index from DataFrames for O(1) lookup.
+
     Returns dict with 5 maps: correlations, netting, trends,
     decomposition, siblings.
     """
