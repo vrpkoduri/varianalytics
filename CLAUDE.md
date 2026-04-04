@@ -4,15 +4,21 @@
 
 An AI-powered, model-agnostic agentic platform for automated variance detection, root cause analysis, and financial narrative generation. Standalone React + FastAPI web app on Azure/Databricks.
 
-**Specs & Docs in `/docs/`:**
-- `FPA_Master_Spec_v1.docx` — Single source of truth: product spec + solution design + workflow + commentary learning (supersedes all prior docs)
-- `synthetic-data-spec.json` — Dimension hierarchies and data generation rules
-- `MASTER_SPRINT_PLAN.md` — Sprint-by-sprint build plan with acceptance criteria
-- `TESTING_FRAMEWORK.md` — Test strategy, tools, conventions
-- `API_REFERENCE.md` — All 50 endpoints documented
-- `ARCHITECTURE.md` — Architecture decision records, data flow, system overview
+**Core Docs in `/docs/` (7 documents):**
+- `PRODUCT_SPECIFICATION.md` — **THE source of truth**: personas, pages, intelligence dimensions, narrative pyramid, engine architecture, 360-degree framework, complete roadmap
+- `ARCHITECTURE.md` — System design: 3 services, Knowledge Graph, engine pipeline, data model, frontend components
+- `API_REFERENCE.md` — All ~80 endpoints across 3 services
+- `ROADMAP.md` — Sprint 0-6 + Phase 2 (completed) + Phase 3-6 (planned)
+- `TESTING_FRAMEWORK.md` — 1,067 tests, test strategy, conventions
+- `DEPLOYMENT_GUIDE.md` — Docker, env vars, health checks, engine runs
+- `USER_GUIDE.md` — End-user walkthrough for all 9 views
 
-## Current Sprint: Sprint 0 — Foundation
+**Supporting Docs:**
+- `AUTH_GUIDE.md` — JWT, Azure AD, RBAC setup
+- `VANTAGE_DESIGN_SPEC.md` — Visual design specification (colors, typography, glassmorphism)
+- `synthetic-data-spec.json` — Dimension hierarchies and data generation rules
+
+## Current State: Phase 2 Complete, Phase 3 Planned
 
 ### Deliverables (in order):
 1. **Synthetic Data Generator** — 36 months of P&L data across 5 ragged-hierarchy dimensions. Output: all 15 tables as parquet/CSV.

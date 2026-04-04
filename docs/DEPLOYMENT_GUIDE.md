@@ -1,6 +1,6 @@
-# Deployment Guide — Marsh Vantage (VARAnalytics)
+# Deployment Guide — Marsh Vantage
 
-**Version:** 1.0 | **Last Updated:** 2026-04-01
+**Version:** 2.0 | **Last Updated:** 2026-04-04
 
 ---
 

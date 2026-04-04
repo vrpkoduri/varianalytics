@@ -1,175 +1,82 @@
-# API Reference — FP&A Variance Analysis Agent
+# API Reference — Marsh Vantage
 
-**Version:** 1.0 | **Last Updated:** 2026-03-28 | **Total Endpoints:** 50
+**Version:** 2.0 | **Last Updated:** 2026-04-04 | **Total Endpoints:** ~80
 
----
-
-## Service 1: Gateway (Port 8000)
-
-### Authentication — `/api/v1/auth`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| POST | `/login` | Authenticate user, return JWT | Sprint 5 |
-| POST | `/logout` | Invalidate session | Sprint 5 |
-| GET | `/me` | Get current user profile + persona | Sprint 5 |
-| POST | `/refresh` | Refresh JWT token | Sprint 5 |
-
-### Chat — `/api/v1/chat`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| POST | `/messages` | Send chat message, returns conversation_id | Sprint 1 |
-| GET | `/stream/{conversation_id}` | SSE streaming response | Sprint 1 |
-| GET | `/conversations` | List user conversations | Sprint 1 |
-| DELETE | `/conversations/{conversation_id}` | Delete conversation | Sprint 1 |
-
-### Dimensions — `/api/v1/dimensions`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| GET | `/hierarchies/{dimension_name}` | Get hierarchy tree (Geo, Segment, LOB, CC) | Sprint 1 |
-| GET | `/business-units` | List all business units | Sprint 1 |
-| GET | `/accounts` | Get account hierarchy | Sprint 1 |
-| GET | `/periods` | List periods with status | Sprint 1 |
-
-### Configuration — `/api/v1/config`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| GET | `/thresholds` | Get current threshold config | Sprint 5 |
-| PUT | `/thresholds` | Update thresholds (admin) | Sprint 5 |
-| GET | `/model-routing` | Get LLM model routing config | Sprint 5 |
-
-### Review — `/api/v1/review`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| GET | `/queue` | Get review queue with filters | Sprint 1 |
-| POST | `/actions` | Submit review action (confirm/edit/dismiss/escalate) | Sprint 1 |
-| GET | `/stats` | Review queue statistics | Sprint 1 |
-
-### Approval — `/api/v1/approval`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| GET | `/queue` | Get approval queue | Sprint 1 |
-| POST | `/actions` | Bulk approve/hold/escalate | Sprint 1 |
-| GET | `/stats` | Approval statistics | Sprint 1 |
-
-### Notifications — `/api/v1/notifications`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| POST | `/test` | Send test notification | Sprint 4 |
-| GET | `/config` | Get notification config | Sprint 4 |
-| PUT | `/config` | Update notification config | Sprint 4 |
+See PRODUCT_SPECIFICATION.md for full feature context.
 
 ---
 
-## Service 2: Computation (Port 8001)
+## Gateway Service (Port 8000)
 
-### Dashboard — `/api/v1/dashboard`
+### Auth (7 endpoints)
+- `POST /auth/login` — Email/password → JWT pair
+- `POST /auth/login/azure-ad` — Azure AD OAuth exchange
+- `POST /auth/register` — Create account (dev mode)
+- `POST /auth/logout` — Revoke session
+- `GET /auth/me` — Current user profile
+- `POST /auth/refresh` — Refresh access token
+- `GET /auth/azure-ad/config` — Azure AD config for frontend
 
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| GET | `/summary` | Summary cards (Revenue, EBITDA, Costs, etc.) | Sprint 1 |
-| GET | `/waterfall` | Waterfall chart data | Sprint 1 |
-| GET | `/heatmap` | Variance heatmap data | Sprint 1 |
-| GET | `/trends` | Trend chart data | Sprint 1 |
+### Chat (4) — Any authenticated
+- `POST /chat/messages` — Send message → agent
+- `GET /chat/stream/{id}` — SSE response stream
+- `GET /chat/conversations` — List conversations
+- `DELETE /chat/conversations/{id}` — Delete conversation
 
-### Variances — `/api/v1/variances`
+### Dimensions (4) — Any authenticated
+- `GET /dimensions/hierarchies/{name}` — Hierarchy tree
+- `GET /dimensions/business-units` — 5 BUs
+- `GET /dimensions/accounts` — 38 accounts
+- `GET /dimensions/periods` — 36 periods
 
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| GET | `/` | List material variances with filters | Sprint 1 |
-| GET | `/{variance_id}` | Get single variance detail | Sprint 1 |
-| GET | `/by-account/{account_id}` | Variances for an account | Sprint 1 |
-| GET | `/by-bu/{bu_id}` | Variances for a BU | Sprint 1 |
+### Config (3) — Read: any auth. Write: admin
+- `GET /config/thresholds` — Read thresholds.yaml
+- `PUT /config/thresholds` — Write thresholds.yaml (admin)
+- `GET /config/model-routing` — Read model_routing.yaml
 
-### Drill-Down — `/api/v1/drilldown`
+### Review (9) — Analyst/Admin
+- `GET /review/queue?fiscal_year=2026` — FY-filterable queue
+- `POST /review/actions` — Submit action (edit/approve/escalate/dismiss)
+- `GET /review/stats` — Queue statistics
+- `POST /review/lock/{id}` — Acquire 30-min edit lock
+- `DELETE /review/lock/{id}` — Release lock
+- `GET /review/lock/{id}` — Check lock status
+- `GET /review/{id}/history` — Version history
+- `POST /review/{id}/regenerate` — Regenerate parent from children (director+)
 
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| GET | `/{node_id}` | Drill into hierarchy node | Sprint 2 |
-| GET | `/decomposition/{variance_id}` | Get variance decomposition | Sprint 2 |
-| GET | `/netting/{node_id}` | Get netting details for node | Sprint 2 |
-| GET | `/correlations/{variance_id}` | Get correlated variances | Sprint 3 |
+### Approval (3) — Director/CFO/Admin
+- `GET /approval/queue` — Items pending approval
+- `POST /approval/actions` — Bulk approve/reject
+- `GET /approval/stats` — Approval statistics
 
-### P&L — `/api/v1/pl`
+### Admin (8) — Admin only
+- `GET/POST/PUT/DELETE /admin/users` — User CRUD
+- `POST/DELETE /admin/users/{id}/roles` — Role management
+- `GET /admin/roles` — List system roles
+- `GET /admin/audit-log` — Paginated audit log
 
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| GET | `/statement` | Full P&L with hierarchy | Sprint 1 |
-| GET | `/account/{account_id}/detail` | Account detail view | Sprint 2 |
+### Notifications (3) — Admin only
+- `POST /notifications/test` — Send test notification
+- `GET/PUT /notifications/config` — Channel configuration
 
-### Synthesis — `/api/v1/synthesis`
+## Computation Service (Port 8001)
 
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| POST | `/trigger/{variance_id}` | Trigger narrative synthesis | Sprint 3 |
-| GET | `/status/{variance_id}` | Get synthesis status | Sprint 3 |
+### Dashboard (8)
+- `GET /dashboard/summary` — KPI cards
+- `GET /dashboard/waterfall` — EBITDA bridge
+- `GET /dashboard/heatmap` — BU × Geography matrix
+- `GET /dashboard/trends` — 12-month trailing
+- `GET /dashboard/alerts/netting` — Netting pairs
+- `GET /dashboard/alerts/trends` — Trending alerts
+- `GET /dashboard/section-narratives` — 5 P&L sections
+- `GET /dashboard/executive-summary` — CFO headline + narrative
 
----
+### Variances (3), Drilldown (4), P&L (2), Synthesis (2)
+See full endpoint list in code: `services/computation/api/`
 
-## Service 3: Reports (Port 8002)
+## Reports Service (Port 8002)
+Reports (5), Scheduling (4), Distribution (3)
+See: `services/reports/api/`
 
-### Reports — `/api/v1/reports`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| POST | `/generate` | Trigger report generation | Sprint 4 |
-| GET | `/status/{job_id}` | Check generation status | Sprint 4 |
-| GET | `/download/{job_id}` | Download generated report | Sprint 4 |
-| GET | `/templates` | List available templates | Sprint 4 |
-| GET | `/history` | Past generated reports | Sprint 4 |
-
-### Scheduling — `/api/v1/scheduling`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| GET | `/schedules` | List report schedules | Sprint 4 |
-| POST | `/schedules` | Create new schedule | Sprint 4 |
-| PUT | `/schedules/{schedule_id}` | Update schedule | Sprint 4 |
-| DELETE | `/schedules/{schedule_id}` | Delete schedule | Sprint 4 |
-
-### Distribution — `/api/v1/distribution`
-
-| Method | Endpoint | Description | Sprint |
-|--------|----------|-------------|--------|
-| POST | `/send` | Distribute report | Sprint 4 |
-| GET | `/recipients` | List distribution lists | Sprint 4 |
-| POST | `/recipients` | Create distribution list | Sprint 4 |
-
----
-
-## Common Patterns
-
-### Health Check
-All services expose `GET /health` returning:
-```json
-{"status": "ok", "service": "<name>", "version": "0.1.0"}
-```
-
-### Error Responses
-```json
-{"error": "Not Found", "detail": "Variance abc123 not found", "code": "VARIANCE_NOT_FOUND"}
-```
-
-### Pagination
-Query params: `page` (default 1), `page_size` (default 50, max 500)
-
-### Filtering
-Standard query params: `period_id`, `bu_id`, `account_id`, `geo_node_id`, `segment_node_id`, `lob_node_id`, `costcenter_node_id`, `view` (MTD/QTD/YTD), `base` (BUDGET/FORECAST/PRIOR_YEAR)
-
-### SSE Event Types
-```
-event: token        data: {"text": "..."}
-event: data_table   data: {"columns": [...], "rows": [...]}
-event: mini_chart   data: {"type": "waterfall", ...}
-event: suggestion   data: {"text": "..."}
-event: confidence   data: {"score": 0.85}
-event: netting_alert data: {"node_id": "...", ...}
-event: review_status data: {"status": "ANALYST_REVIEWED"}
-event: done         data: {}
-```
+## Common Parameters
+`period_id`, `base_id` (BUDGET/FORECAST/PRIOR_YEAR), `view_id` (MTD/QTD/YTD), `bu_id`, `page`, `page_size`, `fiscal_year`

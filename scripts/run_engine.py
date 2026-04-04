@@ -15,6 +15,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Load .env for API keys (override=True to replace empty shell env vars)
+try:
+    from dotenv import load_dotenv
+    load_dotenv(override=True)
+except ImportError:
+    pass
+
 from services.computation.engine.runner import EngineRunner
 
 
@@ -37,6 +44,11 @@ def main() -> None:
         "--data-dir",
         default="data/output",
         help="Data directory (default: data/output)",
+    )
+    parser.add_argument(
+        "--llm-from",
+        default=None,
+        help="Enable LLM from this period onwards (e.g. --llm-from 2026-04). Earlier periods use templates.",
     )
     args = parser.parse_args()
 
@@ -131,11 +143,18 @@ def main() -> None:
         else:
             cumulative_material = existing_material
 
+        # Determine LLM usage for this period
+        use_llm_for_period = llm_client if (args.llm_from and period >= args.llm_from) else None
+        if use_llm_for_period:
+            print(f"  LLM: ENABLED (period >= {args.llm_from})")
+        else:
+            print(f"  LLM: template mode")
+
         result = asyncio.run(runner.run_full_pipeline(
             period_id=period,
             data_dir=args.data_dir,
-            llm_client=llm_client,
-            rag_retriever=rag_retriever,
+            llm_client=use_llm_for_period,
+            rag_retriever=rag_retriever if use_llm_for_period else None,
             existing_review_status=existing_review_status,
             existing_material=cumulative_material,  # Includes prior periods for carry-forward
         ))

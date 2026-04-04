@@ -1,183 +1,69 @@
 # User Guide — Marsh Vantage
 
-**Version:** 1.0 | **Last Updated:** 2026-04-01
+**Version:** 2.0 | **Last Updated:** 2026-04-04
 
 ---
 
 ## Getting Started
 
 ### Login
-
-Navigate to the application URL. You'll see the login page with Marsh Vantage branding.
-
-**Dev Mode Credentials:**
+Navigate to the app URL. Use demo credentials or Azure AD SSO.
 
 | Role | Email | Password |
-|------|-------|----------|
+|---|---|---|
 | Admin | admin@variance-agent.dev | password123 |
 | Analyst | analyst@variance-agent.dev | password123 |
-| BU Leader | bu.leader@variance-agent.dev | password123 |
 | Director | director@variance-agent.dev | password123 |
 | CFO | cfo@variance-agent.dev | password123 |
-| Board Viewer | board@variance-agent.dev | password123 |
+| BU Leader | bu.leader@variance-agent.dev | password123 |
+| Board | board@variance-agent.dev | password123 |
 
-**Azure AD:** If configured, a "Sign in with Microsoft" button appears for SSO.
+### Navigation
+Tabs visible depend on your role. CFO/Director see "Exec Summary" first. Analysts see full navigation.
 
----
-
-## Personas
-
-Each persona sees different data and has access to different features:
-
-| Persona | Sees | Narrative Level | Access |
-|---------|------|----------------|--------|
-| **Analyst** | All variances, all statuses | Detail | Dashboard, P&L, Chat, Review, Reports |
-| **BU Leader** | Own BU only, reviewed + approved | Midlevel | Dashboard, P&L, Chat, Reports |
-| **Director** | All BUs, reviewed + approved | Midlevel | Dashboard, P&L, Chat, Approvals, Reports |
-| **CFO** | All BUs, approved only | Summary | Dashboard, P&L, Chat, Approvals, Reports |
-| **HR Finance** | HC domain only | Detail | Dashboard, P&L, Chat, Review |
-| **Board Viewer** | Approved only | Board + Summary | Dashboard, Reports |
-| **Admin** | Everything | All levels | All pages + Admin panel |
+### Global Filters
+Available on every page in the context strip:
+- **Period selector** — dropdown to switch months (Jun 2026, May 2026, etc.)
+- **View type** — MTD / QTD / YTD
+- **Comparison base** — Budget / Forecast / Prior Year
+- **Persona pills** — Analyst / Director / CFO / BU Lead
 
 ---
 
-## Dashboard
+## Executive Summary (CFO/Director/Board)
+Your landing page. Tells the financial story at a glance.
+- **Headline** — one-sentence period summary
+- **KPI Cards** — Revenue, EBITDA, Gross Profit, Net Income
+- **Section Cards** — Revenue narrative + Cost narrative with colored driver pills
+- **Profitability** — circular margin gauges + narrative
+- **Risk Items** — netting alerts + trending variances
+- **Full Narrative** — 3-paragraph CFO-ready story
+- **Downloads** — Board Deck (PPTX) + Executive Flash (PDF)
 
-The dashboard is the primary landing page showing variance analysis at a glance.
+## Dashboard (All Users)
+Operational view with charts, tables, and alerts. Click any variance row for detail modal with decomposition, hypotheses, and narrative.
 
-### KPI Cards
-Top row shows key financial metrics: Revenue, EBITDA, Total Costs, etc. Each card displays actual vs. comparator with variance amount and percentage.
+## P&L View (All Users)
+Hierarchical P&L with expand/collapse. Calculated rows auto-computed. Margin gauges. Narrative panel shows AI commentary at your persona's level.
 
-### Waterfall Chart
-Bridges from comparator (Budget/Forecast/PY) to actual, showing which accounts contributed positively or negatively.
+## Chat (All Users)
+Ask questions in natural language. Examples: "How did revenue perform?", "Show the waterfall", "What's trending?" Agent streams response with data tables.
 
-### Heatmap
-Geographic variance matrix — rows are geographies, columns are accounts. Color intensity shows variance magnitude. Red = unfavorable, green = favorable.
+## Review Queue (Analysts)
+Your work queue. AI-drafted narratives sorted by impact. Edit text, provide hypothesis feedback (thumbs up/down), approve. Soft locking prevents concurrent edits. Edited narratives auto-cascade to parent summaries.
 
-### Trend Chart
-12-month trailing trend for the selected metric. Shows actual, budget, and variance over time.
+## Approval Queue (Directors/CFO)
+Approve analyst-reviewed narratives. Bulk approve by analyst. "Regenerate Summary" button refreshes parents from approved children. Only approved content enters reports.
 
-### Variance Table
-Sortable, filterable table of material variances. Click any row to open the detail modal with decomposition, narratives, and drill-down.
+## Reports (All Users)
+Generate XLSX, PDF, PPTX, DOCX. All pull from narrative pyramid (approved content only in reports). Schedule automated generation.
 
-### Filters
-- **Business Unit:** Filter all dashboard sections by BU
-- **View Type:** MTD (month), QTD (quarter), YTD (year)
-- **Comparison Base:** Budget, Forecast, or Prior Year
-- **Sidebar:** Geography/Segment/LOB/Cost Center tree filters
-
----
-
-## P&L View
-
-Hierarchical profit and loss statement with expand/collapse.
-
-- Click any row to expand into child accounts
-- Leaf rows show a narrative panel with AI-generated commentary
-- Toggle "CFO Preview" to see the summary-level narrative
-- Columns: Actual, Comparator, Variance ($), Variance (%)
-
----
-
-## Chat
-
-AI-powered conversational interface for variance analysis.
-
-### Example Questions
-- "How did revenue perform this quarter?"
-- "Show me the P&L waterfall"
-- "What are the trending variances?"
-- "Break down the revenue drivers"
-- "Are there any netting offsets?"
-- "What's pending in the review queue?"
-
-### How It Works
-Messages are sent to the AI agent which classifies intent, queries the computation engine, and streams back a response with embedded data tables and charts.
-
----
-
-## Review Workflow
-
-*Available to: Analysts, Admin*
-
-### Review Queue
-Landing page showing all AI-generated narratives awaiting review. Sort by impact, SLA, or period.
-
-### Actions
-- **Edit:** Modify the AI-generated narrative text. Status changes to ANALYST_REVIEWED.
-- **Escalate:** Flag for senior attention. Status changes to ESCALATED.
-- **Dismiss:** Mark as not requiring commentary. Status changes to DISMISSED.
-
-### Hypothesis Feedback
-Each variance may have AI-generated hypotheses for root cause. Use thumbs up/down to provide feedback — this improves future AI suggestions via the RAG knowledge base.
-
----
-
-## Approval Workflow
-
-*Available to: Directors, CFO, Admin*
-
-### Approval Queue
-Shows items that analysts have reviewed (status: ANALYST_REVIEWED). Only reviewed items appear here — the review gate ensures quality.
-
-### Actions
-- **Approve:** Move to APPROVED status. The variance is now eligible for report distribution.
-- **Bulk Approve:** Select multiple items and approve in batch.
-
-### Report Gate
-Reports can only be generated from APPROVED narratives. This ensures CFO and board-level reports contain vetted content only.
-
----
-
-## Reports
-
-Generate and download financial reports in 4 formats:
-
-| Format | Content |
-|--------|---------|
-| **XLSX** | Summary + variance detail + per-BU tabs + P&L |
-| **PDF** | Executive flash (1-page) or period-end (multi-page) |
-| **PPTX** | 5-slide deck with KPIs, variances, risk items |
-| **DOCX** | Board narrative with financial performance + recommendations |
-
-### Scheduling
-Reports can be scheduled for automatic generation (daily, weekly, monthly) with distribution via Teams, Slack, or email.
-
----
-
-## Admin Panel
-
-*Available to: Admin only*
-
-### Thresholds
-Edit materiality thresholds that control which variances surface as material:
-- **Global:** Absolute ($) and percentage (%) thresholds
-- **Domain overrides:** Tighter/looser thresholds per P&L category
-- **Close week:** Tighter thresholds during financial close
-- **Role overrides:** Higher thresholds for CFO/Board views
-
-### Model Routing
-Configure which LLM models are used for each task (narrative generation, intent classification, hypothesis generation). Adjust temperature and max_tokens per model.
-
-### Users & Roles
-- Create, edit, and deactivate user accounts
-- Assign roles (analyst, director, cfo, etc.) with BU scope
-- View system roles and their permissions
-
-### Audit Log
-Searchable, filterable log of all system events: logins, review actions, config changes, engine runs, LLM calls. Click any entry for full details.
-
----
-
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| Escape | Close modal / dialog |
-| Tab navigation | Move between dashboard sections |
-
----
+## Admin (Admin Only)
+- **Thresholds** — edit materiality thresholds (persisted to YAML)
+- **Model Routing** — configure LLM models per task
+- **Users & Roles** — create/edit/deactivate users, assign roles
+- **Audit Log** — searchable trail of all actions
+- **Engine Control** — run variance analysis + narrative generation [Phase 3]
 
 ## Dark / Light Theme
-
-Toggle between dark (default) and light themes using the sun/moon icon in the header. Your preference is saved to localStorage and persists across sessions.
+Toggle via sun/moon icon in header. Persists across sessions.
