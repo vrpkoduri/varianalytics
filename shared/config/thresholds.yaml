@@ -6,15 +6,15 @@
 
 global:
   abs_threshold: 50000       # $50K absolute variance
-  pct_threshold: 3.0         # 3% percentage variance
+  pct_threshold: 5.0         # 5% percentage variance (raised from 3%)
   logic: "OR"                # OR: either threshold triggers
 
 # Domain-level overrides
 domain_overrides:
   - scope: "Revenue"
-    pct_threshold: 2.0       # Revenue: tighter % threshold
+    pct_threshold: 3.0       # Revenue: tighter % (CFO visibility)
   - scope: "Travel & Entertainment"
-    pct_threshold: 5.0       # T&E: looser % threshold
+    pct_threshold: 5.0       # T&E: same as global
 
 # Netting detection thresholds
 netting:
