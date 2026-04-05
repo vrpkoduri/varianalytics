@@ -139,6 +139,19 @@ async def submit_review_action(
             user_id=user.user_id,
             change_reason=body.change_reason,
         )
+
+        # Cascade regeneration: auto-regenerate parent/section/exec on edit/approve
+        if body.action in ("edit", "approve"):
+            cascade_mgr = getattr(request.app.state, "cascade_manager", None)
+            if cascade_mgr:
+                period_id = result.get("period_id", "")
+                if period_id:
+                    await cascade_mgr.on_narrative_changed(body.variance_id, period_id)
+                    logger.info(
+                        "Cascade triggered for %s (action=%s, period=%s)",
+                        body.variance_id, body.action, period_id,
+                    )
+
         return ReviewActionResponse(**result)
     except ValueError as e:
         raise HTTPException(
@@ -326,4 +339,68 @@ async def regenerate_summary(
         "narrative": new_narrative[:200],
         "child_count": len(child_texts),
         "message": f"Regenerated from {len(child_texts)} children",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Cascade Regeneration API (Phase 3C — wired in Framework Completion sprint)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/{variance_id}/cascade-regenerate",
+    summary="Manually trigger cascade regeneration",
+)
+async def cascade_regenerate(
+    variance_id: str,
+    request: Request,
+    user: UserContext = Depends(require_role("director", "cfo", "admin")),
+):
+    """Manually trigger cascade regeneration for a variance.
+
+    Skips debounce — executes immediately. Regenerates affected
+    parents, sections, and executive summary.
+    """
+    cascade_mgr = getattr(request.app.state, "cascade_manager", None)
+    if cascade_mgr is None:
+        raise HTTPException(status_code=503, detail="Cascade manager not initialized")
+
+    # Get period_id from variance data
+    store = request.app.state.review_store
+    vm = store._variance_material if hasattr(store, '_variance_material') else store._store._variance_material
+    mask = vm["variance_id"] == variance_id
+    if not mask.any():
+        raise HTTPException(status_code=404, detail="Variance not found")
+
+    period_id = str(vm[mask].iloc[0].get("period_id", ""))
+    result = await cascade_mgr.execute_now(variance_id, period_id)
+
+    return {
+        "cascade_id": result.cascade_id,
+        "trigger_variance_id": result.trigger_variance_id,
+        "period_id": result.period_id,
+        "regenerated": result.regenerated,
+        "skipped": result.skipped,
+        "total_seconds": result.total_seconds,
+        "errors": result.errors,
+    }
+
+
+@router.get(
+    "/cascade/status",
+    summary="Get cascade regeneration status",
+)
+async def cascade_status(
+    request: Request,
+    user: UserContext = Depends(require_role("analyst", "director", "cfo", "admin")),
+):
+    """Return pending cascades and recent history."""
+    cascade_mgr = getattr(request.app.state, "cascade_manager", None)
+    if cascade_mgr is None:
+        return {"pending": [], "running": [], "history": []}
+
+    return {
+        "pending": cascade_mgr.get_pending(),
+        "running": cascade_mgr.get_running(),
+        "history": cascade_mgr.get_history(limit=10),
     }

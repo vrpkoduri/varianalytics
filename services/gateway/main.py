@@ -160,8 +160,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Note: Engine task queue lives in computation service (Phase 3D)
     # Frontend calls computation service directly for engine control.
 
+    # Cascade Manager (Phase 3C — now wired to review API)
+    from shared.cascade.manager import CascadeManager
+    app.state.cascade_manager = CascadeManager(
+        data_service=app.state.data_service,
+        llm_client=app.state.llm_client if app.state.llm_client.is_available else None,
+        debounce_seconds=60,
+    )
+    logger.info("CascadeManager initialized (debounce=60s)")
+
     logger.info(
-        "Gateway ready — DataService + ReviewStore + ConversationManager + JWT + ComputationClient(%s)",
+        "Gateway ready — DataService + ReviewStore + ConversationManager + JWT + ComputationClient(%s) + CascadeManager",
         settings.computation_service_url,
     )
     yield

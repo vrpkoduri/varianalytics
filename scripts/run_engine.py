@@ -74,6 +74,22 @@ def main() -> None:
         action="store_true",
         help="Print cost estimate before running Process B, then exit.",
     )
+    parser.add_argument(
+        "--leaves-only",
+        action="store_true",
+        help="LLM only for leaf accounts; parents use template synthesis.",
+    )
+    parser.add_argument(
+        "--mtd-budget-only",
+        action="store_true",
+        help="LLM only for MTD/BUDGET view; other combos use template.",
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=10,
+        help="Parallel LLM calls (default 10, max 50).",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -106,6 +122,12 @@ def main() -> None:
     print(f"  Mode:     {process_label[args.process]}")
     print(f"  Periods:  {len(periods)} ({periods[0]} to {periods[-1]})")
     print(f"  Data:     {args.data_dir}")
+    if args.leaves_only:
+        print(f"  Optimize: --leaves-only (parents use template synthesis)")
+    if args.mtd_budget_only:
+        print(f"  Optimize: --mtd-budget-only (other views use template)")
+    if args.concurrency != 10:
+        print(f"  Optimize: --concurrency {args.concurrency}")
 
     # Cost estimation (--estimate-cost)
     if args.estimate_cost:

@@ -737,6 +737,220 @@ class NetworkXGraph(VarianceGraph):
         return sorted_history[-n_periods:] if len(sorted_history) > n_periods else sorted_history
 
     # ------------------------------------------------------------------
+    # Advanced Graph Intelligence (Framework Completion Sprint)
+    # ------------------------------------------------------------------
+
+    def get_root_cause_chain(
+        self, variance_id: str, max_hops: int = 4, min_score: float = 0.5
+    ) -> list[dict[str, Any]]:
+        """Trace multi-hop causal chain from a variance to its root causes.
+
+        Follows correlates_with edges (score > min_score) via BFS,
+        building an ordered chain of cause-effect relationships.
+
+        Args:
+            variance_id: Starting variance.
+            max_hops: Maximum traversal depth.
+            min_score: Minimum correlation score to follow.
+
+        Returns:
+            Ordered list: [{variance_id, account_id, account_name, score, hop}]
+        """
+        if not self._graph.has_node(variance_id):
+            return []
+
+        chain: list[dict[str, Any]] = []
+        visited: set[str] = {variance_id}
+        queue: list[tuple[str, int, float]] = [(variance_id, 0, 1.0)]
+
+        while queue:
+            current, hop, path_score = queue.pop(0)
+            if hop >= max_hops:
+                continue
+
+            for neighbor in self._graph.successors(current):
+                edge = self._graph.edges.get((current, neighbor), {})
+                if (
+                    edge.get("edge_type") == "correlates_with"
+                    and neighbor not in visited
+                ):
+                    score = edge.get("score", 0)
+                    if score >= min_score:
+                        visited.add(neighbor)
+                        ndata = self._graph.nodes.get(neighbor, {})
+                        acct_id = ndata.get("account_id", "")
+                        chain.append({
+                            "variance_id": neighbor,
+                            "account_id": acct_id,
+                            "account_name": ndata.get("account_name", acct_id),
+                            "score": round(score, 3),
+                            "hop": hop + 1,
+                        })
+                        queue.append((neighbor, hop + 1, path_score * score))
+
+        # Sort by hop then score descending
+        chain.sort(key=lambda x: (x["hop"], -x["score"]))
+        return chain
+
+    def get_variance_hubs(
+        self, period_id: str, top_n: int = 5
+    ) -> list[dict[str, Any]]:
+        """Find the most-connected variance nodes (highest degree centrality).
+
+        Identifies variances that are connected to the most other variances
+        via correlates_with edges — these are the "hub" variances that
+        explain or are affected by many other variances.
+
+        Args:
+            period_id: Filter to variances in this period.
+            top_n: Number of top hubs to return.
+
+        Returns:
+            [{variance_id, account_id, account_name, degree, connected_count}]
+        """
+        # Filter to variance nodes for this period
+        variance_nodes = [
+            n for n, d in self._graph.nodes(data=True)
+            if d.get("node_type") == "variance" and d.get("period_id") == period_id
+        ]
+
+        if not variance_nodes:
+            return []
+
+        # Count correlates_with edges per variance
+        hub_scores: list[tuple[str, int]] = []
+        for vid in variance_nodes:
+            corr_count = sum(
+                1 for neighbor in self._graph.successors(vid)
+                if self._graph.edges.get((vid, neighbor), {}).get("edge_type") == "correlates_with"
+            )
+            if corr_count > 0:
+                hub_scores.append((vid, corr_count))
+
+        # Sort by connection count
+        hub_scores.sort(key=lambda x: x[1], reverse=True)
+
+        result = []
+        for vid, count in hub_scores[:top_n]:
+            ndata = self._graph.nodes.get(vid, {})
+            result.append({
+                "variance_id": vid,
+                "account_id": ndata.get("account_id", ""),
+                "account_name": ndata.get("account_name", ""),
+                "degree": count,
+                "connected_count": count,
+                "variance_amount": ndata.get("variance_amount", 0),
+            })
+
+        return result
+
+    def extract_story_subgraph(
+        self, variance_id: str, radius: int = 2
+    ) -> dict[str, Any]:
+        """Extract the local neighborhood around a variance for story building.
+
+        Returns all nodes and edges within `radius` hops, enabling
+        construction of a cohesive narrative about a variance and
+        its related variances.
+
+        Args:
+            variance_id: Center node.
+            radius: Number of hops to include.
+
+        Returns:
+            {center, nodes: [{id, type, attributes}], edges: [{source, target, type}],
+             summary: str}
+        """
+        if not self._graph.has_node(variance_id):
+            return {"center": variance_id, "nodes": [], "edges": [], "summary": ""}
+
+        # Use NetworkX ego_graph for subgraph extraction
+        try:
+            subgraph = nx.ego_graph(self._graph, variance_id, radius=radius)
+        except nx.NetworkXError:
+            return {"center": variance_id, "nodes": [], "edges": [], "summary": ""}
+
+        nodes = []
+        for n, data in subgraph.nodes(data=True):
+            nodes.append({
+                "id": n,
+                "type": data.get("node_type", "unknown"),
+                "name": data.get("account_name", data.get("name", n)),
+                "variance_amount": data.get("variance_amount"),
+            })
+
+        edges = []
+        for u, v, data in subgraph.edges(data=True):
+            edges.append({
+                "source": u,
+                "target": v,
+                "type": data.get("edge_type", "unknown"),
+                "score": data.get("score"),
+            })
+
+        # Build summary
+        variance_nodes = [n for n in nodes if n["type"] == "variance"]
+        total_amount = sum(n.get("variance_amount", 0) or 0 for n in variance_nodes)
+        center_data = self._graph.nodes.get(variance_id, {})
+
+        summary = (
+            f"Story around {center_data.get('account_name', variance_id)}: "
+            f"{len(variance_nodes)} related variances, "
+            f"total impact ${abs(total_amount):,.0f}."
+        )
+
+        return {
+            "center": variance_id,
+            "nodes": nodes,
+            "edges": edges,
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "summary": summary,
+        }
+
+    def estimate_fix_impact(self, variance_id: str) -> dict[str, Any]:
+        """Estimate total P&L impact if this variance were fixed.
+
+        Walks up parent_of edges from the variance's account to
+        calculate how fixing this variance would ripple through
+        the P&L hierarchy.
+
+        Args:
+            variance_id: The variance to hypothetically fix.
+
+        Returns:
+            {direct_impact, affected_parents, total_pl_impact, affected_nodes}
+        """
+        if not self._graph.has_node(variance_id):
+            return {
+                "direct_impact": 0,
+                "affected_parents": [],
+                "total_pl_impact": 0,
+                "affected_node_count": 0,
+            }
+
+        node = self._graph.nodes[variance_id]
+        direct_impact = node.get("variance_amount", 0)
+        acct_id = node.get("account_id", "")
+
+        # Walk up account hierarchy
+        ancestors = self.get_account_ancestors(acct_id)
+        affected_parents = []
+        for ancestor_id in ancestors:
+            ancestor_data = self._graph.nodes.get(ancestor_id, {})
+            affected_parents.append({
+                "account_id": ancestor_id,
+                "account_name": ancestor_data.get("name", ancestor_id),
+            })
+
+        return {
+            "direct_impact": direct_impact,
+            "affected_parents": affected_parents,
+            "total_pl_impact": direct_impact,  # Same amount ripples up
+            "affected_node_count": len(affected_parents) + 1,
+        }
+
+    # ------------------------------------------------------------------
     # Stats
     # ------------------------------------------------------------------
 

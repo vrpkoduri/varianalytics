@@ -47,6 +47,11 @@
 | 3H | Quality: coherence, anomaly, budget validation, market context + 15 dimensions complete | 1,178 |
 | 3I | Model routing flexibility + FULL Pass 5 intelligence integration — PHASE 3 COMPLETE | 1,189 |
 
+### Framework Completion Sprint
+| Sprint | What | Tests |
+|---|---|---|
+| FCS | Graph enhancement (root cause, hubs, subgraph, impact) + cascade wiring + LLM optimizations | 1,206+ |
+
 ---
 
 ## Planned Work
