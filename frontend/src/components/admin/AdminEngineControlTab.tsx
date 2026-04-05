@@ -69,12 +69,6 @@ export function AdminEngineControlTab() {
     setTimeout(() => setToast(null), 3000)
   }, [cancelTask])
 
-  const processLabels: Record<Process, string> = {
-    a: 'Process A (Math Only)',
-    b: 'Process B (Narratives)',
-    full: 'Full Pipeline (A + B)',
-  }
-
   const isRunning = currentTask?.status === 'running' || currentTask?.status === 'queued'
 
   return (
