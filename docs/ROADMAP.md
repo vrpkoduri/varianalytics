@@ -42,6 +42,7 @@
 | 3C | Cascade regeneration (auto on edit, debounced, topological) | 1,072 |
 | 3D | Admin Engine Control panel + background task queue | 1,089 |
 | 3E | AI Agent branding + provider selector + Redis cache + hot-reload | 1,101 |
+| 3F | Quick intelligence: materiality, risk, projection, persistence | 1,127 |
 
 ---
 
