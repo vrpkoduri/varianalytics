@@ -23,7 +23,7 @@ export function ChatHeader({ persona, viewType, comparisonBase, hasMessages, onS
 
   return (
     <div className="text-center p-5">
-      <h2 className="font-display text-[22px] font-bold text-tx-primary">
+      <h2 className="font-body text-[22px] font-bold text-tx-primary">
         Marsh Vantage
       </h2>
       <p className="text-[10px] text-tx-tertiary mt-1">

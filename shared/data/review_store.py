@@ -82,6 +82,8 @@ class ReviewStore:
         page: int = 1,
         page_size: int = 50,
         fiscal_year: Optional[int] = None,
+        allowed_statuses: Optional[list[str]] = None,
+        bu_scope: Optional[list[str]] = None,
     ) -> dict[str, Any]:
         """Get the analyst review queue.
 
@@ -91,6 +93,8 @@ class ReviewStore:
             page: Page number (1-indexed)
             page_size: Items per page
             fiscal_year: Filter to specific fiscal year (e.g. 2026)
+            allowed_statuses: RBAC-derived list of statuses this persona may see.
+            bu_scope: RBAC-derived list of BU IDs this user may access (["ALL"] = no restriction).
 
         Returns:
             Dict with items, total, page, page_size.
@@ -112,11 +116,19 @@ class ReviewStore:
             suffixes=("", "_vm"),
         )
 
+        # RBAC: filter by allowed statuses (persona-driven)
+        if allowed_statuses:
+            merged = merged[merged["status"].isin(allowed_statuses)]
+
+        # RBAC: filter by BU scope (persona-driven)
+        if bu_scope and "ALL" not in bu_scope and "bu_id" in merged.columns:
+            merged = merged[merged["bu_id"].isin(bu_scope)]
+
         # Apply fiscal year filter
         if fiscal_year and "period_id" in merged.columns:
             merged = merged[merged["period_id"].str.startswith(str(fiscal_year))]
 
-        # Apply status filter
+        # Apply additional status filter (narrows within RBAC-allowed statuses)
         if status_filter:
             merged = merged[merged["status"] == status_filter]
 
@@ -323,9 +335,31 @@ class ReviewStore:
             "version": new_vc,
         }
 
-    def get_review_stats(self) -> dict[str, Any]:
-        """Get aggregate review queue statistics."""
-        rs = self._review_status
+    def get_review_stats(
+        self,
+        allowed_statuses: Optional[list[str]] = None,
+        bu_scope: Optional[list[str]] = None,
+    ) -> dict[str, Any]:
+        """Get aggregate review queue statistics.
+
+        Args:
+            allowed_statuses: RBAC-derived list of statuses this persona may see.
+            bu_scope: RBAC-derived list of BU IDs this user may access.
+        """
+        rs = self._review_status.copy()
+
+        # RBAC: filter by allowed statuses
+        if allowed_statuses:
+            rs = rs[rs["status"].isin(allowed_statuses)]
+
+        # RBAC: filter by BU scope
+        if bu_scope and "ALL" not in bu_scope:
+            # Need to join with variance_material for bu_id
+            vm = self._variance_material
+            if "bu_id" in vm.columns:
+                bu_vids = vm[vm["bu_id"].isin(bu_scope)]["variance_id"].unique()
+                rs = rs[rs["variance_id"].isin(bu_vids)]
+
         status_counts = rs["status"].value_counts().to_dict()
 
         return {
@@ -339,19 +373,31 @@ class ReviewStore:
         }
 
     def get_approval_queue(
-        self, page: int = 1, page_size: int = 50,
+        self,
+        page: int = 1,
+        page_size: int = 50,
+        allowed_statuses: Optional[list[str]] = None,
+        bu_scope: Optional[list[str]] = None,
     ) -> dict[str, Any]:
-        """Get the director approval queue (ANALYST_REVIEWED only).
+        """Get the director approval queue.
+
+        Args:
+            page: Page number (1-indexed).
+            page_size: Items per page.
+            allowed_statuses: RBAC-derived list of statuses (defaults to ANALYST_REVIEWED).
+            bu_scope: RBAC-derived list of BU IDs this user may access.
 
         Returns:
             Dict with items, total, page, page_size.
         """
+        # Default to ANALYST_REVIEWED for backward compatibility
+        target_statuses = allowed_statuses or ["ANALYST_REVIEWED"]
         rs = self._review_status[
-            self._review_status["status"] == "ANALYST_REVIEWED"
+            self._review_status["status"].isin(target_statuses)
         ].copy()
         vm = self._variance_material
 
-        desired_cols = ["variance_id", "account_id", "period_id",
+        desired_cols = ["variance_id", "account_id", "period_id", "bu_id",
                         "variance_amount", "variance_pct",
                         "narrative_oneliner", "narrative_detail", "narrative_source"]
         available_cols = [c for c in desired_cols if c in vm.columns]
@@ -360,6 +406,10 @@ class ReviewStore:
             on="variance_id",
             how="left",
         )
+
+        # RBAC: filter by BU scope
+        if bu_scope and "ALL" not in bu_scope and "bu_id" in merged.columns:
+            merged = merged[merged["bu_id"].isin(bu_scope)]
 
         total = len(merged)
         start = (page - 1) * page_size

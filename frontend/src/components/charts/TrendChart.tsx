@@ -32,12 +32,12 @@ export function TrendChart({ data, height = 210 }: TrendChartProps) {
           </defs>
           <XAxis
             dataKey="month"
-            tick={{ fontSize: 8, fontFamily: 'DM Sans', fill: 'var(--tx-tertiary)' }}
+            tick={{ fontSize: 8, fontFamily: 'Inter', fill: 'var(--tx-tertiary)' }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 8, fontFamily: 'DM Sans', fill: 'var(--tx-tertiary)' }}
+            tick={{ fontSize: 8, fontFamily: 'Inter', fill: 'var(--tx-tertiary)' }}
             tickFormatter={formatDollar}
             axisLine={false}
             tickLine={false}

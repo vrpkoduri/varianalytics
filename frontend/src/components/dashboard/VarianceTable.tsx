@@ -231,7 +231,7 @@ export function VarianceTable({ variances, totalCount, searchQuery, onSearchChan
                     <td className="py-2 px-2 text-center">
                       <Badge variant={sConf.variant}>{sConf.label}</Badge>
                     </td>
-                    <td className="py-2 px-2 text-[10px] text-tx-secondary leading-snug max-w-[360px] truncate" title={(v as any).narrativeDetail || v.narrative}>
+                    <td className="py-2 px-2 text-[10px] text-tx-secondary leading-snug min-w-[200px] max-w-[400px] truncate" title={(v as any).narrativeDetail || v.narrative}>
                       {v.narrative}
                     </td>
                   </tr>
@@ -242,7 +242,7 @@ export function VarianceTable({ variances, totalCount, searchQuery, onSearchChan
                           {(v as any).narrativeDetail || v.narrative || 'No narrative available'}
                         </div>
                         {(v as any).narrativeSource === 'llm' && (
-                          <span className="text-[7px] text-teal-400/60 ml-4 mb-1 inline-block">AI Agent Generated</span>
+                          <span className="text-[7px] text-teal/60 ml-4 mb-1 inline-block">AI Agent Generated</span>
                         )}
                         <button
                           className="text-[8px] font-semibold px-3 py-1 rounded-md ml-4"

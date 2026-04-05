@@ -95,10 +95,10 @@ export default function IdentityBar() {
         </svg>
         <div className="flex flex-col">
           <div className="flex items-baseline">
-            <span className="font-display text-[18px] font-bold text-white tracking-[0.3px]">
+            <span className="font-body text-[18px] font-bold text-white tracking-[0.3px]">
               Marsh
             </span>
-            <span className="font-display text-[18px] font-normal text-white/85 tracking-[0.2px] ml-1">
+            <span className="font-body text-[18px] font-normal text-white/85 tracking-[0.2px] ml-1">
               Vantage
             </span>
           </div>

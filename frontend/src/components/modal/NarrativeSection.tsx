@@ -49,7 +49,7 @@ export function NarrativeSection({ data }: NarrativeSectionProps) {
     <div>
       <span className="section-label">NARRATIVE</span>
 
-      <div className="mt-1.5">
+      <div className="mt-1.5 min-h-[200px]">
         {/* Level badge */}
         <div className="flex items-center gap-1.5 mb-1.5">
           <Badge variant="teal">{level}</Badge>

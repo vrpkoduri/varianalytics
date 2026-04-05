@@ -12,8 +12,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from shared.auth.middleware import UserContext, require_role
+from shared.auth.rbac import RBACService
 
 logger = logging.getLogger(__name__)
+
+_rbac = RBACService()
 
 router = APIRouter(prefix="/approval", tags=["approval"])
 
@@ -83,9 +86,15 @@ async def get_approval_queue(
     page_size: int = Query(50, ge=1, le=500),
     user: UserContext = Depends(require_role("director", "cfo", "admin")),
 ) -> ApprovalQueueResponse:
-    """Return items pending director approval (status = ANALYST_REVIEWED)."""
+    """Return items pending director approval, filtered by persona RBAC."""
     store = request.app.state.review_store
-    result = store.get_approval_queue(page=page, page_size=page_size)
+    allowed_statuses = _rbac.get_allowed_statuses(user.persona)
+    result = store.get_approval_queue(
+        page=page,
+        page_size=page_size,
+        allowed_statuses=allowed_statuses,
+        bu_scope=user.bu_scope,
+    )
     return ApprovalQueueResponse(
         items=[ApprovalQueueItem(**item) for item in result["items"]],
         total=result["total"],

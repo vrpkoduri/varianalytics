@@ -19,7 +19,7 @@ export function Breadcrumb({ title, subtitle, filters }: BreadcrumbProps) {
           <span key={i} className="flex items-center gap-1">
             {i > 0 && <span className="text-[10px] text-tx-tertiary">&rsaquo;</span>}
             <em className={cn(
-              'font-display not-italic',
+              'font-body not-italic',
               i === 0 ? 'text-page-title' : 'text-[14px] text-teal'
             )}>
               {segment}

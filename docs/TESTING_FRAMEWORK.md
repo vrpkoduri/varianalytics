@@ -1,6 +1,6 @@
 # Testing Framework — Marsh Vantage
 
-**Version:** 2.0 | **Last Updated:** 2026-04-04 | **Total Tests:** 1,067
+**Version:** 2.1 | **Last Updated:** 2026-04-05 | **Total Tests:** 1,109
 
 ---
 
@@ -20,7 +20,9 @@ tests/
 │   ├── shared/
 │   │   ├── test_hierarchy.py        # Tree traversal, rollup paths, leaf nodes
 │   │   ├── test_models.py           # Pydantic schema validation
-│   │   └── test_formatting.py       # Currency, percentage, variance formatters
+│   │   ├── test_formatting.py       # Currency, percentage, variance formatters
+│   │   ├── test_review_store_rbac.py # ReviewStore RBAC filtering (8 tests)
+│   │   └── test_account_names.py    # Account name formatting + period has_data (6 tests)
 │   ├── computation/
 │   │   ├── test_pass1_variance.py   # Raw variance calculation
 │   │   ├── test_pass15_netting.py   # Netting detection checks
@@ -307,6 +309,7 @@ PYTHONPATH=. pytest tests/integration/test_cross_service.py -v --tb=short
 | RBAC | `tests/unit/shared/test_rbac.py` | 23 | Persona mapping, BU scope, variance filtering |
 | UserStore | `tests/unit/shared/test_user_store.py` | 23 | User CRUD, role assign/remove, password verify |
 | Auth Endpoints | `tests/unit/gateway/test_auth_endpoints.py` | 12 | Login/logout/refresh/register/me |
+| RBAC Filtering | `tests/unit/gateway/test_rbac_filtering.py` | 12 | Persona-based status/BU filtering on review+approval endpoints |
 | Admin API | `tests/unit/gateway/test_admin_api.py` | 10 | User/role CRUD, audit log, admin-only access |
 | Auth Middleware | `tests/integration/test_auth_middleware.py` | 18 | JWT validation, role checks, dev fallback |
 | RBAC Enforcement | `tests/integration/test_rbac_enforcement.py` | 21 | Endpoint protection per role |
@@ -370,6 +373,9 @@ PYTHONPATH=. pytest tests/unit/computation/test_edge_cases.py tests/unit/shared/
 # Performance benchmarks
 PYTHONPATH=. pytest tests/performance/ -v
 
+# Frontend Vitest tests (hooks, components)
+cd frontend && npx vitest run
+
 # Playwright browser E2E (requires Docker stack on port 80)
 PYTHONPATH=. pytest tests/e2e/browser/ -v
 
@@ -387,12 +393,13 @@ PYTHONPATH=. pytest tests/ -q
 
 | Category | Tests |
 |----------|-------|
-| Unit (shared, computation, gateway, reports) | ~540 |
+| Unit (shared, computation, gateway, reports) | ~566 |
 | Integration (cross-service, pipeline, auth, RBAC, LLM, RAG, Postgres) | ~240 |
 | Performance (engine, API, DB) | 18 |
 | E2E — API-level (filters, persona scenarios) | ~76 |
-| E2E — Browser (Playwright auth, dashboard, review, chat, admin) | 21 |
-| **TOTAL (Sprint 6)** | **~947** |
+| E2E — Browser (Playwright auth, dashboard, review, chat, admin, SPA routing) | 29 |
+| Frontend — Vitest (hooks, components) | 8 |
+| **TOTAL** | **~989** |
 
 ---
 

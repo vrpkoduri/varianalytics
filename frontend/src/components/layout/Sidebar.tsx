@@ -111,7 +111,7 @@ export default function Sidebar({ isOpen }: SidebarProps) {
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[11px] font-bold font-display">Dimensions</span>
+        <span className="text-[11px] font-bold font-body">Dimensions</span>
       </div>
 
       {/* Donut progress */}

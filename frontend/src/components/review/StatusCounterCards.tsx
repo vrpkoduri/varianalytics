@@ -34,7 +34,7 @@ export function StatusCounterCards({ counts, activeFilter, onFilterChange }: Sta
             activeFilter === key && 'border-teal ring-1 ring-teal/20',
           )}
         >
-          <div className={cn('font-display text-[26px] font-bold', color)}>
+          <div className={cn('font-body text-[26px] font-bold', color)}>
             {counts[key as keyof Counts]}
           </div>
           <div className="text-[9px] text-tx-tertiary uppercase tracking-[0.5px] mt-0.5">

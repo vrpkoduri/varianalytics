@@ -32,8 +32,8 @@ const config: Config = {
         'glass-border': 'var(--glass-border)',
       },
       fontFamily: {
-        body: ['"DM Sans"', 'sans-serif'],
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        body: ['"Inter"', 'sans-serif'],
+        display: ['"Inter"', 'sans-serif'],
       },
       fontSize: {
         'page-title': ['22px', { lineHeight: '1.3', fontWeight: '700' }],

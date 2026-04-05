@@ -81,7 +81,7 @@ export default function LoginView() {
 
         {/* Logo / Branding */}
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-display font-bold text-text mb-1">
+          <h1 className="text-2xl font-body font-bold text-text mb-1">
             Marsh Vantage
           </h1>
           <p className="text-sm text-text-secondary">
@@ -151,7 +151,7 @@ export default function LoginView() {
             disabled={isLoading}
             className="w-full py-2.5 rounded-lg font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
             style={{
-              background: 'linear-gradient(135deg, var(--cobalt), var(--accent))',
+              background: 'linear-gradient(135deg, #002C77, #00A8C7)',
             }}
           >
             {isLoading ? 'Signing in...' : isRegistering ? 'Create Account' : 'Sign In'}

@@ -25,7 +25,7 @@ export function TemplateCard({ template, onGenerate }: TemplateCardProps) {
           Generate
         </button>
         <button
-          className="px-2.5 py-1 rounded-button text-[8px] font-semibold border border-[rgba(255,255,255,.08)] text-tx-tertiary opacity-50 cursor-not-allowed"
+          className="px-2.5 py-1 rounded-button text-[8px] font-semibold border border-border/50 text-tx-tertiary opacity-50 cursor-not-allowed"
           disabled
         >
           Customize

@@ -123,7 +123,7 @@ export function AdminModelRoutingTab() {
                   type="number"
                   value={route.maxTokens}
                   onChange={(e) => updateRoute(idx, 'maxTokens', parseInt(e.target.value) || 0)}
-                  className="w-full px-2 py-1 rounded bg-surface border border-border text-text text-[11px] font-display focus:outline-none focus:ring-1 focus:ring-accent/50"
+                  className="w-full px-2 py-1 rounded bg-surface border border-border text-text text-[11px] font-body focus:outline-none focus:ring-1 focus:ring-accent/50"
                 />
               </div>
               <div>
@@ -135,7 +135,7 @@ export function AdminModelRoutingTab() {
                   max="2"
                   value={route.temperature}
                   onChange={(e) => updateRoute(idx, 'temperature', parseFloat(e.target.value) || 0)}
-                  className="w-full px-2 py-1 rounded bg-surface border border-border text-text text-[11px] font-display focus:outline-none focus:ring-1 focus:ring-accent/50"
+                  className="w-full px-2 py-1 rounded bg-surface border border-border text-text text-[11px] font-body focus:outline-none focus:ring-1 focus:ring-accent/50"
                 />
               </div>
             </div>

@@ -54,7 +54,7 @@ export function PLDetailRow({ row, onOpenModal, isEven }: PLDetailRowProps) {
         )}
         {row.name}
       </span>
-      <span className="text-[10px] text-right font-display">
+      <span className="text-[10px] text-right font-body">
         {formatCurrency(row.actual)}
       </span>
       <span className="text-[10px] text-right text-tx-secondary">

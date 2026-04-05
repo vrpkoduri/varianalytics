@@ -7,18 +7,18 @@ import {
 import { fireConfetti } from '../components/common/ConfettiContainer'
 import { api } from '../utils/api'
 import { transformApprovalItems } from '../utils/transformers'
-import { personas } from '../theme/tokens'
 
 export function useApprovalQueue(persona?: string) {
   const [items, setItems] = useState<ApprovalVariance[]>([])
   const [usingMock, setUsingMock] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Fetch from API, fallback to mock
+  // Fetch from API, fallback to mock — re-fetch when persona changes
   useEffect(() => {
     setLoading(true)
+    const personaParam = persona ? `&persona=${encodeURIComponent(persona)}` : ''
     api.gateway
-      .get('/approval/queue?page_size=50')
+      .get(`/approval/queue?page_size=50${personaParam}`)
       .then((data: any) => {
         const queueItems = data.items || data
         if (Array.isArray(queueItems)) {
@@ -35,7 +35,7 @@ export function useApprovalQueue(persona?: string) {
         setUsingMock(true)
         setLoading(false)
       })
-  }, [])
+  }, [persona])
 
   const pendingCount = useMemo(
     () => items.filter((i) => i.status !== 'approved').length,
@@ -43,13 +43,9 @@ export function useApprovalQueue(persona?: string) {
   )
 
   const analystGroups = useMemo((): AnalystGroupData[] => {
-    let filtered = items
-    if (persona === 'bu') {
-      const homeBU = (personas as any)?.[persona]?.homeBU ?? 'Marsh'
-      filtered = items.filter(i => i.bu.toLowerCase().includes(homeBU.toLowerCase()))
-    }
+    // NOTE: BU scope and persona-based filtering is now server-side (RBAC).
     const groups: Record<string, ApprovalVariance[]> = {}
-    filtered.forEach((item) => {
+    items.forEach((item) => {
       const analyst = item.assignedAnalyst
       ;(groups[analyst] ??= []).push(item)
     })

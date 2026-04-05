@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { MOCK_REVIEW_DATA, type ReviewVariance } from '@/mocks/reviewData'
 import { api } from '@/utils/api'
 import { transformReviewItems } from '@/utils/transformers'
-import { personas } from '@/theme/tokens'
 
 export function useReviewQueue(persona: string) {
   const [items, setItems] = useState<ReviewVariance[]>([])
@@ -14,11 +13,11 @@ export function useReviewQueue(persona: string) {
   const [usingMock, setUsingMock] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // Fetch from API, fallback to mock
+  // Fetch from API, fallback to mock — re-fetch when persona changes
   useEffect(() => {
     setLoading(true)
     api.gateway
-      .get('/review/queue?page_size=50')
+      .get(`/review/queue?page_size=50&persona=${encodeURIComponent(persona)}`)
       .then((data: any) => {
         const queueItems = data.items || data
         if (Array.isArray(queueItems) && queueItems.length > 0) {
@@ -35,7 +34,7 @@ export function useReviewQueue(persona: string) {
         setUsingMock(true)
         setLoading(false)
       })
-  }, [])
+  }, [persona])
 
   const counts = useMemo(
     () => ({
@@ -50,11 +49,8 @@ export function useReviewQueue(persona: string) {
   const filteredItems = useMemo(() => {
     let result = [...items]
 
-    // Persona filter: BU Leader sees own BU only
-    if (persona === 'bu') {
-      const homeBU = (personas as any)[persona]?.homeBU ?? 'Marsh'
-      result = result.filter((i) => i.bu === homeBU)
-    }
+    // NOTE: BU scope and persona-based status filtering is now server-side (RBAC).
+    // No client-side persona filtering needed.
 
     // Status filter
     if (statusFilter === 'awaiting')

@@ -39,7 +39,7 @@ export function PeriodTrend({ data }: PeriodTrendProps) {
               <div
                 className="text-[12px] font-bold"
                 style={{
-                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontFamily: "'Inter', sans-serif",
                   color: isLast ? '#00A8C7' : 'var(--tx-primary)',
                 }}
               >

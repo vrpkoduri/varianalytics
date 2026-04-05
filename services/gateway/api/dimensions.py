@@ -62,6 +62,7 @@ class Period(BaseModel):
     fiscal_quarter: int
     fiscal_month: int
     is_closed: bool
+    has_data: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +165,7 @@ async def list_periods(
             fiscal_quarter=int(p.get("fiscal_quarter", 0)),
             fiscal_month=int(p.get("fiscal_month", 0)),
             is_closed=bool(p.get("is_closed", False)),
+            has_data=bool(p.get("has_data", False)),
         )
         for p in periods
     ]

@@ -51,7 +51,7 @@ export function PLParentRow({ row, isExpanded, onToggle, isEven }: PLParentRowPr
         </span>
         {row.name}
       </span>
-      <span className="text-[10px] text-right font-display font-semibold">
+      <span className="text-[10px] text-right font-body font-semibold">
         {formatCurrency(row.actual)}
       </span>
       <span className="text-[10px] text-right text-tx-secondary">

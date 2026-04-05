@@ -25,6 +25,18 @@ export function Heatmap({ data, activeFilter, onCellClick, persona }: HeatmapPro
     ? data.rows.filter((r) => r.bu === 'Marsh')
     : data.rows
 
+  // Empty state
+  if (!data.rows || data.rows.length === 0 || !data.columns || data.columns.length === 0) {
+    return (
+      <div className="glass-card p-4 animate-fade-up d3">
+        <div className="section-label mb-3">VARIANCE HEATMAP</div>
+        <div className="flex items-center justify-center text-tx-tertiary text-body-md h-[120px]">
+          No data for this period
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="glass-card p-4 animate-fade-up d3">
       <div className="flex items-center justify-between mb-3">

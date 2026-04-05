@@ -27,7 +27,7 @@ function MiniGauge({ label, value, color }: { label: string; value: number; colo
           className="transition-all duration-1000"
         />
         <text x="40" y="40" textAnchor="middle" dominantBaseline="central"
-          className="text-[14px] font-display font-bold" fill="white">
+          className="text-[14px] font-body font-bold" fill="white">
           {value.toFixed(1)}%
         </text>
       </svg>

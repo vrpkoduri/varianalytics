@@ -92,7 +92,7 @@ export function ReviewItemCollapsed({ item, isChecked, isExpanded, onCheck, onTo
       {/* Variance amount */}
       <div
         className={cn(
-          'font-display text-[17px] font-bold shrink-0',
+          'font-body text-[17px] font-bold shrink-0',
           item.favorable ? 'text-emerald' : 'text-coral',
         )}
       >

@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "frontend",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "export PATH=/opt/homebrew/bin:$PATH && npm run dev -- --host 0.0.0.0 --port $PORT"],
       "port": 3000,
+      "autoPort": true,
       "cwd": "frontend"
     },
     {

@@ -61,7 +61,7 @@ export function AdminThresholdsTab() {
           step="0.1"
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="w-full px-2 py-1.5 rounded-md bg-surface border border-border text-text text-[12px] font-display focus:outline-none focus:ring-1 focus:ring-accent/50"
+          className="w-full px-2 py-1.5 rounded-md bg-surface border border-border text-text text-[12px] font-body focus:outline-none focus:ring-1 focus:ring-accent/50"
         />
         {suffix && <span className="text-[10px] text-text-secondary">{suffix}</span>}
       </div>

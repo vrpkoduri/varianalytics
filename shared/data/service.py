@@ -980,12 +980,27 @@ class DataService:
     # ------------------------------------------------------------------
 
     def get_periods(self) -> list[dict[str, Any]]:
-        """Return list of period dicts."""
+        """Return list of period dicts with has_data flag.
+
+        The has_data flag indicates whether fact_variance_material
+        contains rows for that period, allowing the frontend to default
+        to the latest period that actually has computed data.
+        """
         logger.info("get_periods()")
         periods = self._table("dim_period")
         if periods.empty:
             return []
-        return periods.sort_values("period_id").to_dict(orient="records")
+
+        # Determine which periods have variance data
+        vm = self._tables.get("fact_variance_material", pd.DataFrame())
+        periods_with_data: set[str] = set()
+        if not vm.empty and "period_id" in vm.columns:
+            periods_with_data = set(vm["period_id"].dropna().unique())
+
+        records = periods.sort_values("period_id").to_dict(orient="records")
+        for rec in records:
+            rec["has_data"] = rec.get("period_id", "") in periods_with_data
+        return records
 
     # ------------------------------------------------------------------
     # 13. Netting Alerts
@@ -1068,7 +1083,9 @@ class DataService:
 
         alerts: list[dict] = []
         for _, row in filtered.head(limit).iterrows():
-            acct = str(row.get("account_id", "Unknown")).replace("acct_", "").replace("_", " ").title()
+            acct_id = str(row.get("account_id", "Unknown"))
+            acct_meta = self._account_lookup.get(acct_id, {})
+            acct = acct_meta.get("account_name") or acct_id.replace("acct_", "").replace("_", " ").title()
             periods = int(row.get("consecutive_periods", 0))
             direction = row.get("direction", "increasing")
             cum_amount = row.get("cumulative_amount", 0)

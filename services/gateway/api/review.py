@@ -11,8 +11,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from shared.auth.middleware import UserContext, require_role
+from shared.auth.rbac import RBACService
 
 logger = logging.getLogger(__name__)
+
+_rbac = RBACService()
 
 router = APIRouter(prefix="/review", tags=["review"])
 
@@ -96,16 +99,19 @@ async def get_review_queue(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
     fiscal_year: Optional[int] = Query(None, description="Filter by fiscal year (e.g. 2026)"),
-    user: UserContext = Depends(require_role("analyst", "admin")),
+    user: UserContext = Depends(require_role("analyst", "bu_leader", "director", "cfo", "admin")),
 ) -> ReviewQueueResponse:
-    """Return the analyst review queue with optional status filter and sorting."""
+    """Return the review queue filtered by persona RBAC rules."""
     store = request.app.state.review_store
+    allowed_statuses = _rbac.get_allowed_statuses(user.persona)
     result = store.get_review_queue(
         status_filter=status_filter,
         sort_by=sort_by,
         page=page,
         page_size=page_size,
         fiscal_year=fiscal_year,
+        allowed_statuses=allowed_statuses,
+        bu_scope=user.bu_scope,
     )
     return ReviewQueueResponse(
         items=[ReviewQueueItem(**item) for item in result["items"]],
@@ -169,11 +175,15 @@ async def submit_review_action(
 )
 async def get_review_stats(
     request: Request,
-    user: UserContext = Depends(require_role("analyst", "admin")),
+    user: UserContext = Depends(require_role("analyst", "bu_leader", "director", "cfo", "admin")),
 ) -> ReviewStats:
-    """Return aggregate counts and SLA metrics for the review queue."""
+    """Return aggregate counts and SLA metrics for the review queue, filtered by persona."""
     store = request.app.state.review_store
-    stats = store.get_review_stats()
+    allowed_statuses = _rbac.get_allowed_statuses(user.persona)
+    stats = store.get_review_stats(
+        allowed_statuses=allowed_statuses,
+        bu_scope=user.bu_scope,
+    )
     return ReviewStats(**stats)
 
 

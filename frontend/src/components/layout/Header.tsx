@@ -43,8 +43,8 @@ export default function Header() {
         <button
           className={cn(
             'flex h-9 w-9 items-center justify-center rounded-full',
-            'bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-300',
-            'transition-colors hover:bg-brand-200 dark:hover:bg-brand-800',
+            'bg-teal/10 text-teal',
+            'transition-colors hover:bg-teal/20',
           )}
           aria-label="User menu"
         >

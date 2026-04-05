@@ -30,7 +30,7 @@ export default function UnauthorizedView() {
         />
 
         <div className="text-4xl mb-4">&#128274;</div>
-        <h1 className="text-xl font-display font-bold text-text mb-2">
+        <h1 className="text-xl font-body font-bold text-text mb-2">
           Access Denied
         </h1>
         <p className="text-text-secondary text-sm mb-6">

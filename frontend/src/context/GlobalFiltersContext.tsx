@@ -72,11 +72,13 @@ export function GlobalFiltersProvider({ children }: { children: ReactNode }) {
     import('@/utils/api').then(({ api }) => {
       api.gateway.get<any[]>('/dimensions/periods').then((data) => {
         if (data && data.length > 0) {
-          // Sort by periodId descending, pick latest
+          // Sort by periodId descending, pick latest with data
           const sorted = [...data].sort((a, b) =>
             (b.periodId || b.period_id || '').localeCompare(a.periodId || a.period_id || '')
           );
-          const latest = sorted[0];
+          // Prefer the latest period that has actual computed data
+          const withData = sorted.filter((p) => p.has_data || p.hasData);
+          const latest = withData.length > 0 ? withData[0] : sorted[0];
           const pid = latest.periodId || latest.period_id || '';
           const [yearStr, monthStr] = pid.split('-');
           const MONTHS = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

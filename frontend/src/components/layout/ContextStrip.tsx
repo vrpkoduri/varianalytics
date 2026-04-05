@@ -135,7 +135,7 @@ export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
               <option value="">Loading...</option>
             )}
             {periods.map((p) => (
-              <option key={p.periodId} value={p.periodId} className="bg-[#0a0e23] text-white">
+              <option key={p.periodId} value={p.periodId} className="bg-card text-tx-primary">
                 {p.label}
               </option>
             ))}

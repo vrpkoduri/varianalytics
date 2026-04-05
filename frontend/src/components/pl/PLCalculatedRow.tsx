@@ -35,7 +35,7 @@ export function PLCalculatedRow({ row }: PLCalculatedRowProps) {
       <span
         className={
           isMajor
-            ? 'font-display font-bold text-[11px] text-teal'
+            ? 'font-body font-bold text-[11px] text-teal'
             : 'text-[11px] font-semibold'
         }
         style={{ paddingLeft: '12px' }}
@@ -45,8 +45,8 @@ export function PLCalculatedRow({ row }: PLCalculatedRowProps) {
       <span
         className={
           isMajor
-            ? 'text-right font-display font-bold text-teal text-[11px]'
-            : 'text-[10px] text-right font-display font-semibold'
+            ? 'text-right font-body font-bold text-teal text-[11px]'
+            : 'text-[10px] text-right font-body font-semibold'
         }
       >
         {formatCurrency(row.actual)}

@@ -48,7 +48,7 @@ export function ModalHeader({ data, onClose }: ModalHeaderProps) {
           {/* Account name */}
           <h2
             className="text-[14px] font-bold text-tx-primary truncate"
-            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+            style={{ fontFamily: "'Inter', sans-serif" }}
           >
             {data.account}
           </h2>

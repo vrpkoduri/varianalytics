@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useGlobalFilters } from '@/context/GlobalFiltersContext'
+import { useUser } from '@/context/UserContext'
 import { api, buildParams } from '@/utils/api'
 import {
   transformSummaryCards,
@@ -17,6 +18,7 @@ import {
 
 export function useDashboard() {
   const { filters } = useGlobalFilters()
+  const { persona } = useUser()
   const { viewType, comparisonBase, businessUnit } = filters
   const period = filters.period ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}` : '2026-06'
 
@@ -61,8 +63,8 @@ export function useDashboard() {
         setWaterfall({ steps: transformWaterfallSteps(w?.steps || []) })
         setHeatmap(transformHeatmap(h))
         setTrends({ data: transformTrendData(t?.data || []) })
-        setNettingAlerts(na?.alerts)
-        setTrendAlerts(ta?.alerts)
+        setNettingAlerts(na?.alerts?.length > 0 ? na.alerts : undefined)
+        setTrendAlerts(ta?.alerts?.length > 0 ? ta.alerts : undefined)
         setUsingMock(false)
         setLoading(false)
       })
@@ -77,7 +79,7 @@ export function useDashboard() {
         setUsingMock(true)
         setLoading(false)
       })
-  }, [viewType, comparisonBase, period, businessUnit])
+  }, [viewType, comparisonBase, period, businessUnit, persona])
 
   return { summary, waterfall, heatmap, trends, nettingAlerts, trendAlerts, loading, error, usingMock }
 }

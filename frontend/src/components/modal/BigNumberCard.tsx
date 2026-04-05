@@ -22,7 +22,7 @@ export function BigNumberCard({ data }: BigNumberCardProps) {
         <span
           className={`text-[30px] font-bold ${colorClass}`}
           style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
+            fontFamily: "'Inter', sans-serif",
             textShadow: `0 0 20px ${glowColor}`,
           }}
         >

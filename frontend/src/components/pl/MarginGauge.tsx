@@ -39,7 +39,7 @@ export function MarginGauge({ label, value, delta, color }: MarginGaugeProps) {
           />
         </svg>
         <div
-          className="absolute inset-0 flex items-center justify-center font-display text-[10px] font-bold"
+          className="absolute inset-0 flex items-center justify-center font-body text-[10px] font-bold"
           style={{ color }}
         >
           {value.toFixed(1)}%

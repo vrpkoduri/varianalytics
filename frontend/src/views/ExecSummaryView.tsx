@@ -63,7 +63,7 @@ export default function ExecSummaryView() {
       {/* Headline */}
       <div className="glass-card p-5 border-l-2 border-l-teal animate-fade-up d1">
         <span className="section-label">THE HEADLINE</span>
-        <p className="text-[15px] font-display font-semibold text-text mt-2 leading-relaxed">
+        <p className="text-[15px] font-body font-semibold text-text mt-2 leading-relaxed">
           {execSummary?.headline || 'Executive summary not available for this period.'}
         </p>
         {execSummary?.crossBuThemes && execSummary.crossBuThemes.length > 0 && (
@@ -89,7 +89,7 @@ export default function ExecSummaryView() {
           return (
             <div key={i} className="glass-card p-3 text-center">
               <div className="text-[8px] text-text-secondary uppercase tracking-wider mb-1">{name}</div>
-              <div className="text-[20px] font-display font-bold text-text">
+              <div className="text-[20px] font-body font-bold text-text">
                 ${(actual / 1000).toFixed(0)}K
               </div>
               <div className={`text-[11px] font-semibold ${isFav ? 'text-emerald' : 'text-coral'}`}>

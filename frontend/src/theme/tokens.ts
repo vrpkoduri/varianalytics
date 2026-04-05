@@ -46,8 +46,8 @@ export const colors = {
 
 export const typography = {
   fontFamily: {
-    body: "'DM Sans', sans-serif",
-    display: "'Playfair Display', Georgia, serif",
+    body: "'Inter', sans-serif",
+    display: "'Inter', sans-serif",
   },
   fontSize: {
     pageTitle: '22px',

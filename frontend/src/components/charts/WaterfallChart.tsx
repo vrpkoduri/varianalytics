@@ -25,6 +25,18 @@ function formatDollar(val: number) {
 }
 
 export function WaterfallChart({ data, height = 210 }: WaterfallChartProps) {
+  // Empty state
+  if (!data || data.length === 0) {
+    return (
+      <div>
+        <div className="section-label mb-2">EBITDA BRIDGE</div>
+        <div className="flex items-center justify-center text-tx-tertiary text-body-md" style={{ height }}>
+          No data for this period
+        </div>
+      </div>
+    )
+  }
+
   // Transform data for stacked bar approach: invisible base + visible segment
   const chartData = data.map((step) => {
     if (step.type === 'total') {
@@ -44,12 +56,12 @@ export function WaterfallChart({ data, height = 210 }: WaterfallChartProps) {
         <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <XAxis
             dataKey="name"
-            tick={{ fontSize: 7, fontFamily: 'DM Sans', fill: 'var(--tx-tertiary)' }}
+            tick={{ fontSize: 7, fontFamily: 'Inter', fill: 'var(--tx-tertiary)' }}
             axisLine={false}
             tickLine={false}
           />
           <YAxis
-            tick={{ fontSize: 8, fontFamily: 'DM Sans', fill: 'var(--tx-tertiary)' }}
+            tick={{ fontSize: 8, fontFamily: 'Inter', fill: 'var(--tx-tertiary)' }}
             tickFormatter={formatDollar}
             axisLine={false}
             tickLine={false}

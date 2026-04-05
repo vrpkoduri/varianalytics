@@ -9,7 +9,7 @@ export function ReportToolbar({ title, onClose }: ReportToolbarProps) {
   return (
     <div className="sticky top-0 h-12 bg-cobalt flex items-center justify-between px-6 z-10 shrink-0">
       <div className="flex items-center gap-3">
-        <span className="font-display text-[14px] font-bold text-white">{title}</span>
+        <span className="font-body text-[14px] font-bold text-white">{title}</span>
         <Badge variant="teal">MTD vs Budget</Badge>
       </div>
       <div className="flex items-center gap-2">

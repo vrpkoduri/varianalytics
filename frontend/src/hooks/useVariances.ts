@@ -31,9 +31,16 @@ export function useVariances(filters?: { plCategory?: string; buId?: string }) {
       .get(`/variances/${params}`)
       .then((data: any) => {
         const rawItems = data.variances || data.items || []
-        setVariances(transformVariances(rawItems))
-        setTotal(data.total || data.totalCount || rawItems.length)
-        setUsingMock(false)
+        if (rawItems.length > 0) {
+          setVariances(transformVariances(rawItems))
+          setTotal(data.total || data.totalCount || rawItems.length)
+          setUsingMock(false)
+        } else {
+          // Empty API response — fall back to mock data
+          setVariances(MOCK_VARIANCES)
+          setTotal(MOCK_VARIANCES.length)
+          setUsingMock(true)
+        }
         setLoading(false)
       })
       .catch(() => {
