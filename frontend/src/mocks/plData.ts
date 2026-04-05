@@ -14,6 +14,9 @@ export interface PLRowData {
   status?: 'approved' | 'reviewed' | 'draft'
   type?: 'material' | 'trending' | 'netted'
   varianceId?: string
+  narrativeDetail?: string
+  narrativeOneliner?: string
+  narrativeSource?: string
 }
 
 export interface MarginData {
