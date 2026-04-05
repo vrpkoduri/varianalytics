@@ -51,7 +51,7 @@ export function AdminAuditLogTab() {
   useEffect(() => { fetchLogs() }, [fetchLogs])
 
   const EVENT_TYPES = [
-    '', 'auth', 'review_action', 'engine_run', 'llm_call',
+    '', 'auth', 'review_action', 'engine_run', 'ai_agent_call',
     'config_change', 'data_access', 'role_assignment',
   ]
 

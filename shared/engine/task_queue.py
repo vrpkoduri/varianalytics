@@ -88,9 +88,13 @@ class EngineTaskQueue:
         self,
         data_dir: str = "data/output",
         max_concurrent: int = 1,
+        data_service: Any = None,
+        cache_client: Any = None,
     ) -> None:
         self._data_dir = data_dir
         self._max_concurrent = max_concurrent
+        self._data_service = data_service
+        self._cache = cache_client
         self._tasks: dict[str, EngineTask] = {}
         self._task_order: list[str] = []  # Ordered by creation
         self._running_tasks: dict[str, asyncio.Task] = {}
@@ -267,6 +271,9 @@ class EngineTaskQueue:
                 ],
             }
 
+            # Hot-reload: invalidate caches + reload data (Phase 3E)
+            await self._hot_reload(task)
+
             logger.info(
                 "Engine task %s completed: %d material, %.1f s",
                 task.task_id, total_material,
@@ -287,6 +294,28 @@ class EngineTaskQueue:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    async def _hot_reload(self, task: EngineTask) -> None:
+        """Invalidate caches and reload data after engine completion.
+
+        Called after a successful engine run to ensure all services
+        see the updated data without restart.
+        """
+        try:
+            # Invalidate Redis cache for affected periods
+            if self._cache and hasattr(self._cache, 'invalidate_pattern'):
+                for period in task.periods:
+                    await self._cache.invalidate_pattern(f"*:{period}:*")
+                logger.info("Cache invalidated for %d periods", len(task.periods))
+
+            # Reload DataService tables (in-memory refresh)
+            if self._data_service and hasattr(self._data_service, '_load_all_tables'):
+                self._data_service._load_all_tables()
+                self._data_service.invalidate_graph_cache()
+                logger.info("DataService hot-reloaded")
+
+        except Exception as exc:
+            logger.warning("Hot-reload failed: %s (non-fatal)", exc)
 
     def _estimate_material_count(self) -> int:
         """Estimate material variance count from current data."""

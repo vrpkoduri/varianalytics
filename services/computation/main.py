@@ -84,13 +84,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.llm_client = None
         app.state.rag_retriever = None
 
-    # Engine task queue (Phase 3D)
-    from shared.engine.task_queue import EngineTaskQueue
-    app.state.engine_task_queue = EngineTaskQueue(data_dir="data/output")
-    logger.info("Engine task queue initialized")
+    # Redis cache (Phase 3E)
+    from shared.data.cache import CacheClient
+    import os
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    app.state.cache = CacheClient(redis_url=redis_url)
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(app.state.cache.connect())
+    except Exception:
+        logger.warning("Redis cache not available — running without cache")
 
-    # TODO: warm hierarchy cache (~20 MB materialized rollup paths)
-    # TODO: connect to Redis cache
+    # Engine task queue (Phase 3D + 3E hot-reload)
+    from shared.engine.task_queue import EngineTaskQueue
+    app.state.engine_task_queue = EngineTaskQueue(
+        data_dir="data/output",
+        data_service=app.state.data_service,
+        cache_client=app.state.cache if app.state.cache.is_connected else None,
+    )
+    logger.info("Engine task queue initialized (cache=%s)", app.state.cache.is_connected)
 
     elapsed = time.monotonic() - start
     logger.info("Startup complete in %.2f s", elapsed)

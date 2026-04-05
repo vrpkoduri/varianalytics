@@ -104,7 +104,7 @@ class LLMClient:
         when the LLM is unavailable or all retries are exhausted.
         """
         if not self._available:
-            return {"fallback": True, "content": "LLM not configured"}
+            return {"fallback": True, "content": "AI Agent not configured"}
 
         import asyncio
 
@@ -168,7 +168,7 @@ class LLMClient:
         an error occurs.
         """
         if not self._available:
-            yield "LLM not configured. Using template response."
+            yield "AI Agent not configured. Using template response."
             return
 
         try:

@@ -1,6 +1,6 @@
 """Cost estimation for Process B (Intelligence & Narratives).
 
-Provides upfront cost/time estimates before committing to an LLM run.
+Provides upfront cost/time estimates before committing to an AI Agent run.
 Based on empirical data from production runs on the synthetic dataset.
 
 Pricing assumptions (Claude Sonnet):
@@ -132,7 +132,7 @@ def format_cost_summary(estimate: dict[str, Any]) -> str:
     """
     lines = [
         f"Process B Cost Estimate ({estimate['mode']} mode)",
-        f"  LLM calls:     {estimate['estimated_calls']:,}",
+        f"  AI Agent calls: {estimate['estimated_calls']:,}",
         f"  Estimated cost: ${estimate['estimated_cost_usd']:.2f}",
         f"  Estimated time: {estimate['estimated_time_minutes']:.1f} minutes",
     ]

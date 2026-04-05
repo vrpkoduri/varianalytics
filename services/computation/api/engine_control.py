@@ -58,7 +58,7 @@ async def engine_estimate(body: EngineEstimateRequest) -> dict:
             "mode": "deterministic",
             "process": "a",
             "periods": periods_count,
-            "note": "Process A is pure math — no LLM charges.",
+            "note": "Process A is pure math — no AI Agent charges.",
         }
 
     # Estimate material count from data

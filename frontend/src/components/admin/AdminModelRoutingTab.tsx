@@ -1,6 +1,9 @@
 /**
- * Model routing configuration editor tab.
+ * AI Agent Model Routing configuration editor tab.
  * Reads from and writes to /api/v1/config/model-routing.
+ * Includes provider selector (Anthropic / Azure OpenAI).
+ *
+ * Phase 3E: Renamed from "LLM Model Routing" to "AI Agent Model Routing".
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -13,14 +16,23 @@ interface ModelRoute {
   temperature: number
 }
 
+const PROVIDERS = [
+  { value: 'anthropic', label: 'Anthropic (Claude)' },
+  { value: 'azure', label: 'Azure OpenAI (GPT-4)' },
+]
+
 export function AdminModelRoutingTab() {
   const [routes, setRoutes] = useState<ModelRoute[]>([])
+  const [provider, setProvider] = useState('anthropic')
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   useEffect(() => {
-    api.gateway.get<{ routes: ModelRoute[] }>('/config/model-routing')
-      .then((data) => setRoutes(data.routes || []))
+    api.gateway.get<{ routes: ModelRoute[]; provider?: string }>('/config/model-routing')
+      .then((data) => {
+        setRoutes(data.routes || [])
+        if (data.provider) setProvider(data.provider)
+      })
       .catch(() => {
         setRoutes([
           { task: 'narrative_generation', model: 'anthropic/claude-sonnet-4-20250514', maxTokens: 2048, temperature: 0.3 },
@@ -41,6 +53,7 @@ export function AdminModelRoutingTab() {
     setSaving(true)
     try {
       await api.gateway.put('/config/model-routing', {
+        provider,
         routes: routes.map((r) => ({
           task: r.task,
           model: r.model,
@@ -48,7 +61,7 @@ export function AdminModelRoutingTab() {
           temperature: r.temperature,
         })),
       })
-      setToast('Model routing saved')
+      setToast('AI Agent routing saved')
       setTimeout(() => setToast(null), 3000)
     } catch {
       setToast('Failed to save')
@@ -56,12 +69,12 @@ export function AdminModelRoutingTab() {
     } finally {
       setSaving(false)
     }
-  }, [routes])
+  }, [routes, provider])
 
   return (
     <div className="glass-card p-4 space-y-4">
       <div className="flex items-center justify-between">
-        <span className="section-label">LLM MODEL ROUTING</span>
+        <span className="section-label">AI AGENT MODEL ROUTING</span>
         {toast && (
           <span className={`text-[10px] px-2 py-1 rounded ${toast.includes('saved') ? 'bg-emerald/10 text-emerald' : 'bg-coral/10 text-coral'}`}>
             {toast}
@@ -69,6 +82,25 @@ export function AdminModelRoutingTab() {
         )}
       </div>
 
+      {/* Provider Selector */}
+      <div className="p-3 rounded-lg bg-surface/50 border border-accent/20">
+        <div className="flex items-center gap-4">
+          <label className="text-[10px] text-text-secondary font-semibold uppercase tracking-wider">
+            AI Provider
+          </label>
+          <select
+            value={provider}
+            onChange={(e) => setProvider(e.target.value)}
+            className="flex-1 px-3 py-1.5 rounded-lg bg-surface border border-border text-text text-[11px] focus:outline-none focus:ring-1 focus:ring-accent/50"
+          >
+            {PROVIDERS.map((p) => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Model Routes */}
       <div className="space-y-3">
         {routes.map((route, idx) => (
           <div key={route.task} className="p-3 rounded-lg bg-surface/50 border border-border/30 space-y-2">
@@ -118,7 +150,7 @@ export function AdminModelRoutingTab() {
           className="px-4 py-1.5 rounded-lg text-[11px] font-medium text-white transition-all hover:opacity-90 disabled:opacity-50"
           style={{ background: 'linear-gradient(135deg, var(--cobalt), var(--accent))' }}
         >
-          {saving ? 'Saving...' : 'Save Model Routing'}
+          {saving ? 'Saving...' : 'Save AI Agent Routing'}
         </button>
       </div>
     </div>

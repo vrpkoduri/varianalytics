@@ -113,7 +113,7 @@ export function AdminEngineControlTab() {
               disabled={selectedProcess === 'a'}
             >
               <option value="template">Template</option>
-              <option value="llm">LLM</option>
+              <option value="llm">AI Agent</option>
             </select>
           </div>
 
@@ -141,7 +141,7 @@ export function AdminEngineControlTab() {
               <div className="text-2xl font-bold text-teal-400">
                 {estimate.estimatedCalls?.toLocaleString() ?? 0}
               </div>
-              <div className="text-xs text-gray-400">LLM Calls</div>
+              <div className="text-xs text-gray-400">AI Agent Calls</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-bold text-emerald-400">

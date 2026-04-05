@@ -1,6 +1,6 @@
 """Configuration endpoints.
 
-Expose and update materiality thresholds and LLM model-routing configuration.
+Expose and update materiality thresholds and AI Agent model-routing configuration.
 Reads from and writes to YAML config files. Changes are validated before persisting.
 """
 
@@ -40,7 +40,7 @@ class ThresholdConfig(BaseModel):
 
 
 class ModelRoutingEntry(BaseModel):
-    """Single LLM model routing rule."""
+    """Single AI Agent model routing rule."""
 
     task: str = Field(..., description="Task name, e.g. 'narrative_generation'")
     model: str = Field(..., description="LiteLLM model identifier")
@@ -49,8 +49,9 @@ class ModelRoutingEntry(BaseModel):
 
 
 class ModelRoutingConfig(BaseModel):
-    """Full model routing configuration."""
+    """Full AI Agent model routing configuration."""
 
+    provider: str = Field("anthropic", description="Active AI provider (anthropic, azure)")
     routes: list[ModelRoutingEntry] = Field(default_factory=list)
 
 
@@ -121,7 +122,7 @@ def _read_model_routing_yaml(path: Path = _MODEL_ROUTING_PATH) -> ModelRoutingCo
                 temperature=task_config.get("temperature", 0.3),
             ))
 
-    return ModelRoutingConfig(routes=routes)
+    return ModelRoutingConfig(provider=provider, routes=routes)
 
 
 # ---------------------------------------------------------------------------
@@ -169,10 +170,60 @@ async def update_thresholds(
 @router.get(
     "/model-routing",
     response_model=ModelRoutingConfig,
-    summary="Get LLM model routing config",
+    summary="Get AI Agent model routing config",
 )
 async def get_model_routing(
     user: UserContext = Depends(get_current_user),
 ) -> ModelRoutingConfig:
-    """Return the current LLM model routing table from model_routing.yaml."""
+    """Return the current AI Agent model routing table from model_routing.yaml."""
     return _read_model_routing_yaml()
+
+
+@router.put(
+    "/model-routing",
+    response_model=ModelRoutingConfig,
+    summary="Update AI Agent model routing config",
+)
+async def update_model_routing(
+    body: ModelRoutingConfig,
+    user: UserContext = Depends(require_admin()),
+) -> ModelRoutingConfig:
+    """Update AI Agent model routing. Persists provider + routes to model_routing.yaml."""
+    try:
+        _write_model_routing_yaml(body)
+    except Exception as exc:
+        logger.error("Failed to write model routing YAML: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Failed to persist config: {exc}")
+
+    return body
+
+
+def _write_model_routing_yaml(
+    config: ModelRoutingConfig, path: Path = _MODEL_ROUTING_PATH
+) -> None:
+    """Write model routing config to YAML, preserving structure."""
+    if not path.exists():
+        raise FileNotFoundError(f"Model routing YAML not found at {path}")
+
+    with open(path) as f:
+        data = yaml.safe_load(f) or {}
+
+    # Update default provider
+    data["default_provider"] = config.provider
+
+    # Update routes for the active provider
+    provider_config = data.setdefault("providers", {}).setdefault(config.provider, {})
+    for route in config.routes:
+        provider_config[route.task] = {
+            "model": route.model,
+            "max_tokens": route.max_tokens,
+            "temperature": route.temperature,
+        }
+
+    with open(path, "w") as f:
+        yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+
+    logger.info(
+        "Model routing YAML updated: provider=%s, routes=%d",
+        config.provider, len(config.routes),
+    )
