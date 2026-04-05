@@ -28,6 +28,7 @@ class LLMClient:
     def __init__(self, settings: Optional[Any] = None) -> None:
         self._settings = settings
         self._routing = self._load_routing()
+        self._routing_mtime: float = self._get_routing_mtime()
         self._available = self._check_availability()
         self._provider = os.environ.get("LLM_PROVIDER", self._routing.get("default_provider", "anthropic"))
 
@@ -38,6 +39,20 @@ class LLMClient:
                 "LLM client initialised in fallback mode — no API key configured. "
                 "Set ANTHROPIC_API_KEY or AZURE_OPENAI_API_KEY to enable LLM features."
             )
+
+    def reload_routing(self) -> None:
+        """Reload model routing config from YAML.
+
+        Called after admin updates model routing via the API.
+        Re-reads the YAML file and updates provider + model mappings
+        without restarting the service.
+        """
+        self._routing = self._load_routing()
+        self._provider = os.environ.get(
+            "LLM_PROVIDER",
+            self._routing.get("default_provider", "anthropic"),
+        )
+        logger.info("AI Agent routing reloaded — provider=%s", self._provider)
 
     # ------------------------------------------------------------------
     # Properties
@@ -61,8 +76,9 @@ class LLMClient:
         """Return the model identifier for *task* under the active provider.
 
         Falls back to the provider's ``chat_response`` model, then to a
-        hard-coded default.
+        hard-coded default. Auto-reloads routing if YAML file changed on disk.
         """
+        self._auto_reload_if_changed()
         provider_cfg = self._routing.get("providers", {}).get(self._provider, {})
         task_cfg = provider_cfg.get(task, {})
         if task_cfg.get("model"):
@@ -199,6 +215,24 @@ class LLMClient:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+
+    def _auto_reload_if_changed(self) -> None:
+        """Check if model_routing.yaml was modified and reload if so."""
+        current_mtime = self._get_routing_mtime()
+        if current_mtime > self._routing_mtime:
+            self.reload_routing()
+            self._routing_mtime = current_mtime
+
+    def _get_routing_mtime(self) -> float:
+        """Get the modification time of model_routing.yaml."""
+        candidates = [
+            Path(__file__).resolve().parent.parent / "config" / "model_routing.yaml",
+            Path("shared/config/model_routing.yaml"),
+        ]
+        for path in candidates:
+            if path.exists():
+                return path.stat().st_mtime
+        return 0.0
 
     def _load_routing(self) -> dict[str, Any]:
         """Load model routing from ``shared/config/model_routing.yaml``."""

@@ -186,14 +186,25 @@ async def get_model_routing(
 )
 async def update_model_routing(
     body: ModelRoutingConfig,
+    request: Request,
     user: UserContext = Depends(require_admin()),
 ) -> ModelRoutingConfig:
-    """Update AI Agent model routing. Persists provider + routes to model_routing.yaml."""
+    """Update AI Agent model routing. Persists provider + routes to model_routing.yaml.
+
+    After saving, reloads the LLM client routing in-memory so changes
+    take effect immediately without service restart.
+    """
     try:
         _write_model_routing_yaml(body)
     except Exception as exc:
         logger.error("Failed to write model routing YAML: %s", exc)
         raise HTTPException(status_code=500, detail=f"Failed to persist config: {exc}")
+
+    # Hot-reload: update in-memory LLM client routing
+    llm_client = getattr(request.app.state, "llm_client", None)
+    if llm_client and hasattr(llm_client, "reload_routing"):
+        llm_client.reload_routing()
+        logger.info("AI Agent routing hot-reloaded after admin update")
 
     return body
 
