@@ -43,6 +43,7 @@
 | 3D | Admin Engine Control panel + background task queue | 1,089 |
 | 3E | AI Agent branding + provider selector + Redis cache + hot-reload | 1,101 |
 | 3F | Quick intelligence: materiality, risk, projection, persistence | 1,127 |
+| 3G | Core intelligence: pivot, peer, causal, multi-year, lead/lag, DBSCAN | 1,155 |
 
 ---
 
