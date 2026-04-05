@@ -1,0 +1,38 @@
+# Market Context — Marsh Vantage
+# Admin-editable: external market factors by quarter.
+# Used by intelligence dimension: Market Context framing.
+
+quarters:
+  "2026-Q2":
+    insurance_sector_growth: -2.3
+    fx_impact:
+      eur_usd: -4.2
+      gbp_usd: -1.5
+    notes:
+      - "Increased claims frequency in US market"
+      - "Talent shortage driving compensation inflation in APAC"
+
+  "2026-Q1":
+    insurance_sector_growth: 1.2
+    fx_impact:
+      eur_usd: -1.8
+      gbp_usd: 0.5
+    notes:
+      - "Strong January renewals season"
+
+  "2025-Q4":
+    insurance_sector_growth: 0.5
+    fx_impact:
+      eur_usd: -2.1
+      gbp_usd: -0.8
+    notes:
+      - "Year-end reserve strengthening"
+      - "EUR continued weakness vs USD"
+
+  "2025-Q3":
+    insurance_sector_growth: -1.1
+    fx_impact:
+      eur_usd: -3.0
+      gbp_usd: -1.2
+    notes:
+      - "Hurricane season impact on P&C"

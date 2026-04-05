@@ -1,0 +1,34 @@
+# Budget Assumptions — Marsh Vantage
+# Admin-editable: budget growth rates, cost ratios, FX assumptions by fiscal year.
+# Used by intelligence dimension: Budget Assumption Gap Analysis.
+
+assumptions:
+  "2026":
+    revenue_growth_pct: 8.0
+    cogs_ratio: 0.45
+    opex_growth_pct: 3.0
+    fx_rate_eur: 1.10
+    fx_rate_gbp: 1.27
+    inflation_rate: 2.5
+
+  "2025":
+    revenue_growth_pct: 6.0
+    cogs_ratio: 0.44
+    opex_growth_pct: 4.0
+    fx_rate_eur: 1.08
+    fx_rate_gbp: 1.25
+    inflation_rate: 3.0
+
+  "2024":
+    revenue_growth_pct: 5.0
+    cogs_ratio: 0.46
+    opex_growth_pct: 3.5
+    fx_rate_eur: 1.12
+    fx_rate_gbp: 1.30
+    inflation_rate: 3.5
+
+# Mapping: P&L category → which assumption to compare
+category_mapping:
+  Revenue: revenue_growth_pct
+  COGS: cogs_ratio
+  OpEx: opex_growth_pct
