@@ -342,6 +342,24 @@ async def reload_data(
     ds._build_account_metadata()
     ds.invalidate_graph_cache()
 
+    # Also reload ReviewStore (it caches its own copy of variance_material)
+    review_store = getattr(request.app.state, "review_store", None)
+    if review_store:
+        try:
+            from shared.data.loader import DataLoader
+            loader = DataLoader(ds._data_dir if hasattr(ds, '_data_dir') else "data/output")
+            if hasattr(review_store, '_store'):
+                # AsyncReviewStore wraps a sync ReviewStore
+                review_store._store._variance_material = loader.load_table("fact_variance_material").copy()
+                review_store._store._review_status = loader.load_table("fact_review_status").copy()
+                logger.info("ReviewStore reloaded via AsyncReviewStore wrapper")
+            elif hasattr(review_store, '_variance_material'):
+                review_store._variance_material = loader.load_table("fact_variance_material").copy()
+                review_store._review_status = loader.load_table("fact_review_status").copy()
+                logger.info("ReviewStore reloaded directly")
+        except Exception as exc:
+            logger.warning("ReviewStore reload failed: %s", exc)
+
     table_counts = {name: len(df) for name, df in ds._tables.items() if not df.empty}
     logger.info("Admin reload: %d tables reloaded", len(table_counts))
 
