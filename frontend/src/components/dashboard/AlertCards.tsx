@@ -64,7 +64,7 @@ export function AlertCards({ persona, nettingAlerts, trendAlerts }: AlertCardsPr
             {trends.map((alert, i) => (
               <div key={i} className="flex items-center justify-between text-[10px]">
                 <span className="text-tx-secondary">{alert.description}</span>
-                <span className="text-amber font-semibold">Projected: {alert.projection}</span>
+                <span className="text-amber font-semibold">{alert.projection.toLowerCase().includes('projected') ? alert.projection : `Projected: ${alert.projection}`}</span>
               </div>
             ))}
           </div>

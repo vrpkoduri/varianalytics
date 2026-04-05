@@ -231,7 +231,7 @@ export function VarianceTable({ variances, totalCount, searchQuery, onSearchChan
                     <td className="py-2 px-2 text-center">
                       <Badge variant={sConf.variant}>{sConf.label}</Badge>
                     </td>
-                    <td className="py-2 px-2 text-[10px] text-tx-secondary leading-snug max-w-[260px] truncate">
+                    <td className="py-2 px-2 text-[10px] text-tx-secondary leading-snug max-w-[360px] truncate" title={(v as any).narrativeDetail || v.narrative}>
                       {v.narrative}
                     </td>
                   </tr>

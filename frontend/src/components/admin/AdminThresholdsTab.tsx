@@ -58,6 +58,7 @@ export function AdminThresholdsTab() {
       <div className="flex items-center gap-1">
         <input
           type="number"
+          step="0.1"
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
           className="w-full px-2 py-1.5 rounded-md bg-surface border border-border text-text text-[12px] font-display focus:outline-none focus:ring-1 focus:ring-accent/50"

@@ -137,10 +137,22 @@ export function NarrativeSection({ data }: NarrativeSectionProps) {
               AI Reasoning
             </span>
             <div className="text-tx-secondary mt-1">
-              Narrative generated from {data.decomposition.length}-factor decomposition
-              with {data.correlations.length} correlated variance(s).
+              {data.decomposition.length > 0 ? (
+                <>
+                  Narrative generated from {data.decomposition.length}-factor decomposition
+                  with {data.correlations.length} correlated variance(s).
+                </>
+              ) : (
+                <>
+                  {data.correlations.length > 0
+                    ? `${data.correlations.length} correlated variance(s) identified.`
+                    : 'AI-generated narrative based on variance analysis and intelligence context.'
+                  }
+                </>
+              )}
               {data.isSynthesized && ` Synthesized from ${data.synthCount ?? 0} child commentaries.`}
               {data.projectedYE && ` YE projection: ${data.projectedYE.confidence} confidence.`}
+              {(data as any).narrativeSource === 'llm' && ' (AI Agent generated)'}
             </div>
           </div>
         )}

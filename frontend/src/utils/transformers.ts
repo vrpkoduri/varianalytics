@@ -290,12 +290,26 @@ export function transformReviewItems(apiItems: any[]): ReviewVariance[] {
     isSynthesized: v.isSynthesized || false,
     synthCount: v.synthCount,
     narratives: v.narratives || {
-      detail: v.narrativePreview || v.narrativeOneliner || '',
-      midlevel: '',
-      summary: '',
+      detail: v.narrativeDetail || v.narrativePreview || v.narrativeOneliner || '',
+      midlevel: v.narrativeDetail || v.narrativePreview || '',
+      summary: v.narrativeOneliner || '',
       board: '',
     },
-    decomposition: v.decomposition || [],
+    narrativeSource: v.narrativeSource || '',
+    decomposition: (() => {
+      // Map decomposition from API (may be object with components or array)
+      if (Array.isArray(v.decomposition) && v.decomposition.length > 0) return v.decomposition
+      if (v.decomposition?.components && typeof v.decomposition.components === 'object') {
+        return Object.entries(v.decomposition.components)
+          .filter(([k]) => k !== 'residual' && k !== 'method' && k !== 'is_fallback')
+          .map(([label, value]: [string, any]) => ({
+            label: label.charAt(0).toUpperCase() + label.slice(1),
+            value: Math.round(value),
+            pct: 0, // Will be computed below
+          }))
+      }
+      return []
+    })(),
     hypotheses: v.hypotheses || [],
     varianceId: v.varianceId,
   }))

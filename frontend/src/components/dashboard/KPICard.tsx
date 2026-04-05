@@ -59,7 +59,7 @@ export function KPICard({ card }: KPICardProps) {
       <div className="flex items-end justify-between">
         <div>
           <div
-            className="text-kpi font-bold text-tx-primary animate-glow cursor-pointer relative"
+            className="text-kpi font-bold font-display text-tx-primary animate-glow cursor-pointer relative"
             onClick={handleCopy}
             title="Click to copy"
           >
