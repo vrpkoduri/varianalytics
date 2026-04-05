@@ -1,10 +1,16 @@
 # =============================================================================
-# LLM Model Routing Configuration
+# AI Agent Model Routing Configuration
 # =============================================================================
-# Maps tasks to LLM models via LiteLLM. Model-agnostic — change providers
-# by updating model identifiers.
+# Maps tasks to AI models via LiteLLM. Model-agnostic — change providers
+# by updating model identifiers. Cost fields enable accurate cost estimation.
 
 default_provider: "anthropic"
+
+# Per-task provider override (optional). Omit to use default_provider.
+# Example: use cheaper model for intent, premium for narratives.
+task_overrides: {}
+  # chat_intent: anthropic
+  # narrative_generation: azure
 
 providers:
   anthropic:
@@ -12,44 +18,64 @@ providers:
       model: "anthropic/claude-haiku-3-20250414"
       max_tokens: 200
       temperature: 0.1
+      cost_input_per_1m: 0.25
+      cost_output_per_1m: 1.25
     chat_response:
       model: "anthropic/claude-sonnet-4-20250514"
       max_tokens: 3000
       temperature: 0.5
+      cost_input_per_1m: 3.00
+      cost_output_per_1m: 15.00
     narrative_generation:
       model: "anthropic/claude-sonnet-4-20250514"
       max_tokens: 2000
       temperature: 0.4
+      cost_input_per_1m: 3.00
+      cost_output_per_1m: 15.00
     hypothesis_generation:
       model: "anthropic/claude-sonnet-4-20250514"
       max_tokens: 1000
       temperature: 0.3
+      cost_input_per_1m: 3.00
+      cost_output_per_1m: 15.00
     oneliner_generation:
       model: "anthropic/claude-haiku-3-20250414"
       max_tokens: 100
       temperature: 0.2
+      cost_input_per_1m: 0.25
+      cost_output_per_1m: 1.25
 
   azure:
     chat_intent:
       model: "azure/gpt-4o-mini"
       max_tokens: 200
       temperature: 0.1
+      cost_input_per_1m: 0.15
+      cost_output_per_1m: 0.60
     chat_response:
       model: "azure/gpt-4o"
       max_tokens: 3000
       temperature: 0.5
+      cost_input_per_1m: 2.50
+      cost_output_per_1m: 10.00
     narrative_generation:
       model: "azure/gpt-4o"
       max_tokens: 2000
       temperature: 0.4
+      cost_input_per_1m: 2.50
+      cost_output_per_1m: 10.00
     hypothesis_generation:
       model: "azure/gpt-4o"
       max_tokens: 1000
       temperature: 0.3
+      cost_input_per_1m: 2.50
+      cost_output_per_1m: 10.00
     oneliner_generation:
       model: "azure/gpt-4o-mini"
       max_tokens: 100
       temperature: 0.2
+      cost_input_per_1m: 0.15
+      cost_output_per_1m: 0.60
 
 embedding:
   # Auto-detected from available API keys. Override with 'provider' to force one.

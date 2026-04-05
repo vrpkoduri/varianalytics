@@ -149,7 +149,19 @@ def _context_maps_from_graph(graph: Any, context: dict[str, Any]) -> dict[str, A
                     "variance_pct": row.get("variance_pct", 0),
                 })
 
-    logger.info("Context maps built from knowledge graph")
+    # ------------------------------------------------------------------
+    # Intelligence dimensions (Phase 3F+3G+3H — 15 total)
+    # ------------------------------------------------------------------
+    intelligence_maps = _build_intelligence_maps(
+        material=material,
+        acct_meta=acct_meta,
+        decomp_map=decomp_map,
+        corr_map=corr_map,
+        graph=graph,
+        period_id=context.get("period_id", ""),
+    )
+
+    logger.info("Context maps built from knowledge graph (with %d intelligence dimensions)", len(intelligence_maps))
 
     return {
         "correlations": corr_map,
@@ -157,7 +169,128 @@ def _context_maps_from_graph(graph: Any, context: dict[str, Any]) -> dict[str, A
         "trends": trend_map,
         "decomposition": decomp_map,
         "siblings": sibling_map,
+        **intelligence_maps,
     }
+
+
+def _build_intelligence_maps(
+    material: Any,
+    acct_meta: dict[str, Any],
+    decomp_map: dict[str, dict],
+    corr_map: dict[str, list],
+    graph: Any,
+    period_id: str,
+) -> dict[str, Any]:
+    """Pre-compute all 15 intelligence dimensions for context enrichment.
+
+    Returns dict with keys: materiality, risk, projection, persistence,
+    pivot, peer, causal, multi_year, anomaly, budget, market.
+    Each value is a dict[variance_id, intelligence_result].
+    """
+    maps: dict[str, Any] = {}
+
+    if not isinstance(material, pd.DataFrame) or material.empty:
+        return maps
+
+    try:
+        from shared.intelligence.materiality import compute_materiality_context
+        from shared.intelligence.risk import classify_risk
+        from shared.intelligence.projection import compute_cumulative_projection
+        from shared.intelligence.persistence import compute_persistence
+        from shared.intelligence.pivot import compute_dimensional_pivot
+        from shared.intelligence.peer_comparison import compute_peer_comparison
+        from shared.intelligence.causal_chains import compute_causal_chain
+        from shared.intelligence.multi_year import compute_multi_year_pattern
+        from shared.intelligence.anomaly import compute_anomaly_score
+        from shared.intelligence.budget_assumptions import compute_budget_gap
+        from shared.intelligence.market_context import compute_market_context
+
+        # Period totals for materiality (revenue, EBITDA, etc.)
+        period_totals = _compute_period_totals(material, period_id)
+
+        materiality_map: dict[str, dict] = {}
+        risk_map: dict[str, dict] = {}
+        projection_map: dict[str, dict] = {}
+        persistence_map: dict[str, dict] = {}
+        pivot_map: dict[str, dict] = {}
+        peer_map: dict[str, dict] = {}
+        causal_map: dict[str, dict] = {}
+        multi_year_map: dict[str, dict] = {}
+        anomaly_map: dict[str, dict] = {}
+        budget_map: dict[str, dict] = {}
+
+        for vid in material["variance_id"].dropna().unique():
+            vid_str = str(vid)
+            row = material[material["variance_id"] == vid].iloc[0]
+            amount = float(row.get("variance_amount", 0))
+            pct = float(row.get("variance_pct", 0)) if pd.notna(row.get("variance_pct")) else 0
+            acct_id = str(row.get("account_id", ""))
+            bu_id = str(row.get("bu_id", ""))
+            pl_cat = str(row.get("pl_category", acct_meta.get(acct_id, {}).get("pl_category", "")))
+
+            # Period history from graph
+            history = []
+            if graph and hasattr(graph, "get_period_history"):
+                history = graph.get_period_history(acct_id, bu_id, n_periods=36)
+
+            # Phase 3F: Quick Intelligence
+            materiality_map[vid_str] = compute_materiality_context(amount, period_totals)
+            risk_map[vid_str] = classify_risk(decomp_map.get(vid_str), pl_cat)
+            projection_map[vid_str] = compute_cumulative_projection(amount, period_id, history)
+            persistence_map[vid_str] = compute_persistence(history)
+
+            # Phase 3G: Core Intelligence
+            pivot_map[vid_str] = compute_dimensional_pivot(vid_str, material, acct_id)
+
+            peers = []
+            if graph and hasattr(graph, "get_peer_variances"):
+                peers = graph.get_peer_variances(vid_str)
+            peer_map[vid_str] = compute_peer_comparison(peers, bu_id, amount)
+
+            causal_map[vid_str] = compute_causal_chain(corr_map.get(vid_str, []), acct_meta)
+            multi_year_map[vid_str] = compute_multi_year_pattern(history, period_id)
+
+            # Phase 3H: Quality
+            anomaly_map[vid_str] = compute_anomaly_score(amount, history)
+            budget_map[vid_str] = compute_budget_gap(pct, period_id, pl_cat)
+
+        # Market context — computed once per period, shared across all variances
+        market = compute_market_context(period_id)
+
+        maps = {
+            "materiality": materiality_map,
+            "risk": risk_map,
+            "projection": projection_map,
+            "persistence": persistence_map,
+            "pivot": pivot_map,
+            "peer": peer_map,
+            "causal": causal_map,
+            "multi_year": multi_year_map,
+            "anomaly": anomaly_map,
+            "budget": budget_map,
+            "market": market,
+        }
+
+    except Exception:
+        logger.warning("Intelligence maps computation failed — continuing without intelligence", exc_info=True)
+
+    return maps
+
+
+def _compute_period_totals(material: pd.DataFrame, period_id: str) -> dict[str, float]:
+    """Compute P&L totals for materiality context."""
+    totals: dict[str, float] = {}
+    period_data = material[material["period_id"] == period_id] if "period_id" in material.columns else material
+
+    for pl_cat, label in [("Revenue", "revenue"), ("COGS", "cogs"), ("OpEx", "opex")]:
+        cat_data = period_data[period_data["pl_category"] == pl_cat] if "pl_category" in period_data.columns else pd.DataFrame()
+        if not cat_data.empty:
+            totals[label] = float(cat_data["variance_amount"].abs().sum())
+
+    # EBITDA = Revenue - COGS - OpEx
+    totals["ebitda"] = totals.get("revenue", 0) - totals.get("cogs", 0) - totals.get("opex", 0)
+
+    return totals
 
 
 def _build_context_maps_legacy(context: dict[str, Any]) -> dict[str, Any]:
@@ -336,7 +469,52 @@ def _build_enriched_prompt(
             f"\nSibling variances under same parent:\n" + "\n".join(sib_strs)
         )
 
+    # Intelligence context (Phase 3F+3G+3H — 15 dimensions)
+    intel_notes = _collect_intelligence_notes(variance_id, context_maps)
+    if intel_notes:
+        sections.append(f"\nIntelligence Context:\n" + "\n".join(f"  - {n}" for n in intel_notes))
+
     return "\n".join(sections)
+
+
+def _collect_intelligence_notes(
+    variance_id: str,
+    context_maps: dict[str, Any],
+) -> list[str]:
+    """Collect non-empty intelligence notes for a variance.
+
+    Checks all 11 intelligence dimension keys in context_maps.
+    Returns up to 6 most relevant notes (avoids narrative bloat).
+    """
+    notes: list[str] = []
+
+    # Intelligence dimension keys to check (order = priority)
+    dimension_keys = [
+        "materiality", "risk", "anomaly", "peer",
+        "causal", "projection", "persistence", "pivot",
+        "multi_year", "budget", "market",
+    ]
+
+    for key in dimension_keys:
+        intel_data = context_maps.get(key)
+        if intel_data is None:
+            continue
+
+        # Per-variance dict (most dimensions)
+        if isinstance(intel_data, dict) and variance_id in intel_data:
+            entry = intel_data[variance_id]
+            if isinstance(entry, dict):
+                note = entry.get("note", "")
+                if note:
+                    notes.append(note)
+
+        # Market context is shared (not per-variance)
+        elif isinstance(intel_data, dict) and "note" in intel_data:
+            note = intel_data.get("note", "")
+            if note:
+                notes.append(note)
+
+    return notes[:6]  # Cap at 6 to avoid bloat
 
 
 # ======================================================================
@@ -519,10 +697,18 @@ def _generate_template_narrative(
     except Exception:
         pass
 
+    # Intelligence enrichment (Phase 3F+3G+3H — top 4 relevant notes)
+    intel_text = ""
+    vid = var_dict.get("variance_id", "")
+    if vid:
+        intel_notes = _collect_intelligence_notes(vid, context_maps)
+        if intel_notes:
+            intel_text = " " + " ".join(intel_notes[:4])
+
     detail = (
         f"{account_name} {direction} by {formatted_amount} "
         f"({formatted_pct}) vs {base_label}. "
-        f"{favorable}.{trend_note}{decomp_note}{carry_note}{seasonal_note}{fx_note} [AI Draft]"
+        f"{favorable}.{trend_note}{decomp_note}{carry_note}{seasonal_note}{fx_note}{intel_text} [AI Draft]"
     )
     midlevel = (
         f"{account_name}: {formatted_amount} ({formatted_pct}) "

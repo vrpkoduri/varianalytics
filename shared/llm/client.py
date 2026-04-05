@@ -72,14 +72,30 @@ class LLMClient:
     # Model / param lookup
     # ------------------------------------------------------------------
 
-    def get_model(self, task: str) -> str:
-        """Return the model identifier for *task* under the active provider.
+    def _get_provider_for_task(self, task: str) -> str:
+        """Return the provider to use for a given task.
 
-        Falls back to the provider's ``chat_response`` model, then to a
-        hard-coded default. Auto-reloads routing if YAML file changed on disk.
+        Checks task_overrides first, then falls back to default_provider.
+        """
+        overrides = self._routing.get("task_overrides", {})
+        if isinstance(overrides, dict) and task in overrides:
+            return overrides[task]
+        return self._provider
+
+    def get_model(self, task: str) -> str:
+        """Return the model identifier for *task*.
+
+        Resolution order:
+        1. task_overrides → specific provider for this task
+        2. default_provider → task config
+        3. default_provider → chat_response fallback
+        4. hard-coded default
+
+        Auto-reloads routing if YAML file changed on disk.
         """
         self._auto_reload_if_changed()
-        provider_cfg = self._routing.get("providers", {}).get(self._provider, {})
+        task_provider = self._get_provider_for_task(task)
+        provider_cfg = self._routing.get("providers", {}).get(task_provider, {})
         task_cfg = provider_cfg.get(task, {})
         if task_cfg.get("model"):
             return task_cfg["model"]
@@ -89,15 +105,30 @@ class LLMClient:
         if default_cfg.get("model"):
             return default_cfg["model"]
 
-        return f"{self._provider}/default"
+        return f"{task_provider}/default"
 
     def get_params(self, task: str) -> dict[str, Any]:
         """Return ``{max_tokens, temperature}`` for the given *task*."""
-        provider_cfg = self._routing.get("providers", {}).get(self._provider, {})
+        task_provider = self._get_provider_for_task(task)
+        provider_cfg = self._routing.get("providers", {}).get(task_provider, {})
         task_cfg = provider_cfg.get(task, {})
         return {
             "max_tokens": task_cfg.get("max_tokens", 1000),
             "temperature": task_cfg.get("temperature", 0.5),
+        }
+
+    def get_cost(self, task: str) -> dict[str, float]:
+        """Return cost per million tokens for the active model on *task*.
+
+        Returns:
+            Dict with cost_input_per_1m and cost_output_per_1m.
+        """
+        task_provider = self._get_provider_for_task(task)
+        provider_cfg = self._routing.get("providers", {}).get(task_provider, {})
+        task_cfg = provider_cfg.get(task, {})
+        return {
+            "cost_input_per_1m": task_cfg.get("cost_input_per_1m", 3.00),
+            "cost_output_per_1m": task_cfg.get("cost_output_per_1m", 15.00),
         }
 
     # ------------------------------------------------------------------
