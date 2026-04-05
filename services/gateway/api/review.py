@@ -30,6 +30,8 @@ class ReviewQueueItem(BaseModel):
     variance_pct: Optional[float] = None
     current_status: str = "AI_DRAFT"
     narrative_preview: str = ""
+    narrative_detail: str = ""
+    narrative_source: str = ""
     sla_hours_remaining: Optional[float] = None
 
 
