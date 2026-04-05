@@ -13,7 +13,7 @@ import { ChatInput } from '@/components/chat/ChatInput'
 export default function ChatView() {
   const { persona } = useUser()
   const { filters } = useGlobalFilters()
-  const { messages, isStreaming, sendMessage, clearChat, conversationId, useRealApi, setMessages, setIsStreaming } = useChat()
+  const { messages, isStreaming, sendMessage, clearChat, conversationId, useRealApi, setMessages, setIsStreaming, sseKey } = useChat()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const prevPersona = useRef(persona)
 
@@ -55,6 +55,7 @@ export default function ChatView() {
     conversationId,
     handleSSEEvent,
     useRealApi && !!conversationId,
+    sseKey,
   )
 
   // Clear chat on persona switch

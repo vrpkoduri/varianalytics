@@ -51,6 +51,7 @@ def _create_store() -> ReviewStore:
         store = ReviewStore.__new__(ReviewStore)
         store._review_status = _make_review_status_df()
         store._variance_material = _make_variance_material_df()
+        store._account_lookup = {}  # Empty lookup for RBAC tests (account names tested separately)
         # Ensure required columns exist (mimicking real __init__)
         store._review_status["reviewed_at"] = pd.NaT
         store._review_status["approved_at"] = pd.NaT

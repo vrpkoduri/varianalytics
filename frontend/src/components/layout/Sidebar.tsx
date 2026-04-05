@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { DonutProgress } from '../sidebar/DonutProgress'
 import { BUList } from '../sidebar/BUList'
 import { HierarchyTree } from '../sidebar/HierarchyTree'
@@ -20,12 +20,13 @@ const DIMENSION_LABELS: Record<string, string> = {
 
 interface SidebarProps {
   isOpen: boolean
+  pathname?: string
 }
 
-export default function Sidebar({ isOpen }: SidebarProps) {
+export default function Sidebar({ isOpen, pathname }: SidebarProps) {
   const { businessUnits, hierarchies } = useDimensions()
   const { filters, setBusinessUnit, setDimensionFilter } = useGlobalFilters()
-  const { variances: sidebarVariances } = useVariances()
+  const { variances: sidebarVariances } = useVariances({ ignoreGlobalBU: true })
   const countData = sidebarVariances.length > 0 ? sidebarVariances : MOCK_VARIANCES
 
   // Filter variance data by selected BU before computing donut counts
@@ -60,6 +61,21 @@ export default function Sidebar({ isOpen }: SidebarProps) {
     lob: new Set(['all_lob']),
     costcenter: new Set(['all_cc']),
   })
+
+  // Pre-expand root nodes from actual API data
+  useEffect(() => {
+    if (!hierarchies) return
+    setExpandedMap(prev => {
+      const updated = { ...prev }
+      for (const [dim, tree] of Object.entries(hierarchies)) {
+        if (tree && tree.length > 0) {
+          const rootIds = tree.map((n: any) => n.id)
+          updated[dim] = new Set([...(prev[dim] || []), ...rootIds])
+        }
+      }
+      return updated
+    })
+  }, [hierarchies])
   const [activeMap, setActiveMap] = useState<Record<string, string | null>>({
     geography: null,
     segment: null,
@@ -124,20 +140,21 @@ export default function Sidebar({ isOpen }: SidebarProps) {
         onSelect={(buId) => setBusinessUnit(buId)}
       />
 
-      {/* Hierarchy trees — rendered from real API data or fallbacks */}
-      {Object.entries(hierarchies).map(([dim, tree]) => (
-        <HierarchyTree
-          key={dim}
-          title={DIMENSION_LABELS[dim] || dim}
-          dimension={dim}
-          nodes={tree}
-          expandedIds={expandedMap[dim] || new Set()}
-          activeNodeId={activeMap[dim] || null}
-          onToggle={makeToggle(dim)}
-          onSelect={makeSelect(dim)}
-          showCounts={dim === 'geography' || dim === 'segment'}
-        />
-      ))}
+      {/* Hierarchy trees — only on data-centric pages */}
+      {(!pathname || ['/', '/pl', '/executive'].includes(pathname)) &&
+        Object.entries(hierarchies).map(([dim, tree]) => (
+          <HierarchyTree
+            key={dim}
+            title={DIMENSION_LABELS[dim] || dim}
+            dimension={dim}
+            nodes={tree}
+            expandedIds={expandedMap[dim] || new Set()}
+            activeNodeId={activeMap[dim] || null}
+            onToggle={makeToggle(dim)}
+            onSelect={makeSelect(dim)}
+            showCounts={dim === 'geography' || dim === 'segment'}
+          />
+        ))}
     </aside>
   )
 }

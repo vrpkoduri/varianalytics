@@ -65,11 +65,18 @@ RESPONSE_TEMPLATES: dict[Intent, str] = {
         "{netting_narrative}"
     ),
     Intent.GENERAL: (
-        "I can help you analyze financial variances. Try asking about:\n"
-        "- Revenue performance\n"
-        "- P&L summary\n"
-        "- Variance trends\n"
-        "- Review queue status"
+        "I can help you analyze financial variances. Here are some things you can ask:\n\n"
+        "**Variance Analysis:**\n"
+        "- \"What are the top variances?\" — largest material variances this period\n"
+        "- \"How did revenue perform?\" — revenue overview with BU breakdown\n"
+        "- \"Show me the EBITDA bridge\" — waterfall chart narrative\n\n"
+        "**Reports & Trends:**\n"
+        "- \"Show me the P&L\" — full income statement summary\n"
+        "- \"Any emerging risks?\" — trend alerts and patterns\n"
+        "- \"Show the variance heatmap\" — BU x Geography matrix\n\n"
+        "**Workflow:**\n"
+        "- \"What needs review?\" — pending review queue status\n"
+        "- \"Break down revenue\" — volume/price/mix decomposition"
     ),
 }
 
@@ -132,10 +139,10 @@ SUGGESTION_MAP: dict[Intent, list[str]] = {
         "Show revenue performance",
     ],
     Intent.GENERAL: [
+        "What are the top variances?",
         "How did revenue perform this month?",
         "Show me the P&L",
         "What needs review?",
-        "Show the variance heatmap",
     ],
 }
 

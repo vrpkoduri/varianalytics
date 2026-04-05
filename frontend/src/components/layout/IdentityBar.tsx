@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { cn } from '@/utils/theme'
 import { useAuth } from '@/context/AuthContext'
@@ -46,6 +46,7 @@ export default function IdentityBar() {
   const location = useLocation()
   const clock = useClockTime()
   const [notifOpen, setNotifOpen] = useState(false)
+  const notifContainerRef = useRef<HTMLDivElement>(null)
 
   // Get auth context for persona-filtered tabs
   const auth = useAuth()
@@ -75,24 +76,10 @@ export default function IdentityBar() {
     >
       {/* Left — Logo group */}
       <div className="flex items-center gap-2.5">
-        {/* SVG M logo */}
-        <svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="15" cy="15" r="14" fill="url(#mgrad)" />
-          <path
-            d="M8 21V11l4.5 6 4.5-6v10"
-            stroke="white"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-          <defs>
-            <linearGradient id="mgrad" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
-              <stop stopColor="#002C77" />
-              <stop offset="1" stopColor="#00A8C7" />
-            </linearGradient>
-          </defs>
-        </svg>
+        {/* Marsh M logo — solid cobalt circle with bold white M */}
+        <div className="w-[30px] h-[30px] rounded-full bg-cobalt flex items-center justify-center shrink-0">
+          <span className="text-white font-body font-bold text-[17px] leading-none" style={{ marginTop: '1px' }}>M</span>
+        </div>
         <div className="flex flex-col">
           <div className="flex items-baseline">
             <span className="font-body text-[18px] font-bold text-white tracking-[0.3px]">
@@ -132,7 +119,7 @@ export default function IdentityBar() {
       {/* Right — Controls */}
       <div className="flex items-center gap-3">
         {/* Bell */}
-        <div className="relative">
+        <div className="relative" ref={notifContainerRef}>
           <div
             className="relative w-[30px] h-[30px] rounded-[7px] border border-white/10 bg-white/[.04] flex items-center justify-center cursor-pointer hover:bg-white/[.08] transition-colors"
             onClick={() => setNotifOpen(!notifOpen)}
@@ -155,7 +142,7 @@ export default function IdentityBar() {
               3
             </span>
           </div>
-          <NotificationDropdown isOpen={notifOpen} onClose={() => setNotifOpen(false)} />
+          <NotificationDropdown isOpen={notifOpen} onClose={() => setNotifOpen(false)} containerRef={notifContainerRef} />
         </div>
 
         {/* Theme toggle */}

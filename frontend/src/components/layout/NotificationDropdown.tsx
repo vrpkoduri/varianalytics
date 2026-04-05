@@ -4,21 +4,23 @@ import { MOCK_NOTIFICATIONS } from '../../mocks/notificationData'
 interface NotificationDropdownProps {
   isOpen: boolean
   onClose: () => void
+  containerRef?: React.RefObject<HTMLDivElement>
 }
 
-export function NotificationDropdown({ isOpen, onClose }: NotificationDropdownProps) {
+export function NotificationDropdown({ isOpen, onClose, containerRef }: NotificationDropdownProps) {
   const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
-  // Click outside to close
+  // Click outside to close — use containerRef (covers bell + dropdown) if provided, else fall back to dropdownRef
   useEffect(() => {
     if (!isOpen) return
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) onClose()
+      const ref = containerRef?.current ?? dropdownRef.current
+      if (ref && !ref.contains(e.target as Node)) onClose()
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [isOpen, onClose])
+  }, [isOpen, onClose, containerRef])
 
   const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })))
   const unreadCount = notifications.filter(n => !n.read).length
@@ -27,7 +29,7 @@ export function NotificationDropdown({ isOpen, onClose }: NotificationDropdownPr
 
   return (
     <div ref={dropdownRef}
-         className="absolute top-full right-0 mt-2 w-[280px] max-h-[320px] overflow-y-auto rounded-lg border shadow-xl z-50 animate-slide-down"
+         className="absolute top-full right-0 mt-2 min-w-[340px] max-h-[320px] overflow-y-auto rounded-lg border shadow-xl z-50 animate-slide-down"
          style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
@@ -47,7 +49,7 @@ export function NotificationDropdown({ isOpen, onClose }: NotificationDropdownPr
           {!n.read && <span className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: 'var(--teal)' }} />}
           {n.read && <span className="w-1.5 h-1.5 flex-shrink-0" />}
           <div className="flex-1 min-w-0">
-            <div className="text-[10px] leading-snug" style={{ color: n.read ? 'var(--tx-tertiary)' : 'var(--tx-secondary)' }}>
+            <div className="text-[10px] leading-snug whitespace-normal break-words" style={{ color: n.read ? 'var(--tx-tertiary)' : 'var(--tx-secondary)' }}>
               {n.text}
             </div>
             <div className="text-[8px] mt-0.5" style={{ color: 'var(--tx-tertiary)' }}>{n.time}</div>

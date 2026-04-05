@@ -11,12 +11,14 @@ interface HeatmapProps {
 }
 
 function getCellColor(value: number): string {
-  if (value > 3) return 'bg-emerald/20 text-emerald'
-  if (value > 1) return 'bg-emerald/10 text-emerald'
-  if (value > 0) return 'bg-emerald/5 text-emerald'
-  if (value > -1) return 'bg-coral/5 text-coral'
-  if (value > -3) return 'bg-coral/10 text-coral'
-  return 'bg-coral/20 text-coral'
+  // Stronger tints ensure heat is visible in both dark and light mode
+  if (value > 3) return 'bg-emerald-surface text-emerald font-semibold'
+  if (value > 1) return 'bg-emerald-surface text-emerald'
+  if (value > 0) return 'bg-emerald/[.06] text-emerald'
+  if (value === 0) return 'text-tx-tertiary'
+  if (value > -1) return 'bg-coral/[.06] text-coral'
+  if (value > -3) return 'bg-coral-surface text-coral'
+  return 'bg-coral-surface text-coral font-semibold'
 }
 
 export function Heatmap({ data, activeFilter, onCellClick, persona }: HeatmapProps) {

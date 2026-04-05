@@ -4,7 +4,7 @@ import { api, buildParams } from '@/utils/api'
 import { transformVariances } from '@/utils/transformers'
 import { MOCK_VARIANCES } from '@/mocks/dashboardData'
 
-export function useVariances(filters?: { plCategory?: string; buId?: string }) {
+export function useVariances(filters?: { plCategory?: string; buId?: string; ignoreGlobalBU?: boolean }) {
   const { filters: globalFilters } = useGlobalFilters()
   const { viewType, comparisonBase, businessUnit } = globalFilters
   const period = globalFilters.period ? `${globalFilters.period.year}-${String(globalFilters.period.month).padStart(2, '0')}` : '2026-06'
@@ -24,7 +24,7 @@ export function useVariances(filters?: { plCategory?: string; buId?: string }) {
       page: page,
       page_size: 50,
       pl_category: filters?.plCategory,
-      bu_id: filters?.buId || businessUnit || undefined,
+      bu_id: filters?.ignoreGlobalBU ? (filters?.buId || undefined) : (filters?.buId || businessUnit || undefined),
     })
 
     api.computation

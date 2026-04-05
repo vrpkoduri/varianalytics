@@ -98,11 +98,12 @@ export default function DashboardView() {
       items = items.filter((v) => v.status === 'approved' || v.status === 'reviewed')
     }
 
-    // Heatmap cross-filter
+    // Heatmap cross-filter (case-insensitive)
     if (heatmapFilter) {
       items = items.filter((v) => {
-        const buMatch = v.bu === heatmapFilter.bu || v.bu === 'All'
-        return buMatch
+        const buMatch = v.bu?.toLowerCase() === heatmapFilter.bu?.toLowerCase() || v.bu === 'All'
+        const catMatch = !heatmapFilter.cat || (v.account || '').toLowerCase().includes(heatmapFilter.cat.toLowerCase())
+        return buMatch && catMatch
       })
     }
 

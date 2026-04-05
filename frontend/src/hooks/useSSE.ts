@@ -9,6 +9,7 @@ export function useSSE(
   conversationId: string | null,
   onEvent: (event: SSEEvent) => void,
   enabled: boolean = true,
+  reconnectKey: number = 0,
 ) {
   const esRef = useRef<EventSource | null>(null)
   const onEventRef = useRef(onEvent)
@@ -67,7 +68,7 @@ export function useSSE(
       es.close()
       esRef.current = null
     }
-  }, [conversationId, enabled])
+  }, [conversationId, enabled, reconnectKey])
 
   const close = useCallback(() => {
     esRef.current?.close()

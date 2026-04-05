@@ -21,6 +21,7 @@ export function useChat() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [useRealApi, setUseRealApi] = useState(true)
+  const [sseKey, setSseKey] = useState(0)
   const streamRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   /** Mock streaming fallback — existing logic preserved */
@@ -102,6 +103,7 @@ export function useChat() {
         })) as any
         const cid = resp.conversationId || resp.conversation_id
         setConversationId(cid)
+        setSseKey(prev => prev + 1)
         // SSE will be handled by useSSE hook in ChatView
         return cid
       } catch {
@@ -155,5 +157,5 @@ export function useChat() {
     setUseRealApi(true)
   }, [])
 
-  return { messages, isStreaming, sendMessage, clearChat, conversationId, useRealApi, setMessages, setIsStreaming }
+  return { messages, isStreaming, sendMessage, clearChat, conversationId, useRealApi, setMessages, setIsStreaming, sseKey }
 }

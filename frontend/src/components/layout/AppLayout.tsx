@@ -46,7 +46,7 @@ export default function AppLayout() {
 
       {/* Main: Sidebar + Content */}
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar isOpen={sidebarOpen} />
+        <Sidebar isOpen={sidebarOpen} pathname={location.pathname} />
         <main
           className={cn(
             'flex-1 overflow-y-auto transition-all duration-300',

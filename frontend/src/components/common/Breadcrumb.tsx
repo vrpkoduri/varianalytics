@@ -9,7 +9,7 @@ interface BreadcrumbProps {
 export function Breadcrumb({ title, subtitle, filters }: BreadcrumbProps) {
   // E6: Build breadcrumb trail from filters
   const trail = [title]
-  if (filters?.bu) trail.push(filters.bu.replace(/_/g, ' '))
+  if (filters?.bu) trail.push(filters.bu.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
   if (filters?.dimension) trail.push(filters.dimension)
 
   return (

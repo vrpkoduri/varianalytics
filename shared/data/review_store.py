@@ -57,6 +57,16 @@ class ReviewStore:
         self._review_status = loader.load_table("fact_review_status").copy()
         self._variance_material = loader.load_table("fact_variance_material").copy()
 
+        # Load account names for display
+        self._account_lookup: dict[str, str] = {}
+        try:
+            dim_account = loader.load_table("dim_account")
+            if not dim_account.empty:
+                for _, row in dim_account.iterrows():
+                    self._account_lookup[str(row["account_id"])] = str(row.get("account_name", row["account_id"]))
+        except Exception:
+            pass
+
         # Ensure required columns exist
         if "reviewed_at" not in self._review_status.columns:
             self._review_status["reviewed_at"] = pd.NaT
@@ -163,7 +173,7 @@ class ReviewStore:
 
             items.append({
                 "variance_id": str(row.get("variance_id", "")),
-                "account_name": str(row.get("account_id", "")),
+                "account_name": self._account_lookup.get(str(row.get("account_id", "")), str(row.get("account_id", ""))),
                 "period_label": str(row.get("period_id", "")),
                 "variance_amount": float(row.get("variance_amount", 0)),
                 "variance_pct": float(row["variance_pct"]) if pd.notna(row.get("variance_pct")) else None,
@@ -420,7 +430,7 @@ class ReviewStore:
         for _, row in page_data.iterrows():
             items.append({
                 "variance_id": str(row.get("variance_id", "")),
-                "account_name": str(row.get("account_id", "")),
+                "account_name": self._account_lookup.get(str(row.get("account_id", "")), str(row.get("account_id", ""))),
                 "period_label": str(row.get("period_id", "")),
                 "variance_amount": float(row.get("variance_amount", 0)),
                 "variance_pct": float(row["variance_pct"]) if pd.notna(row.get("variance_pct")) else None,

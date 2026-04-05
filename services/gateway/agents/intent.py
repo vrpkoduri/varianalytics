@@ -65,23 +65,23 @@ class KeywordIntentClassifier:
             re.IGNORECASE,
         )),
         (Intent.REVIEW_STATUS, re.compile(
-            r"review|queue|pending|draft|approv",
+            r"review|queue|pending|draft|approv|what\s+needs\s+review",
             re.IGNORECASE,
         )),
         (Intent.WATERFALL, re.compile(
-            r"waterfall|bridge|walk",
+            r"waterfall|bridge|walk|ebitda\s+bridge",
             re.IGNORECASE,
         )),
         (Intent.HEATMAP, re.compile(
-            r"heatmap|heat\s*map|geo\s*variance|matrix",
+            r"heatmap|heat\s*map|geo\s*variance|matrix|show.*heatmap|variance\s+heatmap",
             re.IGNORECASE,
         )),
         (Intent.TREND, re.compile(
-            r"trend|trailing|historical|month\s*over\s*month|mom\b",
+            r"trend|trailing|historical|month\s*over\s*month|mom\b|emerging\s*risk",
             re.IGNORECASE,
         )),
         (Intent.PL_SUMMARY, re.compile(
-            r"p\s*&\s*l|p\s+and\s+l|income\s+statement|profit\s*loss|profit\s+and\s+loss",
+            r"p\s*&\s*l|p\s+and\s+l|income\s+statement|profit\s*loss|profit\s+and\s+loss|show.*p&l|show.*pl\b",
             re.IGNORECASE,
         )),
         (Intent.VARIANCE_DETAIL, re.compile(
@@ -93,7 +93,10 @@ class KeywordIntentClassifier:
             re.IGNORECASE,
         )),
         (Intent.REVENUE_OVERVIEW, re.compile(
-            r"revenue|sales|top\s*line|booking",
+            r"revenue|sales|top\s*line|booking|top\s*variance|biggest\s*variance|"
+            r"material\s*variance|key\s*variance|major\s*variance|significant\s*variance|"
+            r"largest\s*variance|executive\s+summary|summary|overview|how\s+(did|is|are)\s+\w+\s+perform|"
+            r"what.*happen|close\b|month\s+end|period\s+end",
             re.IGNORECASE,
         )),
     ]

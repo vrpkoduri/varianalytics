@@ -68,7 +68,7 @@ export function useApprovalQueue(persona?: string) {
             action: 'approve',
           })
           .then(() => {
-            api.gateway.get('/approval/queue?page_size=50').then((data: any) => {
+            api.gateway.get(`/approval/queue?page_size=50&persona=${persona}`).then((data: any) => {
               const queueItems = data.items || data
               if (Array.isArray(queueItems)) setItems(transformApprovalItems(queueItems))
             })
@@ -96,11 +96,11 @@ export function useApprovalQueue(persona?: string) {
   )
 
   const refreshQueue = useCallback(() => {
-    api.gateway.get('/approval/queue?page_size=50').then((data: any) => {
+    api.gateway.get(`/approval/queue?page_size=50&persona=${persona}`).then((data: any) => {
       const queueItems = data.items || data
       if (Array.isArray(queueItems)) setItems(transformApprovalItems(queueItems))
     }).catch(() => {})
-  }, [])
+  }, [persona])
 
   const holdItem = useCallback((id: string) => {
     if (usingMock) {
@@ -129,7 +129,7 @@ export function useApprovalQueue(persona?: string) {
             action: 'approve',
           })
           .then(() => {
-            api.gateway.get('/approval/queue?page_size=50').then((data: any) => {
+            api.gateway.get(`/approval/queue?page_size=50&persona=${persona}`).then((data: any) => {
               const queueItems = data.items || data
               if (Array.isArray(queueItems)) setItems(transformApprovalItems(queueItems))
             })
@@ -173,10 +173,10 @@ export function useApprovalQueue(persona?: string) {
             })
             .then(() => {
               api.gateway
-                .get('/approval/queue?page_size=50')
+                .get(`/approval/queue?page_size=50&persona=${persona}`)
                 .then((data: any) => {
                   const queueItems = data.items || data
-                  if (Array.isArray(queueItems)) setItems(queueItems)
+                  if (Array.isArray(queueItems)) setItems(transformApprovalItems(queueItems))
                 })
             })
             .catch(() => {
