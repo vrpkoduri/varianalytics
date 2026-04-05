@@ -45,12 +45,12 @@ export default function AppLayout() {
       )}
 
       {/* Main: Sidebar + Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0">
         <Sidebar isOpen={sidebarOpen} pathname={location.pathname} />
         <main
           className={cn(
-            'flex-1 overflow-y-auto transition-all duration-300',
-            focusMode ? 'px-10 py-6 max-w-full' : 'px-6 py-5 max-w-content'
+            'flex-1 overflow-y-auto overflow-x-hidden transition-all duration-300',
+            focusMode ? 'px-10 py-6' : 'px-4 py-5'
           )}
         >
           <ErrorBoundary>

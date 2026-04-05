@@ -39,8 +39,8 @@ export function ApprovalItem({ item, onApprove, onHold, onOpenModal }: ApprovalI
           )}
         </div>
         {(item as any).narrativeDetail && (
-          <div className="text-[8px] text-tx-secondary mt-0.5 truncate max-w-[500px] opacity-70">
-            {(item as any).narrativeDetail.slice(0, 140)}...
+          <div className="text-[8px] text-tx-secondary mt-0.5 truncate opacity-70">
+            {(item as any).narrativeDetail.slice(0, 120)}...
           </div>
         )}
       </div>

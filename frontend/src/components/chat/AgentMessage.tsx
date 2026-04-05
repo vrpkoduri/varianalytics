@@ -1,6 +1,7 @@
 import type { ChatMessage } from '@/hooks/useChat'
 import type { RichContent } from '@/mocks/chatData'
 import { Badge } from '@/components/common/Badge'
+import { renderMarkdown } from '@/utils/markdown'
 import { Sparkline } from '@/components/charts/Sparkline'
 import { AgentAvatar } from './AgentAvatar'
 import { StreamingCursor } from './StreamingCursor'
@@ -98,8 +99,8 @@ export function AgentMessage({ message, isStreaming, onSuggestionSelect }: Agent
           {/* Confidence + review status badges */}
           {richContent && renderConfidenceBadges(richContent)}
 
-          {/* Message text with optional streaming cursor */}
-          <span>{text}</span>
+          {/* Message text with markdown rendering + optional streaming cursor */}
+          <div className="whitespace-pre-wrap">{isStreaming ? text : renderMarkdown(text)}</div>
           {isStreaming && <StreamingCursor />}
 
           {/* Rich content (only after streaming completes) */}

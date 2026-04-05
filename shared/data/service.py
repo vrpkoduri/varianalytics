@@ -1040,9 +1040,11 @@ class DataService:
                 key=lambda x: abs(x.get("variance_amount", x.get("variance", 0))), reverse=True,
             )
 
-            left_name = positives[0].get("account_name", positives[0].get("account_id", "Item A")) if positives else "Item A"
+            left_id = positives[0].get("account_id", "") if positives else ""
+            left_name = positives[0].get("account_name") or self._account_lookup.get(left_id, left_id) if positives else "Item A"
             left_val = positives[0].get("variance_amount", positives[0].get("variance", 0)) if positives else 0
-            right_name = negatives[0].get("account_name", negatives[0].get("account_id", "Item B")) if negatives else "Item B"
+            right_id = negatives[0].get("account_id", "") if negatives else ""
+            right_name = negatives[0].get("account_name") or self._account_lookup.get(right_id, right_id) if negatives else "Item B"
             right_val = negatives[0].get("variance_amount", negatives[0].get("variance", 0)) if negatives else 0
 
             net = row.get("net_variance", 0)

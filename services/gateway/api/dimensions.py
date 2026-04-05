@@ -88,9 +88,9 @@ async def get_hierarchy(
     def _convert(node: dict) -> HierarchyNode:
         return HierarchyNode(
             node_id=node.get("node_id", ""),
-            name=node.get("name", ""),
+            name=node.get("node_name") or node.get("name") or node.get("node_id", ""),
             parent_id=node.get("parent_id"),
-            level=node.get("level", 0),
+            level=node.get("depth", node.get("level", 0)),
             rollup_path=node.get("rollup_path", ""),
             children=[_convert(c) for c in node.get("children", [])],
         )
