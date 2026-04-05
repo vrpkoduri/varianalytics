@@ -591,6 +591,8 @@ class DataService:
                 "variance_sign": row.get("variance_sign", "natural"),
                 "pl_category": row.get("pl_category", ""),
                 "narrative_oneliner": row.get("narrative_oneliner"),
+                "narrative_detail": row.get("narrative_detail"),
+                "narrative_source": row.get("narrative_source"),
             })
 
         return {

@@ -134,3 +134,26 @@ async def engine_task_cancel(task_id: str, request: Request) -> dict:
     if not success:
         raise HTTPException(status_code=400, detail=f"Task {task_id} cannot be cancelled")
     return {"task_id": task_id, "status": "cancelled"}
+
+
+@router.post("/reload", summary="Reload data from disk")
+async def reload_data(request: Request) -> dict:
+    """Force DataService to reload all tables from parquet files.
+
+    Use after running the engine via CLI to refresh in-memory data
+    without restarting the service.
+    """
+    ds = getattr(request.app.state, "data_service", None)
+    if ds is None:
+        raise HTTPException(status_code=503, detail="DataService not initialized")
+
+    ds._load_all_tables()
+    ds._build_account_metadata()
+    ds.invalidate_graph_cache()
+
+    table_counts = {name: len(df) for name, df in ds._tables.items() if not df.empty}
+
+    return {
+        "status": "reloaded",
+        "tables": table_counts,
+    }

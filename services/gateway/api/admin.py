@@ -314,3 +314,38 @@ async def get_audit_log(
 # Engine control endpoints are served by the computation service at
 # /api/v1/engine/* (port 8001). The frontend calls computation directly
 # for engine operations. See services/computation/api/engine_control.py.
+
+
+# ---------------------------------------------------------------------------
+# Hot-Reload (Framework Completion Sprint)
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/reload",
+    summary="Reload data from disk",
+)
+async def reload_data(
+    request: Request,
+    admin: UserContext = Depends(require_admin()),
+) -> dict:
+    """Force DataService to reload all tables from parquet files.
+
+    Use after running the engine via CLI to refresh in-memory data
+    without restarting the service.
+    """
+    ds = getattr(request.app.state, "data_service", None)
+    if ds is None:
+        raise HTTPException(status_code=503, detail="DataService not initialized")
+
+    ds._load_all_tables()
+    ds._build_account_metadata()
+    ds.invalidate_graph_cache()
+
+    table_counts = {name: len(df) for name, df in ds._tables.items() if not df.empty}
+    logger.info("Admin reload: %d tables reloaded", len(table_counts))
+
+    return {
+        "status": "reloaded",
+        "tables": table_counts,
+    }
