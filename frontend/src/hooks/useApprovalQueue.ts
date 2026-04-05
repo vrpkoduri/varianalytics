@@ -21,8 +21,8 @@ export function useApprovalQueue(persona?: string) {
       .get('/approval/queue?page_size=50')
       .then((data: any) => {
         const queueItems = data.items || data
-        if (Array.isArray(queueItems) && queueItems.length > 0) {
-          setItems(transformApprovalItems(queueItems))
+        if (Array.isArray(queueItems)) {
+          setItems(queueItems.length > 0 ? transformApprovalItems(queueItems) : [])
           setUsingMock(false)
         } else {
           setItems(MOCK_APPROVAL_DATA)

@@ -72,6 +72,16 @@ export default function ApprovalView() {
         </div>
       )}
       <ReportGate pendingCount={pendingCount} onApproveAllReviewed={approveAllReviewed} />
+
+      {!loading && !usingMock && analystGroups.length === 0 && (
+        <div className="glass-card p-8 text-center animate-fade-up">
+          <p className="text-sm text-text-secondary">No items pending approval.</p>
+          <p className="text-xs text-text-secondary mt-1 opacity-60">
+            Items appear here after analysts review and confirm narratives in the Review Queue.
+          </p>
+        </div>
+      )}
+
       {analystGroups.map((group) => (
         <AnalystGroup
           key={group.name}
