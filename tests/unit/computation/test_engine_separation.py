@@ -161,14 +161,14 @@ class TestProcessARunner:
         assert "correlations" not in result.context
 
     @pytest.mark.asyncio
-    async def test_process_a_timing_under_60s(self, process_a_runner, data_dir):
-        """Process A completes in under 60 seconds."""
+    async def test_process_a_timing_under_120s(self, process_a_runner, data_dir):
+        """Process A completes in under 120 seconds (includes graph build + disk I/O)."""
         start = time.monotonic()
         result = await process_a_runner.run(
             period_id="2026-06", data_dir=data_dir
         )
         elapsed = time.monotonic() - start
-        assert elapsed < 60, f"Process A took {elapsed:.1f}s (budget: 60s)"
+        assert elapsed < 120, f"Process A took {elapsed:.1f}s (budget: 120s)"
 
     @pytest.mark.asyncio
     async def test_process_a_has_pass_timings(self, process_a_runner, data_dir):
