@@ -99,10 +99,13 @@ class ReviewStore:
         rs = self._review_status.copy()
         vm = self._variance_material.copy()
 
+        # Select available columns from variance_material (defensive — some may be missing in test fixtures)
+        desired_cols = ["variance_id", "account_id", "period_id", "bu_id",
+                        "variance_amount", "variance_pct", "narrative_oneliner",
+                        "pl_category"]
+        available_cols = [c for c in desired_cols if c in vm.columns]
         merged = rs.merge(
-            vm[["variance_id", "account_id", "period_id", "bu_id",
-                "variance_amount", "variance_pct", "narrative_oneliner",
-                "pl_category"]].drop_duplicates(subset=["variance_id"]),
+            vm[available_cols].drop_duplicates(subset=["variance_id"]),
             on="variance_id",
             how="left",
             suffixes=("", "_vm"),
@@ -345,10 +348,12 @@ class ReviewStore:
         ].copy()
         vm = self._variance_material
 
+        desired_cols = ["variance_id", "account_id", "period_id",
+                        "variance_amount", "variance_pct",
+                        "narrative_oneliner"]
+        available_cols = [c for c in desired_cols if c in vm.columns]
         merged = rs.merge(
-            vm[["variance_id", "account_id", "period_id",
-                "variance_amount", "variance_pct",
-                "narrative_oneliner"]].drop_duplicates(subset=["variance_id"]),
+            vm[available_cols].drop_duplicates(subset=["variance_id"]),
             on="variance_id",
             how="left",
         )

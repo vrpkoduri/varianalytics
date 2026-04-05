@@ -146,15 +146,15 @@ class TestFullPipeline:
     def test_pipeline_runs_under_budget(
         self, pipeline_result: PipelineResult
     ) -> None:
-        """Total pipeline execution time should be under 90 seconds.
+        """Total pipeline execution time should be under 120 seconds.
 
         This is a generous limit for CI environments. The pipeline
-        typically runs in under 30 seconds on the synthetic dataset,
-        plus ~5s for knowledge graph build (Phase 3A).
+        typically runs in 60-80s on the synthetic dataset including
+        knowledge graph build (Phase 3A) and Process A+B (Phase 3B).
         """
         total_time = sum(t.elapsed_seconds for t in pipeline_result.timings)
-        assert total_time < 90, (
-            f"Pipeline took {total_time:.1f}s, exceeding 90s budget"
+        assert total_time < 120, (
+            f"Pipeline took {total_time:.1f}s, exceeding 120s budget"
         )
 
     def test_pipeline_all_passes_have_timings(

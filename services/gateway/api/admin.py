@@ -306,3 +306,157 @@ async def get_audit_log(
     # For now, return empty — audit log queries will be wired when
     # the audit store is enhanced in CP-5
     return AuditLogResponse(entries=[], total=0, page=page, page_size=page_size)
+
+
+# ---------------------------------------------------------------------------
+# Engine Control (Phase 3D)
+# ---------------------------------------------------------------------------
+
+
+class EngineEstimateRequest(BaseModel):
+    period_id: str = "2026-06"
+    process: str = "full"  # a, b, full
+    mode: str = "template"  # llm, template
+    multi_period: bool = False
+
+
+class EngineRunRequest(BaseModel):
+    period_id: str = "2026-06"
+    process: str = "full"  # a, b, full
+    mode: str = "template"  # llm, template
+    multi_period: bool = False
+
+
+@router.post(
+    "/engine/estimate",
+    summary="Estimate engine run cost",
+)
+async def engine_estimate(
+    body: EngineEstimateRequest,
+    admin: UserContext = Depends(require_admin()),
+) -> dict:
+    """Preview cost/time estimate before running engine.
+
+    Returns estimated LLM calls, cost, and time based on current data.
+    """
+    from services.computation.engine.cost_estimator import estimate_process_b_cost
+
+    periods_count = 12 if body.multi_period else 1
+
+    if body.process == "a":
+        return {
+            "estimated_calls": 0,
+            "estimated_cost_usd": 0.0,
+            "estimated_time_minutes": 0.3 * periods_count,
+            "mode": "deterministic",
+            "process": "a",
+            "periods": periods_count,
+            "note": "Process A is pure math — no LLM charges.",
+        }
+
+    # Estimate material count from data
+    material_per_period = 10000  # Default
+    try:
+        from shared.data.loader import DataLoader
+        loader = DataLoader("data/output")
+        if loader.table_exists("fact_variance_material"):
+            df = loader.load_table("fact_variance_material")
+            if "period_id" in df.columns:
+                material_per_period = int(len(df) / max(df["period_id"].nunique(), 1))
+    except Exception:
+        pass
+
+    est = estimate_process_b_cost(
+        material_per_period * periods_count,
+        mode=body.mode,
+    )
+    est["process"] = body.process
+    est["periods"] = periods_count
+    return est
+
+
+@router.post(
+    "/engine/run",
+    summary="Queue an engine run",
+)
+async def engine_run(
+    body: EngineRunRequest,
+    request: Request,
+    admin: UserContext = Depends(require_admin()),
+) -> dict:
+    """Submit a new engine task to the background queue.
+
+    Only 1 engine task runs at a time. Additional tasks are queued.
+    """
+    queue = getattr(request.app.state, "engine_task_queue", None)
+    if queue is None:
+        raise HTTPException(status_code=503, detail="Engine task queue not initialized")
+
+    task = await queue.submit({
+        "period_id": body.period_id,
+        "process": body.process,
+        "mode": body.mode,
+        "multi_period": body.multi_period,
+    })
+
+    return task.to_dict()
+
+
+@router.get(
+    "/engine/tasks",
+    summary="List engine tasks",
+)
+async def engine_tasks(
+    request: Request,
+    limit: int = Query(20, ge=1, le=100),
+    admin: UserContext = Depends(require_admin()),
+) -> list:
+    """List recent engine tasks, newest first."""
+    queue = getattr(request.app.state, "engine_task_queue", None)
+    if queue is None:
+        return []
+
+    tasks = queue.list_tasks(limit=limit)
+    return [t.to_dict() for t in tasks]
+
+
+@router.get(
+    "/engine/tasks/{task_id}",
+    summary="Get engine task details",
+)
+async def engine_task_detail(
+    task_id: str,
+    request: Request,
+    admin: UserContext = Depends(require_admin()),
+) -> dict:
+    """Get status, progress, and result for a specific engine task."""
+    queue = getattr(request.app.state, "engine_task_queue", None)
+    if queue is None:
+        raise HTTPException(status_code=503, detail="Engine task queue not initialized")
+
+    task = queue.get_task(task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+    return task.to_dict()
+
+
+@router.post(
+    "/engine/tasks/{task_id}/cancel",
+    summary="Cancel an engine task",
+)
+async def engine_task_cancel(
+    task_id: str,
+    request: Request,
+    admin: UserContext = Depends(require_admin()),
+) -> dict:
+    """Cancel a running or queued engine task."""
+    queue = getattr(request.app.state, "engine_task_queue", None)
+    if queue is None:
+        raise HTTPException(status_code=503, detail="Engine task queue not initialized")
+
+    success = await queue.cancel(task_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=f"Task {task_id} cannot be cancelled")
+
+    return {"task_id": task_id, "status": "cancelled"}
