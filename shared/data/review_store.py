@@ -102,6 +102,7 @@ class ReviewStore:
         # Select available columns from variance_material (defensive — some may be missing in test fixtures)
         desired_cols = ["variance_id", "account_id", "period_id", "bu_id",
                         "variance_amount", "variance_pct", "narrative_oneliner",
+                        "narrative_detail", "narrative_source",
                         "pl_category"]
         available_cols = [c for c in desired_cols if c in vm.columns]
         merged = rs.merge(
@@ -156,6 +157,8 @@ class ReviewStore:
                 "variance_pct": float(row["variance_pct"]) if pd.notna(row.get("variance_pct")) else None,
                 "current_status": str(row.get("status", "AI_DRAFT")),
                 "narrative_preview": str(row.get("narrative_oneliner", ""))[:200],
+                "narrative_detail": str(row.get("narrative_detail", ""))[:500] if pd.notna(row.get("narrative_detail")) else "",
+                "narrative_source": str(row.get("narrative_source", "")),
                 "sla_hours_remaining": sla_hours,
             })
 
