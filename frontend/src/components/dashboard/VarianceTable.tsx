@@ -56,7 +56,7 @@ function toVarianceDetail(v: MockVariance): VarianceDetail {
     decomposition: [],
     correlations: [],
     hypotheses: [],
-    narratives: { detail: v.narrative, midlevel: v.narrative, summary: v.narrative, board: v.narrative },
+    narratives: { detail: (v as any).narrativeDetail || v.narrative, midlevel: (v as any).narrativeDetail || v.narrative, summary: v.narrative, board: '' },
     isEdited: false,
     isSynthesized: false,
     isNew: v.edgeBadge === 'New',
@@ -239,8 +239,11 @@ export function VarianceTable({ variances, totalCount, searchQuery, onSearchChan
                     <tr>
                       <td colSpan={9} className="px-6 py-3 border-b border-border" style={{ background: 'rgba(0,168,199,.02)' }}>
                         <div className="text-[10px] text-tx-secondary leading-relaxed mb-2 pl-4">
-                          {v.narrative || 'No narrative available'}
+                          {(v as any).narrativeDetail || v.narrative || 'No narrative available'}
                         </div>
+                        {(v as any).narrativeSource === 'llm' && (
+                          <span className="text-[7px] text-teal-400/60 ml-4 mb-1 inline-block">AI Agent Generated</span>
+                        )}
                         <button
                           className="text-[8px] font-semibold px-3 py-1 rounded-md ml-4"
                           style={{ background: 'linear-gradient(135deg, var(--cobalt), var(--teal))', color: 'white' }}

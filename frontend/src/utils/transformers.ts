@@ -209,6 +209,8 @@ export function transformVariances(apiItems: any[]): MockVariance[] {
     status: mapStatus(v.status || v.reviewStatus || 'draft'),
     edgeBadge: v.edgeBadge || (v.isNew ? 'New' : undefined),
     narrative: v.narrativeOneliner || v.narrative || '',
+    narrativeDetail: v.narrativeDetail || '',
+    narrativeSource: v.narrativeSource || '',
   }))
 }
 

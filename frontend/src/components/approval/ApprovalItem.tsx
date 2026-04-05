@@ -28,13 +28,20 @@ export function ApprovalItem({ item, onApprove, onHold, onOpenModal }: ApprovalI
       />
 
       {/* Content */}
-      <div className="flex-1 flex items-center gap-2 min-w-0">
-        <span className="text-[10px] font-medium truncate">{item.account}</span>
-        <Badge variant={item.favorable ? 'emerald' : 'coral'}>
-          {formatVariance(item.variance, item.variancePct)}
-        </Badge>
-        {item.isEdited && (
-          <Badge variant="gold">Edited</Badge>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-medium truncate">{item.account}</span>
+          <Badge variant={item.favorable ? 'emerald' : 'coral'}>
+            {formatVariance(item.variance, item.variancePct)}
+          </Badge>
+          {item.isEdited && (
+            <Badge variant="gold">Edited</Badge>
+          )}
+        </div>
+        {(item as any).narrativeDetail && (
+          <div className="text-[8px] text-tx-secondary mt-0.5 truncate max-w-[500px] opacity-70">
+            {(item as any).narrativeDetail.slice(0, 140)}...
+          </div>
         )}
       </div>
 

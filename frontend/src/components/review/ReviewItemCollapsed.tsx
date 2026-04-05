@@ -82,6 +82,11 @@ export function ReviewItemCollapsed({ item, isChecked, isExpanded, onCheck, onTo
         <div className="text-[9px] text-tx-tertiary mt-0.5">
           {item.bu} &middot; {item.geo}
         </div>
+        {item.narratives?.detail && (
+          <div className="text-[8px] text-tx-secondary mt-0.5 truncate max-w-[400px] opacity-70">
+            {item.narratives.detail.slice(0, 120)}...
+          </div>
+        )}
       </div>
 
       {/* Variance amount */}

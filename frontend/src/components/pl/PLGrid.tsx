@@ -70,9 +70,9 @@ export function PLGrid({ rows }: PLGridProps) {
       correlations: [],
       hypotheses: [],
       narratives: {
-        detail: `${row.name}: $${Math.abs(variance)}K variance`,
-        midlevel: '',
-        summary: '',
+        detail: (row as any).narrativeDetail || `${row.name}: $${Math.abs(variance)}K variance`,
+        midlevel: (row as any).narrativeDetail || '',
+        summary: (row as any).narrativeOneliner || '',
         board: '',
       },
       isEdited: false,
