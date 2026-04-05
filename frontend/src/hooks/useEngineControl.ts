@@ -48,7 +48,7 @@ export function useEngineControl() {
   // Fetch cost estimate
   const fetchEstimate = useCallback(async (config: EngineConfig) => {
     try {
-      const est = await api.gateway.post<CostEstimate>('/admin/engine/estimate', {
+      const est = await api.computation.post<CostEstimate>('/engine/estimate', {
         period_id: config.periodId,
         process: config.process,
         mode: config.mode,
@@ -66,7 +66,7 @@ export function useEngineControl() {
     setLoading(true)
     setError(null)
     try {
-      const task = await api.gateway.post<EngineTask>('/admin/engine/run', {
+      const task = await api.computation.post<EngineTask>('/engine/run', {
         period_id: config.periodId,
         process: config.process,
         mode: config.mode,
@@ -84,7 +84,7 @@ export function useEngineControl() {
   const cancelTask = useCallback(async () => {
     if (!currentTask) return
     try {
-      await api.gateway.post(`/admin/engine/tasks/${currentTask.taskId}/cancel`, {})
+      await api.computation.post(`/engine/tasks/${currentTask.taskId}/cancel`, {})
       stopPolling()
       setCurrentTask(prev => prev ? { ...prev, status: 'cancelled' } : null)
       setLoading(false)
@@ -97,7 +97,7 @@ export function useEngineControl() {
   // Refresh task history
   const refreshHistory = useCallback(async () => {
     try {
-      const tasks = await api.gateway.get<EngineTask[]>('/admin/engine/tasks?limit=20')
+      const tasks = await api.computation.get<EngineTask[]>('/engine/tasks?limit=20')
       setHistory(tasks || [])
     } catch {
       // Silently fail — history is non-critical
@@ -109,7 +109,7 @@ export function useEngineControl() {
     stopPolling()
     pollRef.current = setInterval(async () => {
       try {
-        const updated = await api.gateway.get<EngineTask>(`/admin/engine/tasks/${taskId}`)
+        const updated = await api.computation.get<EngineTask>(`/engine/tasks/${taskId}`)
         setCurrentTask(updated)
         if (updated.status !== 'running' && updated.status !== 'queued') {
           stopPolling()

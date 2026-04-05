@@ -20,6 +20,7 @@ from shared.data.service import DataService
 
 from services.computation.api.dashboard import router as dashboard_router
 from services.computation.api.drilldown import router as drilldown_router
+from services.computation.api.engine_control import router as engine_router
 from services.computation.api.pl import router as pl_router
 from services.computation.api.synthesis import router as synthesis_router
 from services.computation.api.variances import router as variances_router
@@ -83,6 +84,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.llm_client = None
         app.state.rag_retriever = None
 
+    # Engine task queue (Phase 3D)
+    from shared.engine.task_queue import EngineTaskQueue
+    app.state.engine_task_queue = EngineTaskQueue(data_dir="data/output")
+    logger.info("Engine task queue initialized")
+
     # TODO: warm hierarchy cache (~20 MB materialized rollup paths)
     # TODO: connect to Redis cache
 
@@ -123,6 +129,7 @@ app.include_router(variances_router, prefix="/api/v1")
 app.include_router(drilldown_router, prefix="/api/v1")
 app.include_router(pl_router, prefix="/api/v1")
 app.include_router(synthesis_router, prefix="/api/v1")
+app.include_router(engine_router, prefix="/api/v1")
 
 
 # -- Health ----------------------------------------------------------------

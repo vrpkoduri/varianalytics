@@ -121,7 +121,7 @@ class EngineTaskQueue:
             task.periods = [task.period_id]
 
         # Compute cost estimate
-        from services.computation.engine.cost_estimator import estimate_process_b_cost
+        from shared.engine.cost_estimator import estimate_process_b_cost
         material_count = self._estimate_material_count()
         if task.process in ("b", "full"):
             task.cost_estimate = estimate_process_b_cost(

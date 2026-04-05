@@ -13,7 +13,7 @@ from shared.knowledge.networkx_graph import NetworkXGraph
 from shared.knowledge.graph_builder import build_variance_graph_from_data
 from shared.cascade.regenerator import CascadeRegenerator, CascadeResult
 from shared.data.service import DataService
-from services.computation.engine.cost_estimator import estimate_cascade_cost
+from shared.engine.cost_estimator import estimate_cascade_cost
 
 
 # ---------------------------------------------------------------------------

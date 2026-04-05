@@ -157,13 +157,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.info("LLM not available — using keyword intent + template responses")
 
-    # Engine task queue (Phase 3D)
-    from shared.engine.task_queue import EngineTaskQueue
-    app.state.engine_task_queue = EngineTaskQueue(data_dir="data/output")
-    logger.info("Engine task queue initialized")
+    # Note: Engine task queue lives in computation service (Phase 3D)
+    # Frontend calls computation service directly for engine control.
 
     logger.info(
-        "Gateway ready — DataService + ReviewStore + ConversationManager + JWT + ComputationClient(%s) + EngineTaskQueue",
+        "Gateway ready — DataService + ReviewStore + ConversationManager + JWT + ComputationClient(%s)",
         settings.computation_service_url,
     )
     yield

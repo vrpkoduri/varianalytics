@@ -19,7 +19,7 @@ from services.computation.engine.runner import (
     ProcessBResult,
     ProcessBRunner,
 )
-from services.computation.engine.cost_estimator import (
+from shared.engine.cost_estimator import (
     estimate_process_b_cost,
     format_cost_summary,
 )

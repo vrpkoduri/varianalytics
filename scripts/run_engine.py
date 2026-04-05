@@ -258,7 +258,7 @@ def _init_llm():
 
 def _print_cost_estimate(data_dir: str, periods: list[str]) -> None:
     """Print cost estimate for Process B and exit."""
-    from services.computation.engine.cost_estimator import (
+    from shared.engine.cost_estimator import (
         estimate_process_b_cost,
         format_cost_summary,
     )
