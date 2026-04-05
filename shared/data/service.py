@@ -290,6 +290,13 @@ class DataService:
             acct_meta = self._account_lookup.get(acct_id, {})
             vsign = acct_meta.get("variance_sign")
 
+            # Narrative lookup for this KPI account
+            narr_oneliner = ""
+            if not acct_rows.empty and "narrative_oneliner" in acct_rows.columns:
+                first_narr = acct_rows.iloc[0].get("narrative_oneliner")
+                if pd.notna(first_narr):
+                    narr_oneliner = str(first_narr)
+
             cards.append(_clean_dict({
                 "metric_name": metric_name,
                 "account_id": acct_id,
@@ -299,6 +306,7 @@ class DataService:
                 "variance_pct": round(float(var_pct), 2) if var_pct is not None else None,
                 "is_favorable": bool(self._is_favorable(var_amt, vsign)),
                 "is_material": bool(is_mat),
+                "narrative_oneliner": narr_oneliner,
             }))
 
         return cards
@@ -740,16 +748,33 @@ class DataService:
             is_material=("is_material", "any"),
         ).reset_index()
 
+        # Also pick first narrative per account for P&L display
+        narr_cols = ["account_id", "narrative_detail", "narrative_oneliner", "narrative_source"]
+        narr_available = [c for c in narr_cols if c in filtered.columns]
+        narr_lookup: dict[str, dict] = {}
+        if len(narr_available) > 1:  # at least account_id + one narrative
+            narr_df = filtered[narr_available].drop_duplicates(subset=["account_id"])
+            for _, nrow in narr_df.iterrows():
+                narr_lookup[str(nrow["account_id"])] = {
+                    c: str(nrow.get(c, "")) if pd.notna(nrow.get(c)) else ""
+                    for c in narr_available if c != "account_id"
+                }
+
         amounts: dict[str, dict[str, Any]] = {}
         for _, row in agg.iterrows():
+            acct_id = str(row["account_id"])
             comp = row["comparator"]
             var_pct = (row["variance_amount"] / comp * 100) if comp != 0 else None
-            amounts[row["account_id"]] = {
+            narr = narr_lookup.get(acct_id, {})
+            amounts[acct_id] = {
                 "actual": round(float(row["actual"]), 2),
                 "comparator": round(float(row["comparator"]), 2),
                 "variance_amount": round(float(row["variance_amount"]), 2),
                 "variance_pct": round(var_pct, 2) if var_pct is not None else None,
                 "is_material": bool(row["is_material"]),
+                "narrative_detail": narr.get("narrative_detail", ""),
+                "narrative_oneliner": narr.get("narrative_oneliner", ""),
+                "narrative_source": narr.get("narrative_source", ""),
             }
 
         def _build_node(acct_id: str, depth: int = 0) -> Optional[dict[str, Any]]:
@@ -782,6 +807,9 @@ class DataService:
                 "variance_pct": amt.get("variance_pct"),
                 "is_material": amt.get("is_material", False),
                 "pl_category": meta.get("pl_category"),
+                "narrative_detail": amt.get("narrative_detail", ""),
+                "narrative_oneliner": amt.get("narrative_oneliner", ""),
+                "narrative_source": amt.get("narrative_source", ""),
                 "children": children,
             }
 

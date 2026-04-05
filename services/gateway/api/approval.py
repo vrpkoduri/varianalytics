@@ -31,6 +31,8 @@ class ApprovalQueueItem(BaseModel):
     variance_pct: Optional[float] = None
     analyst_name: str = ""
     reviewed_narrative: str = ""
+    narrative_detail: str = ""
+    narrative_source: str = ""
 
 
 class ApprovalQueueResponse(BaseModel):

@@ -251,6 +251,10 @@ export function transformPLRows(apiTree: any[]): PLRowData[] {
         signConvention: INVERSE_CATEGORIES.some((cat) => plCat.includes(cat)) ? 'inverse' : 'normal',
         status: node.status ? mapStatus(node.status) : undefined,
         type: node.isMaterial ? 'material' : node.isTrending ? 'trending' : undefined,
+        narrativeDetail: node.narrativeDetail || '',
+        narrativeOneliner: node.narrativeOneliner || '',
+        narrativeSource: node.narrativeSource || '',
+        varianceId: node.varianceId || '',
       })
 
       if (hasChildren) {
@@ -335,6 +339,8 @@ export function transformApprovalItems(apiItems: any[]): ApprovalVariance[] {
     assignedAnalyst: v.assignedAnalyst || v.analystName || 'Unassigned',
     isEdited: v.isEdited || false,
     varianceId: v.varianceId,
+    narrativeDetail: v.narrativeDetail || v.reviewedNarrative || '',
+    narrativeSource: v.narrativeSource || '',
   }))
 }
 

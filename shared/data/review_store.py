@@ -353,7 +353,7 @@ class ReviewStore:
 
         desired_cols = ["variance_id", "account_id", "period_id",
                         "variance_amount", "variance_pct",
-                        "narrative_oneliner"]
+                        "narrative_oneliner", "narrative_detail", "narrative_source"]
         available_cols = [c for c in desired_cols if c in vm.columns]
         merged = rs.merge(
             vm[available_cols].drop_duplicates(subset=["variance_id"]),
@@ -376,6 +376,8 @@ class ReviewStore:
                 "variance_pct": float(row["variance_pct"]) if pd.notna(row.get("variance_pct")) else None,
                 "analyst_name": str(row.get("reviewer", "analyst")),
                 "reviewed_narrative": str(row.get("edited_narrative", row.get("narrative_oneliner", "")))[:300],
+                "narrative_detail": str(row.get("narrative_detail", ""))[:500] if pd.notna(row.get("narrative_detail")) else "",
+                "narrative_source": str(row.get("narrative_source", "")) if pd.notna(row.get("narrative_source")) else "",
             })
 
         return {
