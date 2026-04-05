@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import yaml
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from shared.auth.middleware import UserContext, get_current_user, require_admin
