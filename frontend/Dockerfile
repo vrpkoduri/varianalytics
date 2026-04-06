@@ -4,26 +4,12 @@
 # Build context: project root (../)
 # ---------------------------------------------------------------------------
 
-# --- Stage 1: Build ---
-FROM node:20-alpine AS build
-
-WORKDIR /app
-
-# Corporate proxy SSL workaround
-RUN npm config set strict-ssl false
-
-# Copy package files from frontend/ subdirectory
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci
-
-# Copy frontend source
-COPY frontend/ .
-RUN npm run build
-
-# --- Stage 2: Serve with Nginx ---
+# --- Single stage: Serve pre-built frontend with Nginx ---
+# Build is done locally (npm run build) and dist/ is committed to git.
+# This avoids npm ci inside Docker, which fails behind corporate SSL proxies.
 FROM nginx:alpine
 
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY frontend/dist /usr/share/nginx/html
 
 # SPA fallback: route all paths to index.html
 RUN echo 'server { \
