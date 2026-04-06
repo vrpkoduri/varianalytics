@@ -83,7 +83,7 @@ export default function DashboardView() {
 
   const metrics = computedMetrics
 
-  // Filter variances based on persona, heatmap selection, and dimension filter
+  // Filter variances based on persona and heatmap selection (dimension filtering handled by backend)
   const filteredVariances = useMemo(() => {
     let items = variances
 
@@ -107,22 +107,8 @@ export default function DashboardView() {
       })
     }
 
-    // Dimension filter from context
-    if (dimensionFilter) {
-      const searchName = dimensionFilter.nodeName.toLowerCase()
-      items = items.filter((v) => {
-        if (dimensionFilter.dimension === 'geography') {
-          return (v.geo || '').toLowerCase().includes(searchName)
-        }
-        if (dimensionFilter.dimension === 'segment' || dimensionFilter.dimension === 'lob' || dimensionFilter.dimension === 'costcenter') {
-          return (v.bu || '').toLowerCase().includes(searchName) || (v.account || '').toLowerCase().includes(searchName)
-        }
-        return true
-      })
-    }
-
     return items
-  }, [persona, personaConfig, heatmapFilter, dimensionFilter, variances])
+  }, [persona, personaConfig, heatmapFilter, variances])
 
   const narrative = useMemo(() => {
     if (usingMock || !summary?.cards?.length) return MOCK_EXEC_SUMMARIES[persona] ?? MOCK_EXEC_SUMMARIES.analyst
