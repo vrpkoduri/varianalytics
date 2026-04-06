@@ -7,8 +7,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useGlobalFilters } from '@/context/GlobalFiltersContext';
-import { api, buildParams } from '@/utils/api';
+import { api } from '@/utils/api';
+import { useFilterParams } from '@/hooks/useFilterParams';
 
 interface SectionNarrative {
   sectionId: string;
@@ -36,8 +36,7 @@ interface KPICard {
 }
 
 export function useExecutiveSummary() {
-  const { filters } = useGlobalFilters();
-  const { businessUnit } = filters;
+  const { query } = useFilterParams();
   const [execSummary, setExecSummary] = useState<ExecSummaryData | null>(null);
   const [sections, setSections] = useState<SectionNarrative[]>([]);
   const [kpiCards, setKpiCards] = useState<KPICard[]>([]);
@@ -45,24 +44,15 @@ export function useExecutiveSummary() {
   const [trendAlerts, setTrendAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const period = filters.period
-    ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}`
-    : '2026-05';
-  const baseId = filters.comparisonBase || 'BUDGET';
-  const viewId = filters.viewType || 'MTD';
-
   useEffect(() => {
     setLoading(true);
 
-    const params = buildParams({ period_id: period, base_id: baseId, view_id: viewId, bu_id: businessUnit || undefined });
-    const alertParams = buildParams({ period_id: period, bu_id: businessUnit || undefined });
-
     Promise.all([
-      api.computation.get<any>(`/dashboard/executive-summary${params}`).catch(() => null),
-      api.computation.get<any>(`/dashboard/section-narratives${params}`).catch(() => ({ sections: [] })),
-      api.computation.get<any>(`/dashboard/summary${params}`).catch(() => ({ cards: [] })),
-      api.computation.get<any>(`/dashboard/alerts/netting${alertParams}`).catch(() => ({ alerts: [] })),
-      api.computation.get<any>(`/dashboard/alerts/trends${alertParams}`).catch(() => ({ alerts: [] })),
+      api.computation.get<any>(`/dashboard/executive-summary${query}`).catch(() => null),
+      api.computation.get<any>(`/dashboard/section-narratives${query}`).catch(() => ({ sections: [] })),
+      api.computation.get<any>(`/dashboard/summary${query}`).catch(() => ({ cards: [] })),
+      api.computation.get<any>(`/dashboard/alerts/netting${query}`).catch(() => ({ alerts: [] })),
+      api.computation.get<any>(`/dashboard/alerts/trends${query}`).catch(() => ({ alerts: [] })),
     ]).then(([exec, sectionData, summary, netting, trends]) => {
       setExecSummary(exec || null);
       setSections(sectionData?.sections || []);
@@ -70,7 +60,7 @@ export function useExecutiveSummary() {
       setNettingAlerts(netting?.alerts || []);
       setTrendAlerts(trends?.alerts || []);
     }).finally(() => setLoading(false));
-  }, [period, baseId, viewId, businessUnit]);
+  }, [query]);
 
   return { execSummary, sections, kpiCards, nettingAlerts, trendAlerts, loading };
 }

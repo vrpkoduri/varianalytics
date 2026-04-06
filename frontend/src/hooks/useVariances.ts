@@ -1,13 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useGlobalFilters } from '@/context/GlobalFiltersContext'
-import { api, buildParams } from '@/utils/api'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { api } from '@/utils/api'
+import { useFilterParams } from '@/hooks/useFilterParams'
+import { buildFilterQuery } from '@/utils/filterParams'
 import { transformVariances } from '@/utils/transformers'
 import { MOCK_VARIANCES } from '@/mocks/dashboardData'
 
 export function useVariances(filters?: { plCategory?: string; buId?: string; ignoreGlobalBU?: boolean }) {
-  const { filters: globalFilters } = useGlobalFilters()
-  const { viewType, comparisonBase, businessUnit } = globalFilters
-  const period = globalFilters.period ? `${globalFilters.period.year}-${String(globalFilters.period.month).padStart(2, '0')}` : '2026-06'
+  const { params } = useFilterParams()
 
   const [variances, setVariances] = useState<any[]>([])
   const [total, setTotal] = useState(0)
@@ -15,20 +14,28 @@ export function useVariances(filters?: { plCategory?: string; buId?: string; ign
   const [loading, setLoading] = useState(true)
   const [usingMock, setUsingMock] = useState(false)
 
-  useEffect(() => {
-    setLoading(true)
-    const params = buildParams({
-      period_id: period,
-      view_id: viewType,
-      base_id: comparisonBase,
-      page: page,
+  // Build query with special bu_id handling:
+  // - ignoreGlobalBU: strip the global bu_id, use only filters.buId if provided
+  // - otherwise: filters.buId overrides global bu_id
+  const query = useMemo(() => {
+    const adjusted = { ...params }
+    if (filters?.ignoreGlobalBU) {
+      adjusted.bu_id = filters?.buId || undefined
+    } else if (filters?.buId) {
+      adjusted.bu_id = filters.buId
+    }
+    return buildFilterQuery(adjusted, {
+      page,
       page_size: 50,
       pl_category: filters?.plCategory,
-      bu_id: filters?.ignoreGlobalBU ? (filters?.buId || undefined) : (filters?.buId || businessUnit || undefined),
     })
+  }, [params, page, filters?.plCategory, filters?.buId, filters?.ignoreGlobalBU])
+
+  useEffect(() => {
+    setLoading(true)
 
     api.computation
-      .get(`/variances/${params}`)
+      .get(`/variances/${query}`)
       .then((data: any) => {
         const rawItems = data.variances || data.items || []
         if (rawItems.length > 0) {
@@ -49,7 +56,7 @@ export function useVariances(filters?: { plCategory?: string; buId?: string; ign
         setUsingMock(true)
         setLoading(false)
       })
-  }, [viewType, comparisonBase, period, page, filters?.plCategory, filters?.buId, businessUnit])
+  }, [query])
 
   const fetchVarianceDetail = useCallback(async (varianceId: string) => {
     try {

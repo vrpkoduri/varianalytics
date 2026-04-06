@@ -1,13 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useGlobalFilters } from '@/context/GlobalFiltersContext'
-import { api, buildParams } from '@/utils/api'
+import { api } from '@/utils/api'
+import { useFilterParams } from '@/hooks/useFilterParams'
 import { transformPLRows } from '@/utils/transformers'
 import { MOCK_PL_DATA, MOCK_MARGINS } from '@/mocks/plData'
 
 export function usePL() {
-  const { filters } = useGlobalFilters()
-  const { viewType, comparisonBase, businessUnit } = filters
-  const period = filters.period ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}` : '2026-06'
+  const { query } = useFilterParams()
 
   const [rows, setRows] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -15,15 +13,9 @@ export function usePL() {
 
   useEffect(() => {
     setLoading(true)
-    const params = buildParams({
-      period_id: period,
-      view_id: viewType,
-      base_id: comparisonBase,
-      bu_id: businessUnit || undefined,
-    })
 
     api.computation
-      .get(`/pl/statement${params}`)
+      .get(`/pl/statement${query}`)
       .then((data: any) => {
         setRows(transformPLRows(data.rows || []))
         setUsingMock(false)
@@ -34,7 +26,7 @@ export function usePL() {
         setUsingMock(true)
         setLoading(false)
       })
-  }, [viewType, comparisonBase, period, businessUnit])
+  }, [query])
 
   const computedMargins = useMemo(() => {
     if (!rows.length) return MOCK_MARGINS

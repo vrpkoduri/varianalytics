@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useGlobalFilters } from '@/context/GlobalFiltersContext'
-import { useUser } from '@/context/UserContext'
-import { api, buildParams } from '@/utils/api'
+import { api } from '@/utils/api'
+import { useFilterParams } from '@/hooks/useFilterParams'
 import {
   transformSummaryCards,
   transformWaterfallSteps,
@@ -17,10 +16,7 @@ import {
 } from '@/mocks/dashboardData'
 
 export function useDashboard() {
-  const { filters } = useGlobalFilters()
-  const { persona } = useUser()
-  const { viewType, comparisonBase, businessUnit } = filters
-  const period = filters.period ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}` : '2026-06'
+  const { query, buildQuery } = useFilterParams()
 
   const [summary, setSummary] = useState<any>(null)
   const [waterfall, setWaterfall] = useState<any>(null)
@@ -36,24 +32,17 @@ export function useDashboard() {
     setLoading(true)
     setError(null)
 
-    const params = buildParams({
-      period_id: period,
-      view_id: viewType,
-      base_id: comparisonBase,
-      bu_id: businessUnit || undefined,
-    })
+    // All 6 dashboard endpoints use the same unified filter params
+    // Trends endpoint gets extra "periods" param for trailing window
+    const trendsQuery = buildQuery({ periods: 12 })
 
     Promise.all([
-      api.computation.get(`/dashboard/summary${params}`),
-      api.computation.get(`/dashboard/waterfall${params}`),
-      api.computation.get(
-        `/dashboard/heatmap${buildParams({ period_id: period, base_id: comparisonBase, bu_id: businessUnit || undefined, view_id: viewType })}`,
-      ),
-      api.computation.get(
-        `/dashboard/trends${buildParams({ base_id: comparisonBase, periods: 12, bu_id: businessUnit || undefined, view_id: viewType })}`,
-      ),
-      api.computation.get(`/dashboard/alerts/netting${buildParams({ period_id: period, bu_id: businessUnit || undefined })}`),
-      api.computation.get(`/dashboard/alerts/trends${buildParams({ period_id: period, bu_id: businessUnit || undefined })}`),
+      api.computation.get(`/dashboard/summary${query}`),
+      api.computation.get(`/dashboard/waterfall${query}`),
+      api.computation.get(`/dashboard/heatmap${query}`),
+      api.computation.get(`/dashboard/trends${trendsQuery}`),
+      api.computation.get(`/dashboard/alerts/netting${query}`),
+      api.computation.get(`/dashboard/alerts/trends${query}`),
     ])
       .then(([s, w, h, t, na, ta]) => {
         setSummary({
@@ -69,7 +58,6 @@ export function useDashboard() {
         setLoading(false)
       })
       .catch(() => {
-        // Fallback to mock data
         setSummary({ cards: MOCK_KPI_CARDS, metrics: MOCK_METRICS })
         setWaterfall({ steps: MOCK_WATERFALL })
         setHeatmap(MOCK_HEATMAP)
@@ -79,7 +67,7 @@ export function useDashboard() {
         setUsingMock(true)
         setLoading(false)
       })
-  }, [viewType, comparisonBase, period, businessUnit, persona])
+  }, [query, buildQuery])
 
   return { summary, waterfall, heatmap, trends, nettingAlerts, trendAlerts, loading, error, usingMock }
 }
