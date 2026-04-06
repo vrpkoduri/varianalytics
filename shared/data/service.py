@@ -1124,6 +1124,29 @@ class DataService:
 
         filtered = df[df["period_id"] == period_id].copy() if "period_id" in df.columns else df.copy()
 
+        # BU filter: netting flags don't have bu_id directly.
+        # Cross-reference with fact_variance_material to find netting pairs
+        # that involve accounts within the selected BU.
+        if bu_id:
+            vm = self._tables.get("fact_variance_material", pd.DataFrame())
+            if not vm.empty and "bu_id" in vm.columns and "account_id" in vm.columns:
+                bu_accounts = set(
+                    vm[(vm["bu_id"] == bu_id) & (vm["period_id"] == period_id)]["account_id"].unique()
+                ) if period_id else set(vm[vm["bu_id"] == bu_id]["account_id"].unique())
+                # Filter netting pairs where at least one child account is in the BU
+                keep_indices = []
+                for idx, row_check in filtered.iterrows():
+                    cd = row_check.get("child_details", [])
+                    if isinstance(cd, str):
+                        try:
+                            cd = _json.loads(cd)
+                        except Exception:
+                            cd = []
+                    child_accts = {c.get("account_id", "") for c in cd if isinstance(c, dict)}
+                    if child_accts & bu_accounts:
+                        keep_indices.append(idx)
+                filtered = filtered.loc[keep_indices] if keep_indices else filtered.head(0)
+
         # Sort by gross_variance descending (biggest offsetting movements first)
         if "gross_variance" in filtered.columns:
             filtered = filtered.sort_values("gross_variance", ascending=False)
@@ -1194,9 +1217,14 @@ class DataService:
             return []
 
         filtered = df.copy()
-        if bu_id and "bu_id" in filtered.columns:
-            # Note: trend flags may not have bu_id directly
-            pass
+
+        # BU filter: parse dimension_key (account_id|bu_id|cc|geo|seg|lob)
+        if bu_id and "dimension_key" in filtered.columns:
+            # Extract BU from dimension_key (2nd pipe-delimited field)
+            bu_mask = filtered["dimension_key"].str.split("|").str[1] == bu_id
+            filtered = filtered[bu_mask]
+        elif bu_id and "bu_id" in filtered.columns:
+            filtered = filtered[filtered["bu_id"] == bu_id]
 
         # Sort by absolute cumulative_amount descending
         if "cumulative_amount" in filtered.columns:
@@ -1235,8 +1263,14 @@ class DataService:
         period_id: str,
         base_id: str = "BUDGET",
         view_id: str = "MTD",
+        bu_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
-        """Return section narratives for each P&L section."""
+        """Return section narratives for each P&L section.
+
+        Note: bu_id is accepted for API consistency but section narratives
+        are currently generated at company level only. The response includes
+        a 'scope' field indicating this.
+        """
         df = self._tables.get("fact_section_narrative")
         if df is None or df.empty:
             return []
@@ -1257,8 +1291,14 @@ class DataService:
         period_id: str,
         base_id: str = "BUDGET",
         view_id: str = "MTD",
+        bu_id: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
-        """Return the executive summary for a period."""
+        """Return the executive summary for a period.
+
+        Note: bu_id is accepted for API consistency but executive summaries
+        are currently generated at company level only. The response includes
+        a 'scope' field indicating this.
+        """
         df = self._tables.get("fact_executive_summary")
         if df is None or df.empty:
             return None
