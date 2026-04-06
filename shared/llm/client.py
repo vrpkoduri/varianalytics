@@ -296,4 +296,5 @@ class LLMClient:
         return bool(
             os.environ.get("ANTHROPIC_API_KEY")
             or os.environ.get("AZURE_OPENAI_API_KEY")
+            or os.environ.get("OPENAI_API_KEY")
         )
