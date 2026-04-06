@@ -51,11 +51,22 @@ async def get_summary_cards(
         lob_node_id=lob_node_id,
         costcenter_node_id=costcenter_node_id,
     )
+    metrics = ds.get_success_metrics(
+        period_id=period_id,
+        bu_id=bu_id,
+        view_id=view_id,
+        base_id=base_id,
+        geo_node_id=geo_node_id,
+        segment_node_id=segment_node_id,
+        lob_node_id=lob_node_id,
+        costcenter_node_id=costcenter_node_id,
+    )
     return {
         "cards": cards,
         "period_id": period_id,
         "view_id": view_id,
         "base_id": base_id,
+        "metrics": metrics,
     }
 
 
@@ -136,6 +147,7 @@ async def get_heatmap_data(
 @router.get("/trends")
 async def get_trend_data(
     request: Request,
+    period_id: str | None = Query(None, description="Anchor period — trailing window ends here"),
     bu_id: str | None = Query(None, description="Filter to a single business unit"),
     account_id: str = Query("acct_gross_revenue", description="Account to trend"),
     base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
@@ -153,6 +165,7 @@ async def get_trend_data(
     """
     ds = _get_ds(request)
     data = ds.get_trends(
+        period_id=period_id,
         bu_id=bu_id,
         account_id=account_id,
         base_id=base_id,
@@ -238,7 +251,7 @@ async def get_section_narratives(
 ) -> dict[str, Any]:
     """Return P&L section narratives (Revenue, COGS, OpEx, Non-Op, Profitability)."""
     ds = _get_ds(request)
-    sections = ds.get_section_narratives(period_id=period_id, base_id=base_id, view_id=view_id)
+    sections = ds.get_section_narratives(period_id=period_id, base_id=base_id, view_id=view_id, bu_id=bu_id)
     return {"sections": sections, "count": len(sections)}
 
 
@@ -256,5 +269,5 @@ async def get_executive_summary(
 ) -> dict[str, Any]:
     """Return the CFO-level executive summary with headline, narrative, and risks."""
     ds = _get_ds(request)
-    summary = ds.get_executive_summary(period_id=period_id, base_id=base_id, view_id=view_id)
+    summary = ds.get_executive_summary(period_id=period_id, base_id=base_id, view_id=view_id, bu_id=bu_id)
     return summary or {"headline": None, "full_narrative": None, "key_risks": []}

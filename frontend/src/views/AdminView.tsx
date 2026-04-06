@@ -35,13 +35,13 @@ export default function AdminView() {
 
       {/* Tab navigation */}
       <div className="glass-card p-1 animate-fade-up d0">
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`
-                flex-1 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all duration-200
+                flex-shrink-0 px-3 py-2 rounded-lg text-[11px] font-semibold transition-all duration-200
                 ${activeTab === tab.key
                   ? 'bg-accent/20 text-accent border border-accent/30'
                   : 'text-text-secondary hover:text-text hover:bg-surface/50'

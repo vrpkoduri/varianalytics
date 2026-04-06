@@ -91,12 +91,19 @@ def detect_trends(
         dimension_key = "|".join(str(k) for k in key) if isinstance(key, tuple) else str(key)
         pl_category = series["pl_category"].iloc[0] if "pl_category" in series.columns else None
 
+        # Extract individual dimension values from group key
+        if isinstance(key, tuple):
+            dim_values = dict(zip(_DIM_COLS, key))
+        else:
+            dim_values = {_DIM_COLS[0]: key}
+
         # --- Rule 1: Consecutive direction ---
         consecutive_flags = _check_consecutive_direction(
             series=series,
             account_id=account_id,
             dimension_key=dimension_key,
             min_consecutive=threshold_config.consecutive_periods,
+            dim_values=dim_values,
         )
         flags.extend(consecutive_flags)
 
@@ -108,6 +115,7 @@ def detect_trends(
                 dimension_key=dimension_key,
                 threshold_config=threshold_config,
                 pl_category=pl_category,
+                dim_values=dim_values,
             )
             flags.extend(cumulative_flags)
 
@@ -130,6 +138,7 @@ def _check_consecutive_direction(
     account_id: str,
     dimension_key: str,
     min_consecutive: int,
+    dim_values: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Rule 1 — Check for N+ consecutive periods with variance in the same sign direction.
 
@@ -162,7 +171,7 @@ def _check_consecutive_direction(
                 flags.append(_make_consecutive_flag(
                     account_id, dimension_key,
                     periods[streak_start:i], amounts[streak_start:i],
-                    current_sign,
+                    current_sign, dim_values=dim_values,
                 ))
             streak_start = i + 1
             current_sign = None
@@ -176,7 +185,7 @@ def _check_consecutive_direction(
                 flags.append(_make_consecutive_flag(
                     account_id, dimension_key,
                     periods[streak_start:i], amounts[streak_start:i],
-                    current_sign,
+                    current_sign, dim_values=dim_values,
                 ))
             streak_start = i
             current_sign = sign
@@ -186,7 +195,7 @@ def _check_consecutive_direction(
         flags.append(_make_consecutive_flag(
             account_id, dimension_key,
             periods[streak_start:], amounts[streak_start:],
-            current_sign,
+            current_sign, dim_values=dim_values,
         ))
 
     return flags
@@ -198,6 +207,7 @@ def _make_consecutive_flag(
     periods: list[str],
     amounts: list[float],
     sign: int,
+    dim_values: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a trend flag dict for a consecutive direction streak."""
     direction = "increasing" if sign > 0 else "decreasing"
@@ -206,6 +216,7 @@ def _make_consecutive_flag(
         {"period_id": p, "variance_amount": float(a)}
         for p, a in zip(periods, amounts)
     ]
+    dv = dim_values or {}
 
     return {
         "trend_id": str(uuid4()),
@@ -216,6 +227,12 @@ def _make_consecutive_flag(
         "cumulative_amount": float(cumulative),
         "direction": direction,
         "period_details": period_details,
+        "bu_id": dv.get("bu_id"),
+        "geo_node_id": dv.get("geo_node_id"),
+        "segment_node_id": dv.get("segment_node_id"),
+        "lob_node_id": dv.get("lob_node_id"),
+        "costcenter_node_id": dv.get("costcenter_node_id"),
+        "latest_period_id": periods[-1] if periods else None,
         "created_at": datetime.now(timezone.utc),
     }
 
@@ -231,6 +248,7 @@ def _check_cumulative_ytd_breach(
     dimension_key: str,
     threshold_config: ThresholdConfig,
     pl_category: str | None,
+    dim_values: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     """Rule 2 — Check if cumulative YTD variance breaches materiality
     even though individual MTD periods are all below threshold.
@@ -285,6 +303,7 @@ def _check_cumulative_ytd_breach(
 
             direction = "increasing" if cumulative > 0 else "decreasing"
 
+            dv = dim_values or {}
             flags.append({
                 "trend_id": str(uuid4()),
                 "account_id": account_id,
@@ -294,6 +313,12 @@ def _check_cumulative_ytd_breach(
                 "cumulative_amount": float(cumulative),
                 "direction": direction,
                 "period_details": period_details,
+                "bu_id": dv.get("bu_id"),
+                "geo_node_id": dv.get("geo_node_id"),
+                "segment_node_id": dv.get("segment_node_id"),
+                "lob_node_id": dv.get("lob_node_id"),
+                "costcenter_node_id": dv.get("costcenter_node_id"),
+                "latest_period_id": periods[-1] if periods else None,
                 "created_at": datetime.now(timezone.utc),
             })
 
@@ -310,5 +335,7 @@ def _empty_trend_df() -> pd.DataFrame:
     return pd.DataFrame(columns=[
         "trend_id", "account_id", "dimension_key", "rule_type",
         "consecutive_periods", "cumulative_amount", "direction",
-        "period_details", "created_at",
+        "period_details", "bu_id", "geo_node_id", "segment_node_id",
+        "lob_node_id", "costcenter_node_id", "latest_period_id",
+        "created_at",
     ])

@@ -140,23 +140,13 @@ def _check_account_hierarchy(
         if len(slice_df) < 2:
             continue
 
-        # Get unique accounts in this slice
-        accounts = slice_df["account_id"].unique()
+        # Extract dimension values from group key for flag records
+        if isinstance(slice_key, tuple):
+            dim_values = dict(zip(dim_cols, slice_key))
+        else:
+            dim_values = {dim_cols[0]: slice_key}
 
-        # For each account that could be a parent (non-leaf rollup),
-        # find its children (other accounts whose parent is this account).
-        # We look for account_ids that start with the same prefix pattern.
-        # E.g., acct_revenue is parent of acct_product_revenue, acct_service_revenue.
-        # Better approach: detect parents as accounts that have the same dim slice
-        # values AND whose variance equals sum of other accounts.
-        # We'll use a simple heuristic: an account is a parent candidate if
-        # removing it from the group still yields accounts, and its variance
-        # is approximately sum of some subset.
-
-        # Practical approach: iterate account pairs where one could be parent.
-        # Use account naming convention: parent accounts typically contain
-        # "acct_revenue", "acct_cor", "acct_opex", "acct_non_op" as prefixes.
-        _run_parent_child_checks(slice_df, threshold_config, period_id, dim_cols, flags)
+        _run_parent_child_checks(slice_df, threshold_config, period_id, dim_cols, flags, dim_values)
 
     return flags
 
@@ -167,6 +157,7 @@ def _run_parent_child_checks(
     period_id: str,
     dim_cols: list[str],
     flags: list[dict[str, Any]],
+    dim_values: dict[str, Any] | None = None,
 ) -> None:
     """For a single dimension slice, identify parent-child relationships and run checks 1-3.
 
@@ -242,6 +233,7 @@ def _run_parent_child_checks(
                     netting_ratio=netting_ratio,
                     child_details=child_details,
                     period_id=period_id,
+                    dim_values=dim_values,
                 ))
 
         # --- Check 2: Dispersion ---
@@ -260,6 +252,7 @@ def _run_parent_child_checks(
                     netting_ratio=netting_ratio,
                     child_details=child_details,
                     period_id=period_id,
+                    dim_values=dim_values,
                 ))
 
         # --- Check 3: Directional split ---
@@ -279,6 +272,7 @@ def _run_parent_child_checks(
                     netting_ratio=netting_ratio,
                     child_details=child_details,
                     period_id=period_id,
+                    dim_values=dim_values,
                 ))
 
 
@@ -299,7 +293,7 @@ def _check_cross_account(
     """
     flags: list[dict[str, Any]] = []
 
-    slice_cols = ["bu_id", "costcenter_node_id", "geo_node_id"]
+    slice_cols = ["bu_id", "costcenter_node_id", "geo_node_id", "segment_node_id", "lob_node_id"]
     grouped = df.groupby(slice_cols, dropna=False)
 
     for slice_key, slice_df in grouped:
@@ -337,8 +331,10 @@ def _check_cross_account(
             # Build parent_node_id from slice key
             if isinstance(slice_key, tuple):
                 parent_node_id = "|".join(str(k) for k in slice_key)
+                dim_values = dict(zip(slice_cols, slice_key))
             else:
                 parent_node_id = str(slice_key)
+                dim_values = {slice_cols[0]: slice_key}
 
             flags.append(_make_flag(
                 parent_node_id=parent_node_id,
@@ -349,6 +345,7 @@ def _check_cross_account(
                 netting_ratio=ratio,
                 child_details=child_details,
                 period_id=period_id,
+                dim_values=dim_values,
             ))
 
     return flags
@@ -369,8 +366,10 @@ def _make_flag(
     netting_ratio: float,
     child_details: list[dict[str, Any]],
     period_id: str,
+    dim_values: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Construct a single netting flag dict matching fact_netting_flags schema."""
+    dv = dim_values or {}
     return {
         "netting_id": str(uuid4()),
         "parent_node_id": parent_node_id,
@@ -381,6 +380,11 @@ def _make_flag(
         "netting_ratio": float(netting_ratio),
         "child_details": child_details,
         "period_id": period_id,
+        "bu_id": dv.get("bu_id"),
+        "geo_node_id": dv.get("geo_node_id"),
+        "segment_node_id": dv.get("segment_node_id"),
+        "lob_node_id": dv.get("lob_node_id"),
+        "costcenter_node_id": dv.get("costcenter_node_id"),
         "created_at": datetime.now(timezone.utc),
     }
 
@@ -390,5 +394,6 @@ def _empty_netting_df() -> pd.DataFrame:
     return pd.DataFrame(columns=[
         "netting_id", "parent_node_id", "parent_dimension", "check_type",
         "net_variance", "gross_variance", "netting_ratio", "child_details",
-        "period_id", "created_at",
+        "period_id", "bu_id", "geo_node_id", "segment_node_id",
+        "lob_node_id", "costcenter_node_id", "created_at",
     ])

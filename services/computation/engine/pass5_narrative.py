@@ -1315,160 +1315,213 @@ async def generate_narratives(context: dict[str, Any]) -> None:
 
     mtd_rows = material[(material["view_id"] == "MTD") & (material["base_id"] == base_id)] if "base_id" in material.columns else material[material["view_id"] == "MTD"]
 
-    for section_name, section_accounts in SECTION_MAP.items():
-        # Collect narratives for this section (parent + leaves)
-        section_rows = mtd_rows[mtd_rows["account_id"].isin(section_accounts)]
-        # Also get leaf children
-        leaf_ids = [aid for aid, meta in acct_meta.items() if meta.get("parent_id") in section_accounts and not meta.get("is_calculated", False)]
-        leaf_rows = mtd_rows[mtd_rows["account_id"].isin(leaf_ids)]
+    # Generate per-BU + company-wide section narratives
+    # bu_id=None means company-wide (aggregate all BUs)
+    bu_ids_in_data = sorted(mtd_rows["bu_id"].dropna().unique().tolist()) if "bu_id" in mtd_rows.columns else []
+    bu_loop = [None] + bu_ids_in_data  # None = company-wide first
 
-        # Aggregate variance across all BUs for this section
-        parent_row = section_rows.groupby("account_id").agg({"variance_amount": "sum", "actual_amount": "sum", "comparator_amount": "sum"}).reset_index()
-        leaf_agg = leaf_rows.groupby("account_id").agg({"variance_amount": "sum", "variance_pct": "mean"}).reset_index()
-
-        total_var = parent_row["variance_amount"].sum() if not parent_row.empty else 0
-        total_pct = (total_var / parent_row["comparator_amount"].sum() * 100) if not parent_row.empty and parent_row["comparator_amount"].sum() != 0 else 0
-        direction = "increased" if total_var > 0 else "decreased"
-        sign = "+" if total_var > 0 else ""
-
-        # Top drivers from leaves
-        if not leaf_agg.empty:
-            leaf_agg["abs_var"] = leaf_agg["variance_amount"].abs()
-            top_leaves = leaf_agg.nlargest(3, "abs_var")
-            drivers = []
-            for _, lr in top_leaves.iterrows():
-                lname = acct_meta.get(lr["account_id"], {}).get("account_name", lr["account_id"])
-                lvar = lr["variance_amount"]
-                ls = "+" if lvar > 0 else ""
-                drivers.append({"account_name": lname, "amount": round(float(lvar), 0), "direction": "favorable" if lvar > 0 else "unfavorable"})
+    for bu_id_iter in bu_loop:
+        if bu_id_iter is not None:
+            bu_mtd = mtd_rows[mtd_rows["bu_id"] == bu_id_iter]
         else:
-            drivers = []
+            bu_mtd = mtd_rows  # company-wide
 
-        driver_text = ", ".join(f"{d['account_name']} ({'+' if d['amount']>0 else ''}{d['amount']:,.0f})" for d in drivers[:3]) if drivers else "underlying account movements"
+        bu_label = bu_id_iter if bu_id_iter else "ALL"
 
-        pos_count = len(leaf_agg[leaf_agg["variance_amount"] > 0]) if not leaf_agg.empty else 0
-        total_count = len(leaf_agg) if not leaf_agg.empty else 0
+        for section_name, section_accounts in SECTION_MAP.items():
+            # Collect narratives for this section (parent + leaves)
+            section_rows = bu_mtd[bu_mtd["account_id"].isin(section_accounts)]
+            # Also get leaf children
+            leaf_ids = [aid for aid, meta in acct_meta.items() if meta.get("parent_id") in section_accounts and not meta.get("is_calculated", False)]
+            leaf_rows = bu_mtd[bu_mtd["account_id"].isin(leaf_ids)]
 
-        section_id = hashlib.sha256(f"{period_id}|{section_name}|{base_id}|{view_id}".encode()).hexdigest()[:16]
-        narrative = (
-            f"{section_name} {direction} by ${abs(total_var):,.0f} ({sign}{total_pct:.1f}%) vs {base_label}. "
-            f"Key drivers: {driver_text}. "
-            f"{pos_count} of {total_count} lines contributed positively."
-        )
+            # Aggregate variance for this section within BU scope
+            parent_row = section_rows.groupby("account_id").agg({"variance_amount": "sum", "actual_amount": "sum", "comparator_amount": "sum"}).reset_index()
+            leaf_agg = leaf_rows.groupby("account_id").agg({"variance_amount": "sum", "variance_pct": "mean"}).reset_index()
 
+            total_var = parent_row["variance_amount"].sum() if not parent_row.empty else 0
+            total_pct = (total_var / parent_row["comparator_amount"].sum() * 100) if not parent_row.empty and parent_row["comparator_amount"].sum() != 0 else 0
+            direction = "increased" if total_var > 0 else "decreased"
+            sign = "+" if total_var > 0 else ""
+
+            # Top drivers from leaves
+            if not leaf_agg.empty:
+                leaf_agg["abs_var"] = leaf_agg["variance_amount"].abs()
+                top_leaves = leaf_agg.nlargest(3, "abs_var")
+                drivers = []
+                for _, lr in top_leaves.iterrows():
+                    lname = acct_meta.get(lr["account_id"], {}).get("account_name", lr["account_id"])
+                    lvar = lr["variance_amount"]
+                    drivers.append({"account_name": lname, "amount": round(float(lvar), 0), "direction": "favorable" if lvar > 0 else "unfavorable"})
+            else:
+                drivers = []
+
+            driver_text = ", ".join(f"{d['account_name']} ({'+' if d['amount']>0 else ''}{d['amount']:,.0f})" for d in drivers[:3]) if drivers else "underlying account movements"
+
+            pos_count = len(leaf_agg[leaf_agg["variance_amount"] > 0]) if not leaf_agg.empty else 0
+            total_count = len(leaf_agg) if not leaf_agg.empty else 0
+
+            section_id = hashlib.sha256(f"{period_id}|{section_name}|{base_id}|{view_id}|{bu_label}".encode()).hexdigest()[:16]
+            narrative = (
+                f"{section_name} {direction} by ${abs(total_var):,.0f} ({sign}{total_pct:.1f}%) vs {base_label}. "
+                f"Key drivers: {driver_text}. "
+                f"{pos_count} of {total_count} lines contributed positively."
+            )
+
+            section_narratives.append({
+                "section_id": section_id,
+                "period_id": period_id,
+                "section_name": section_name,
+                "base_id": base_id,
+                "view_id": view_id,
+                "bu_id": bu_id_iter,  # None for company-wide
+                "narrative": narrative,
+                "key_drivers": drivers,
+                "narrative_confidence": 0.7,
+                "status": "AI_DRAFT",
+            })
+
+        # Profitability section (derived from calculated rows)
+        profit_accounts = {"acct_gross_profit": "Gross Profit", "acct_ebitda": "EBITDA", "acct_operating_income": "Operating Income", "acct_net_income": "Net Income"}
+        profit_parts = []
+        for pid, pname in profit_accounts.items():
+            prows = bu_mtd[bu_mtd["account_id"] == pid]
+            if not prows.empty:
+                pvar = prows["variance_amount"].sum()
+                pact = prows["actual_amount"].sum()
+                pcomp = prows["comparator_amount"].sum()
+                ppct = (pvar / pcomp * 100) if pcomp != 0 else 0
+                rev_rows = bu_mtd[bu_mtd["account_id"] == "acct_revenue"]
+                rev_sum = rev_rows["actual_amount"].sum() if not rev_rows.empty else 0
+                margin = (pact / rev_sum * 100) if rev_sum != 0 else 0
+                profit_parts.append(f"{pname} {'increased' if pvar>0 else 'decreased'} by ${abs(pvar):,.0f} ({'+' if pvar>0 else ''}{ppct:.1f}%), margin {margin:.1f}%")
+
+        profit_id = hashlib.sha256(f"{period_id}|Profitability|{base_id}|{view_id}|{bu_label}".encode()).hexdigest()[:16]
+        profit_narrative = ". ".join(profit_parts[:3]) + "." if profit_parts else "Profitability metrics not available."
         section_narratives.append({
-            "section_id": section_id,
+            "section_id": profit_id,
             "period_id": period_id,
-            "section_name": section_name,
+            "section_name": "Profitability",
             "base_id": base_id,
             "view_id": view_id,
-            "narrative": narrative,
-            "key_drivers": drivers,
+            "bu_id": bu_id_iter,
+            "narrative": profit_narrative,
+            "key_drivers": [{"account_name": k, "amount": 0, "direction": ""} for k in profit_accounts.values()],
             "narrative_confidence": 0.7,
             "status": "AI_DRAFT",
         })
 
-    # Profitability section (derived from calculated rows)
-    profit_accounts = {"acct_gross_profit": "Gross Profit", "acct_ebitda": "EBITDA", "acct_operating_income": "Operating Income", "acct_net_income": "Net Income"}
-    profit_parts = []
-    for pid, pname in profit_accounts.items():
-        prows = mtd_rows[mtd_rows["account_id"] == pid]
-        if not prows.empty:
-            pvar = prows["variance_amount"].sum()
-            pact = prows["actual_amount"].sum()
-            pcomp = prows["comparator_amount"].sum()
-            ppct = (pvar / pcomp * 100) if pcomp != 0 else 0
-            margin = (pact / mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["actual_amount"].sum() * 100) if not mtd_rows[mtd_rows["account_id"] == "acct_revenue"].empty and mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["actual_amount"].sum() != 0 else 0
-            profit_parts.append(f"{pname} {'increased' if pvar>0 else 'decreased'} by ${abs(pvar):,.0f} ({'+' if pvar>0 else ''}{ppct:.1f}%), margin {margin:.1f}%")
-
-    profit_id = hashlib.sha256(f"{period_id}|Profitability|{base_id}|{view_id}".encode()).hexdigest()[:16]
-    profit_narrative = ". ".join(profit_parts[:3]) + "." if profit_parts else "Profitability metrics not available."
-    section_narratives.append({
-        "section_id": profit_id,
-        "period_id": period_id,
-        "section_name": "Profitability",
-        "base_id": base_id,
-        "view_id": view_id,
-        "narrative": profit_narrative,
-        "key_drivers": [{"account_name": k, "amount": 0, "direction": ""} for k in profit_accounts.values()],
-        "narrative_confidence": 0.7,
-        "status": "AI_DRAFT",
-    })
-
     context["section_narratives"] = section_narratives
-    logger.info("Pass 5C: Generated %d section narratives", len(section_narratives))
+    logger.info("Pass 5C: Generated %d section narratives (%d BUs + company-wide)", len(section_narratives), len(bu_ids_in_data))
 
     # ------------------------------------------------------------------
-    # Stage 4 (Pass 5D): Executive Summary
+    # Stage 4 (Pass 5D): Executive Summary (per-BU + company-wide)
     # ------------------------------------------------------------------
-    # Aggregate KPIs
-    rev_total = mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["variance_amount"].sum() if not mtd_rows[mtd_rows["account_id"] == "acct_revenue"].empty else 0
-    rev_pct = (rev_total / mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["comparator_amount"].sum() * 100) if not mtd_rows[mtd_rows["account_id"] == "acct_revenue"].empty and mtd_rows[mtd_rows["account_id"] == "acct_revenue"]["comparator_amount"].sum() != 0 else 0
-    ebitda_total = mtd_rows[mtd_rows["account_id"] == "acct_ebitda"]["variance_amount"].sum() if not mtd_rows[mtd_rows["account_id"] == "acct_ebitda"].empty else 0
-    ebitda_pct = (ebitda_total / mtd_rows[mtd_rows["account_id"] == "acct_ebitda"]["comparator_amount"].sum() * 100) if not mtd_rows[mtd_rows["account_id"] == "acct_ebitda"].empty and mtd_rows[mtd_rows["account_id"] == "acct_ebitda"]["comparator_amount"].sum() != 0 else 0
-
-    # Cross-BU themes
-    bu_rev = mtd_rows[(mtd_rows["account_id"] == "acct_revenue")].groupby("bu_id")["variance_amount"].sum()
-    pos_bus = [bu for bu, v in bu_rev.items() if v > 0]
-    neg_bus = [bu for bu, v in bu_rev.items() if v < 0]
-    total_bus = len(bu_rev)
-    cross_bu = f"{len(pos_bus)} of {total_bus} BUs exceeded revenue targets" if pos_bus else f"All {total_bus} BUs fell short of revenue targets"
-
-    # Risks from trends + netting
-    trend_flags = context.get("trend_flags", pd.DataFrame())
-    netting_flags = context.get("netting_flags", pd.DataFrame())
-    risk_count = len(trend_flags) + len(netting_flags) if not isinstance(trend_flags, pd.DataFrame) or not trend_flags.empty else 0
-    risks = []
-    if not isinstance(trend_flags, pd.DataFrame) or not trend_flags.empty:
-        risks.append({"risk": f"{len(trend_flags)} trending variances identified", "severity": "medium"})
-    if not isinstance(netting_flags, pd.DataFrame) or not netting_flags.empty:
-        risks.append({"risk": f"{len(netting_flags)} netting offsets detected", "severity": "medium"})
-
     # Parse month from period_id
     month_num = int(period_id.split("-")[1]) if "-" in period_id else 1
     month_name = MONTH_NAMES[month_num]
     year = period_id.split("-")[0] if "-" in period_id else "2026"
 
-    # Build section narrative references
-    section_refs = {s["section_name"]: s["narrative"] for s in section_narratives}
+    # Risks from trends + netting (global — used for company-wide summary)
+    trend_flags = context.get("trend_flags", pd.DataFrame())
+    netting_flags = context.get("netting_flags", pd.DataFrame())
 
-    headline = (
-        f"{month_name} {year} close: Revenue {'up' if rev_total>0 else 'down'} {abs(rev_pct):.1f}%, "
-        f"EBITDA {'up' if ebitda_total>0 else 'down'} {abs(ebitda_pct):.1f}%. "
-        f"{cross_bu}."
-    )
+    executive_summaries: list[dict[str, Any]] = []
 
-    p1 = (
-        f"{month_name} {year} financial performance vs {base_label}: "
-        f"{section_refs.get('Revenue', 'Revenue data not available.')}"
-    )
-    p2 = (
-        f"Cost management: {section_refs.get('COGS', '')} "
-        f"{section_refs.get('OpEx', '')} "
-        f"{section_refs.get('Profitability', '')}"
-    )
-    p3 = (
-        f"{len(risks)} risk items identified. "
-        + " ".join(r["risk"] + "." for r in risks)
-    ) if risks else "No significant risk items identified."
+    for bu_id_iter in bu_loop:
+        if bu_id_iter is not None:
+            bu_mtd = mtd_rows[mtd_rows["bu_id"] == bu_id_iter]
+        else:
+            bu_mtd = mtd_rows
 
-    full_narrative = f"{p1}\n\n{p2}\n\n{p3}"
+        bu_label = bu_id_iter if bu_id_iter else "ALL"
 
-    summary_id = hashlib.sha256(f"{period_id}|{base_id}|{view_id}".encode()).hexdigest()[:16]
-    context["executive_summary"] = {
-        "summary_id": summary_id,
-        "period_id": period_id,
-        "base_id": base_id,
-        "view_id": view_id,
-        "headline": headline,
-        "full_narrative": full_narrative,
-        "carry_forward_note": None,
-        "key_risks": risks,
-        "cross_bu_themes": [{"theme": cross_bu, "bus_affected": pos_bus + neg_bus}],
-        "narrative_confidence": 0.7,
-        "status": "AI_DRAFT",
-    }
-    logger.info("Pass 5D: Executive summary generated — headline: %s", headline[:100])
+        # Aggregate KPIs for this BU scope
+        rev_rows = bu_mtd[bu_mtd["account_id"] == "acct_revenue"]
+        rev_total = rev_rows["variance_amount"].sum() if not rev_rows.empty else 0
+        rev_comp = rev_rows["comparator_amount"].sum() if not rev_rows.empty else 0
+        rev_pct = (rev_total / rev_comp * 100) if rev_comp != 0 else 0
+
+        ebitda_rows = bu_mtd[bu_mtd["account_id"] == "acct_ebitda"]
+        ebitda_total = ebitda_rows["variance_amount"].sum() if not ebitda_rows.empty else 0
+        ebitda_comp = ebitda_rows["comparator_amount"].sum() if not ebitda_rows.empty else 0
+        ebitda_pct = (ebitda_total / ebitda_comp * 100) if ebitda_comp != 0 else 0
+
+        # Cross-BU themes (only for company-wide)
+        if bu_id_iter is None:
+            bu_rev = bu_mtd[(bu_mtd["account_id"] == "acct_revenue")].groupby("bu_id")["variance_amount"].sum()
+            pos_bus = [bu for bu, v in bu_rev.items() if v > 0]
+            neg_bus = [bu for bu, v in bu_rev.items() if v < 0]
+            total_bus = len(bu_rev)
+            cross_bu = f"{len(pos_bus)} of {total_bus} BUs exceeded revenue targets" if pos_bus else f"All {total_bus} BUs fell short of revenue targets"
+            cross_bu_themes = [{"theme": cross_bu, "bus_affected": pos_bus + neg_bus}]
+        else:
+            cross_bu = f"{bu_id_iter.title()} performance"
+            cross_bu_themes = []
+
+        # Risks (scope to BU if possible)
+        risks = []
+        if not isinstance(trend_flags, pd.DataFrame) or not trend_flags.empty:
+            if bu_id_iter and "bu_id" in trend_flags.columns:
+                bu_trends = trend_flags[trend_flags["bu_id"] == bu_id_iter]
+                if not bu_trends.empty:
+                    risks.append({"risk": f"{len(bu_trends)} trending variances identified", "severity": "medium"})
+            else:
+                risks.append({"risk": f"{len(trend_flags)} trending variances identified", "severity": "medium"})
+        if not isinstance(netting_flags, pd.DataFrame) or not netting_flags.empty:
+            if bu_id_iter and "bu_id" in netting_flags.columns:
+                bu_netting = netting_flags[netting_flags["bu_id"] == bu_id_iter]
+                if not bu_netting.empty:
+                    risks.append({"risk": f"{len(bu_netting)} netting offsets detected", "severity": "medium"})
+            else:
+                risks.append({"risk": f"{len(netting_flags)} netting offsets detected", "severity": "medium"})
+
+        # Build section narrative references for this BU
+        section_refs = {s["section_name"]: s["narrative"] for s in section_narratives if s.get("bu_id") == bu_id_iter}
+
+        headline = (
+            f"{month_name} {year} close: Revenue {'up' if rev_total>0 else 'down'} {abs(rev_pct):.1f}%, "
+            f"EBITDA {'up' if ebitda_total>0 else 'down'} {abs(ebitda_pct):.1f}%. "
+            f"{cross_bu}."
+        )
+
+        p1 = (
+            f"{month_name} {year} financial performance vs {base_label}: "
+            f"{section_refs.get('Revenue', 'Revenue data not available.')}"
+        )
+        p2 = (
+            f"Cost management: {section_refs.get('COGS', '')} "
+            f"{section_refs.get('OpEx', '')} "
+            f"{section_refs.get('Profitability', '')}"
+        )
+        p3 = (
+            f"{len(risks)} risk items identified. "
+            + " ".join(r["risk"] + "." for r in risks)
+        ) if risks else "No significant risk items identified."
+
+        full_narrative = f"{p1}\n\n{p2}\n\n{p3}"
+
+        summary_id = hashlib.sha256(f"{period_id}|{base_id}|{view_id}|{bu_label}".encode()).hexdigest()[:16]
+        executive_summaries.append({
+            "summary_id": summary_id,
+            "period_id": period_id,
+            "base_id": base_id,
+            "view_id": view_id,
+            "bu_id": bu_id_iter,  # None for company-wide
+            "headline": headline,
+            "full_narrative": full_narrative,
+            "carry_forward_note": None,
+            "key_risks": risks,
+            "cross_bu_themes": cross_bu_themes,
+            "narrative_confidence": 0.7,
+            "status": "AI_DRAFT",
+        })
+
+    # Store all summaries; backward-compat: context["executive_summary"] = company-wide one
+    context["executive_summaries"] = executive_summaries
+    company_wide = [s for s in executive_summaries if s["bu_id"] is None]
+    context["executive_summary"] = company_wide[0] if company_wide else (executive_summaries[0] if executive_summaries else {})
+    logger.info("Pass 5D: Generated %d executive summaries (%d BUs + company-wide)", len(executive_summaries), len(bu_ids_in_data))
 
     logger.info(
         "Pass 5: Generated %d narratives (llm=%d, template=%d), "

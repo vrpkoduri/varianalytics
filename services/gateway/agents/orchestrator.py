@@ -157,9 +157,11 @@ class OrchestratorAgent:
                     entities, merged_context, streaming_ctx,
                 )
             else:
-                # General fallback
-                response = format_response(Intent.GENERAL, {})
-                await streaming_ctx.emit_token(response)
+                # General fallback: provide a data-driven overview instead of static help
+                # Route to revenue agent with REVENUE_OVERVIEW intent for a useful summary
+                await self._revenue_agent.generate_response(
+                    Intent.REVENUE_OVERVIEW, entities, merged_context, streaming_ctx,
+                )
 
             # Step 5: Emit suggestions + done
             suggestions = get_suggestions(intent)

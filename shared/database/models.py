@@ -228,6 +228,7 @@ class SectionNarrativeRecord(Base):
     section_name: Mapped[str] = mapped_column(String(100), nullable=False)
     base_id: Mapped[str] = mapped_column(String(50), nullable=False)
     view_id: Mapped[str] = mapped_column(String(10), nullable=False)
+    bu_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     narrative: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     key_drivers: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
     narrative_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -238,7 +239,7 @@ class SectionNarrativeRecord(Base):
     approved_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
 
     def __repr__(self) -> str:
-        return f"<SectionNarrativeRecord(section={self.section_name!r}, period={self.period_id!r})>"
+        return f"<SectionNarrativeRecord(section={self.section_name!r}, period={self.period_id!r}, bu={self.bu_id!r})>"
 
 
 # ---------------------------------------------------------------------------
@@ -255,6 +256,7 @@ class ExecutiveSummaryRecord(Base):
     period_id: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
     base_id: Mapped[str] = mapped_column(String(50), nullable=False)
     view_id: Mapped[str] = mapped_column(String(10), nullable=False)
+    bu_id: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, index=True)
     headline: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     full_narrative: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     carry_forward_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -268,7 +270,7 @@ class ExecutiveSummaryRecord(Base):
     approved_at: Mapped[Optional[datetime.datetime]] = mapped_column(DateTime, nullable=True)
 
     def __repr__(self) -> str:
-        return f"<ExecutiveSummaryRecord(period={self.period_id!r}, base={self.base_id!r})>"
+        return f"<ExecutiveSummaryRecord(period={self.period_id!r}, base={self.base_id!r}, bu={self.bu_id!r})>"
 
 
 # ---------------------------------------------------------------------------

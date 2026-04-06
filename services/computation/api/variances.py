@@ -39,6 +39,7 @@ async def list_material_variances(
     segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
     lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
     costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
+    persona: str | None = Query(None, description="Persona for narrative level selection"),
 ) -> dict[str, Any]:
     """Return paginated list of material variances with filter support.
 
@@ -60,6 +61,7 @@ async def list_material_variances(
         segment_node_id=segment_node_id,
         lob_node_id=lob_node_id,
         costcenter_node_id=costcenter_node_id,
+        persona=persona,
     )
 
 

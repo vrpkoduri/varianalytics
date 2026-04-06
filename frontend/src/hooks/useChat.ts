@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { matchIntent, MOCK_RESPONSES, type RichContent } from '@/mocks/chatData'
 import { api } from '@/utils/api'
 import { useGlobalFilters } from '@/context/GlobalFiltersContext'
+import { useUser } from '@/context/UserContext'
 
 export interface ChatMessage {
   id: string
@@ -15,7 +16,9 @@ export interface ChatMessage {
 
 export function useChat() {
   const { filters } = useGlobalFilters()
+  const { persona } = useUser()
   const period = filters.period ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}` : '2026-06'
+  const dimFilter = filters.dimensionFilter
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
@@ -98,7 +101,17 @@ export function useChat() {
       try {
         const resp = (await api.gateway.post('/chat/messages', {
           message: text,
-          context: { period_id: period, view_id: filters.viewType, base_id: filters.comparisonBase, bu_id: filters.businessUnit || undefined },
+          context: {
+            period_id: period,
+            view_id: filters.viewType,
+            base_id: filters.comparisonBase,
+            bu_id: filters.businessUnit || undefined,
+            persona,
+            geo_node_id: dimFilter?.dimension === 'geography' ? dimFilter.nodeId : undefined,
+            segment_node_id: dimFilter?.dimension === 'segment' ? dimFilter.nodeId : undefined,
+            lob_node_id: dimFilter?.dimension === 'lob' ? dimFilter.nodeId : undefined,
+            costcenter_node_id: dimFilter?.dimension === 'costcenter' ? dimFilter.nodeId : undefined,
+          },
           conversation_id: conversationId,
         })) as any
         const cid = resp.conversationId || resp.conversation_id
@@ -111,7 +124,7 @@ export function useChat() {
         return null // Signals fallback to mock
       }
     },
-    [conversationId, period, filters.viewType, filters.comparisonBase, filters.businessUnit],
+    [conversationId, period, filters.viewType, filters.comparisonBase, filters.businessUnit, persona, dimFilter],
   )
 
   const sendMessage = useCallback(

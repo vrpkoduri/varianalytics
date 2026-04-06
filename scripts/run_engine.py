@@ -330,9 +330,14 @@ def _collect_outputs(ctx, all_material, all_decomposition, all_netting,
     sn = ctx.get("section_narratives")
     if isinstance(sn, list) and sn:
         all_section_narratives.extend(sn)
-    es = ctx.get("executive_summary")
-    if isinstance(es, dict) and es:
-        all_executive_summaries.append(es)
+    # Collect all per-BU executive summaries (new format) or single summary (legacy)
+    es_list = ctx.get("executive_summaries")
+    if isinstance(es_list, list) and es_list:
+        all_executive_summaries.extend(es_list)
+    else:
+        es = ctx.get("executive_summary")
+        if isinstance(es, dict) and es:
+            all_executive_summaries.append(es)
 
 
 def _print_timings(runner):

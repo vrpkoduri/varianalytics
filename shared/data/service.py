@@ -14,6 +14,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
+from shared.config.persona_config import select_narrative
 from shared.data.loader import DataLoader
 
 logger = logging.getLogger(__name__)
@@ -382,6 +383,77 @@ class DataService:
         return cards
 
     # ------------------------------------------------------------------
+    # 1b. Success Metrics (Root Cause %, Commentary %, Close %)
+    # ------------------------------------------------------------------
+
+    def get_success_metrics(
+        self,
+        period_id: str,
+        bu_id: Optional[str] = None,
+        view_id: str = "MTD",
+        base_id: str = "BUDGET",
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Compute success metrics for the dashboard SuccessMetricsBar.
+
+        Returns:
+            root_cause_pct: % of material variances with decomposition data
+            commentary_pct: % of material variances with non-template narratives
+            close_pct: % of material variances that are reviewed/approved
+        """
+        vm = self._table("fact_variance_material")
+        if vm.empty:
+            return {"root_cause_pct": 0, "commentary_pct": 0, "close_pct": 0}
+
+        filtered = self._filter_variance(
+            vm, period_id, bu_id, view_id, base_id,
+            geo_node_id, segment_node_id, lob_node_id, costcenter_node_id,
+        )
+        # Only material leaf variances
+        material = filtered[(filtered.get("is_material", False) == True) & (filtered.get("is_calculated", True) == False)]
+        total = len(material)
+        if total == 0:
+            return {"root_cause_pct": 0, "commentary_pct": 0, "close_pct": 0}
+
+        # Root cause %: variances that have decomposition data
+        decomp = self._tables.get("fact_decomposition")
+        if decomp is not None and not decomp.empty and "variance_id" in material.columns:
+            decomp_ids = set(decomp["variance_id"].dropna().unique()) if "variance_id" in decomp.columns else set()
+            has_decomp = material["variance_id"].isin(decomp_ids).sum()
+        else:
+            has_decomp = 0
+        root_cause_pct = round(has_decomp / total * 100, 1)
+
+        # Commentary %: variances with narrative_source != 'template' (or has non-empty narrative_detail)
+        if "narrative_source" in material.columns:
+            has_commentary = material[material["narrative_source"] != "template"].shape[0]
+        elif "narrative_detail" in material.columns:
+            has_commentary = material[material["narrative_detail"].notna() & (material["narrative_detail"] != "")].shape[0]
+        else:
+            has_commentary = 0
+        commentary_pct = round(has_commentary / total * 100, 1)
+
+        # Close %: from review status
+        review = self._tables.get("fact_review_status")
+        if review is not None and not review.empty and "variance_id" in review.columns:
+            closed_statuses = {"ANALYST_REVIEWED", "APPROVED"}
+            reviewed_ids = set(review[review["status"].isin(closed_statuses)]["variance_id"].dropna().unique())
+            closed_count = material["variance_id"].isin(reviewed_ids).sum() if "variance_id" in material.columns else 0
+        else:
+            closed_count = 0
+        close_pct = round(closed_count / total * 100, 1)
+
+        return {
+            "root_cause_pct": root_cause_pct,
+            "commentary_pct": commentary_pct,
+            "close_pct": close_pct,
+            "total_material": total,
+        }
+
+    # ------------------------------------------------------------------
     # 2. Waterfall
     # ------------------------------------------------------------------
 
@@ -555,6 +627,7 @@ class DataService:
 
     def get_trends(
         self,
+        period_id: Optional[str] = None,
         bu_id: Optional[str] = None,
         account_id: str = "acct_gross_revenue",
         base_id: str = "BUDGET",
@@ -567,16 +640,20 @@ class DataService:
     ) -> list[dict[str, Any]]:
         """Return last N periods of MTD variance data for an account.
 
+        When period_id is provided, the trailing window ends at that period
+        (inclusive). Otherwise, shows the latest N periods in the dataset.
+
         Returns list of {period_id, actual, comparator, variance_amount, variance_pct}.
         """
         logger.info(
-            "get_trends(bu=%s, account=%s, base=%s, periods=%d)",
-            bu_id, account_id, base_id, periods,
+            "get_trends(period=%s, bu=%s, account=%s, base=%s, periods=%d)",
+            period_id, bu_id, account_id, base_id, periods,
         )
         vm = self._table("fact_variance_material")
         if vm.empty:
             return []
 
+        # Pass None for period_id to load ALL periods, then anchor below
         filtered = self._filter_variance(vm, None, bu_id, view_id, base_id, geo_node_id, segment_node_id, lob_node_id, costcenter_node_id)
         acct_rows = filtered[filtered["account_id"] == account_id]
 
@@ -591,6 +668,11 @@ class DataService:
         ).reset_index()
 
         by_period = by_period.sort_values("period_id", ascending=True)
+
+        # Anchor to selected period: filter to periods <= period_id, then take last N
+        if period_id:
+            by_period = by_period[by_period["period_id"] <= period_id]
+
         by_period = by_period.tail(periods)
 
         result: list[dict[str, Any]] = []
@@ -626,6 +708,7 @@ class DataService:
         segment_node_id: Optional[str] = None,
         lob_node_id: Optional[str] = None,
         costcenter_node_id: Optional[str] = None,
+        persona: Optional[str] = None,
     ) -> dict[str, Any]:
         """Return paginated list of variances.
 
@@ -684,6 +767,7 @@ class DataService:
                 "costcenter_node_id": row.get("costcenter_node_id", ""),
                 "variance_sign": row.get("variance_sign", "natural"),
                 "pl_category": row.get("pl_category", ""),
+                "narrative": select_narrative(row.to_dict() if hasattr(row, 'to_dict') else dict(row), persona),
                 "narrative_oneliner": row.get("narrative_oneliner"),
                 "narrative_detail": row.get("narrative_detail"),
                 "narrative_source": row.get("narrative_source"),
@@ -1110,12 +1194,7 @@ class DataService:
         lob_node_id: Optional[str] = None,
         costcenter_node_id: Optional[str] = None,
     ) -> list[dict]:
-        """Get top netting alerts from fact_netting_flags.
-
-        Note: dimension params (geo/segment/lob/costcenter) are accepted for
-        API consistency but currently ignored — fact_netting_flags does not
-        carry dimension columns yet.
-        """
+        """Get top netting alerts from fact_netting_flags."""
         import json as _json
 
         df = self._tables.get("fact_netting_flags")
@@ -1124,28 +1203,41 @@ class DataService:
 
         filtered = df[df["period_id"] == period_id].copy() if "period_id" in df.columns else df.copy()
 
-        # BU filter: netting flags don't have bu_id directly.
-        # Cross-reference with fact_variance_material to find netting pairs
-        # that involve accounts within the selected BU.
+        # BU filter: use bu_id column if available, fallback to cross-reference
         if bu_id:
-            vm = self._tables.get("fact_variance_material", pd.DataFrame())
-            if not vm.empty and "bu_id" in vm.columns and "account_id" in vm.columns:
-                bu_accounts = set(
-                    vm[(vm["bu_id"] == bu_id) & (vm["period_id"] == period_id)]["account_id"].unique()
-                ) if period_id else set(vm[vm["bu_id"] == bu_id]["account_id"].unique())
-                # Filter netting pairs where at least one child account is in the BU
-                keep_indices = []
-                for idx, row_check in filtered.iterrows():
-                    cd = row_check.get("child_details", [])
-                    if isinstance(cd, str):
-                        try:
-                            cd = _json.loads(cd)
-                        except Exception:
-                            cd = []
-                    child_accts = {c.get("account_id", "") for c in cd if isinstance(c, dict)}
-                    if child_accts & bu_accounts:
-                        keep_indices.append(idx)
-                filtered = filtered.loc[keep_indices] if keep_indices else filtered.head(0)
+            if "bu_id" in filtered.columns:
+                filtered = filtered[filtered["bu_id"] == bu_id]
+            else:
+                # Legacy fallback: cross-reference with fact_variance_material
+                vm = self._tables.get("fact_variance_material", pd.DataFrame())
+                if not vm.empty and "bu_id" in vm.columns and "account_id" in vm.columns:
+                    bu_accounts = set(
+                        vm[(vm["bu_id"] == bu_id) & (vm["period_id"] == period_id)]["account_id"].unique()
+                    ) if period_id else set(vm[vm["bu_id"] == bu_id]["account_id"].unique())
+                    keep_indices = []
+                    for idx, row_check in filtered.iterrows():
+                        cd = row_check.get("child_details", [])
+                        if isinstance(cd, str):
+                            try:
+                                cd = _json.loads(cd)
+                            except Exception:
+                                cd = []
+                        child_accts = {c.get("account_id", "") for c in cd if isinstance(c, dict)}
+                        if child_accts & bu_accounts:
+                            keep_indices.append(idx)
+                    filtered = filtered.loc[keep_indices] if keep_indices else filtered.head(0)
+
+        # Dimension filters using new columns from Chunk 1
+        for dim_param, dim_col in [
+            (geo_node_id, "geo_node_id"),
+            (segment_node_id, "segment_node_id"),
+            (lob_node_id, "lob_node_id"),
+            (costcenter_node_id, "costcenter_node_id"),
+        ]:
+            if dim_param and dim_col in filtered.columns:
+                dim_name = dim_col.replace("_node_id", "")
+                descendants = self._resolve_hierarchy_descendants(dim_name, dim_param)
+                filtered = filtered[filtered[dim_col].isin(descendants)]
 
         # Sort by gross_variance descending (biggest offsetting movements first)
         if "gross_variance" in filtered.columns:
@@ -1206,25 +1298,49 @@ class DataService:
         lob_node_id: Optional[str] = None,
         costcenter_node_id: Optional[str] = None,
     ) -> list[dict]:
-        """Get top trend alerts from fact_trend_flags.
-
-        Note: dimension params (geo/segment/lob/costcenter) are accepted for
-        API consistency but currently ignored — fact_trend_flags does not
-        carry dimension columns yet.
-        """
+        """Get top trend alerts from fact_trend_flags."""
         df = self._tables.get("fact_trend_flags")
         if df is None or df.empty:
             return []
 
         filtered = df.copy()
 
-        # BU filter: parse dimension_key (account_id|bu_id|cc|geo|seg|lob)
-        if bu_id and "dimension_key" in filtered.columns:
-            # Extract BU from dimension_key (2nd pipe-delimited field)
-            bu_mask = filtered["dimension_key"].str.split("|").str[1] == bu_id
-            filtered = filtered[bu_mask]
-        elif bu_id and "bu_id" in filtered.columns:
-            filtered = filtered[filtered["bu_id"] == bu_id]
+        # Period filter (G4): only show trends that touch the selected period
+        if period_id and "latest_period_id" in filtered.columns:
+            filtered = filtered[filtered["latest_period_id"] >= period_id]
+        elif period_id and "period_details" in filtered.columns:
+            # Fallback: check if selected period appears in period_details
+            import json as _json
+            def _touches_period(pd_val, target):
+                if isinstance(pd_val, str):
+                    try:
+                        pd_val = _json.loads(pd_val)
+                    except Exception:
+                        return True  # Can't parse — keep it
+                if isinstance(pd_val, list):
+                    return any(p.get("period_id") == target for p in pd_val)
+                return True
+            filtered = filtered[filtered["period_details"].apply(lambda x: _touches_period(x, period_id))]
+
+        # BU filter: prefer explicit bu_id column, fallback to dimension_key parsing
+        if bu_id:
+            if "bu_id" in filtered.columns:
+                filtered = filtered[filtered["bu_id"] == bu_id]
+            elif "dimension_key" in filtered.columns:
+                bu_mask = filtered["dimension_key"].str.split("|").str[1] == bu_id
+                filtered = filtered[bu_mask]
+
+        # Dimension filters using new columns from Chunk 1
+        for dim_param, dim_col in [
+            (geo_node_id, "geo_node_id"),
+            (segment_node_id, "segment_node_id"),
+            (lob_node_id, "lob_node_id"),
+            (costcenter_node_id, "costcenter_node_id"),
+        ]:
+            if dim_param and dim_col in filtered.columns:
+                dim_name = dim_col.replace("_node_id", "")
+                descendants = self._resolve_hierarchy_descendants(dim_name, dim_param)
+                filtered = filtered[filtered[dim_col].isin(descendants)]
 
         # Sort by absolute cumulative_amount descending
         if "cumulative_amount" in filtered.columns:
@@ -1267,9 +1383,8 @@ class DataService:
     ) -> list[dict[str, Any]]:
         """Return section narratives for each P&L section.
 
-        Note: bu_id is accepted for API consistency but section narratives
-        are currently generated at company level only. The response includes
-        a 'scope' field indicating this.
+        When bu_id is provided, returns BU-specific narratives.
+        When bu_id is None, returns company-wide narratives.
         """
         df = self._tables.get("fact_section_narrative")
         if df is None or df.empty:
@@ -1280,6 +1395,15 @@ class DataService:
             & (df["base_id"] == base_id)
             & (df["view_id"] == view_id)
         ]
+
+        # Filter by bu_id if the column exists
+        if "bu_id" in filtered.columns:
+            if bu_id:
+                filtered = filtered[filtered["bu_id"] == bu_id]
+            else:
+                # Return company-wide (bu_id is None/NaN)
+                filtered = filtered[filtered["bu_id"].isna()]
+
         return [_clean_dict(row.to_dict()) for _, row in filtered.iterrows()]
 
     # ------------------------------------------------------------------
@@ -1295,9 +1419,8 @@ class DataService:
     ) -> Optional[dict[str, Any]]:
         """Return the executive summary for a period.
 
-        Note: bu_id is accepted for API consistency but executive summaries
-        are currently generated at company level only. The response includes
-        a 'scope' field indicating this.
+        When bu_id is provided, returns BU-specific summary.
+        When bu_id is None, returns company-wide summary.
         """
         df = self._tables.get("fact_executive_summary")
         if df is None or df.empty:
@@ -1308,6 +1431,14 @@ class DataService:
             & (df["base_id"] == base_id)
             & (df["view_id"] == view_id)
         ]
+
+        # Filter by bu_id if the column exists
+        if "bu_id" in filtered.columns:
+            if bu_id:
+                filtered = filtered[filtered["bu_id"] == bu_id]
+            else:
+                filtered = filtered[filtered["bu_id"].isna()]
+
         if filtered.empty:
             return None
 

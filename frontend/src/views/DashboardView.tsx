@@ -68,20 +68,29 @@ export default function DashboardView() {
   const trendData = trends?.data ?? MOCK_TREND
   const variances = apiVariances.length > 0 ? apiVariances : MOCK_VARIANCES
 
-  const computedMetrics = useMemo(() => {
+  // Use API metrics when available (from get_success_metrics), fallback to mock
+  const metrics = useMemo(() => {
+    const apiMetrics = summary?.metrics
+    if (apiMetrics && apiMetrics.root_cause_pct !== undefined) {
+      return {
+        cycleTime: rawMetrics.cycleTime, // no timestamp data yet
+        coverage: 100,
+        rootCause: Math.round(apiMetrics.root_cause_pct),
+        commentary: Math.round(apiMetrics.commentary_pct ?? 0),
+      }
+    }
+    // Client-side fallback when API metrics not available
     if (variances.length === 0) return rawMetrics
     const total = variances.length
     const withNarrative = variances.filter((v: any) => v.narrative && v.narrative.length > 5).length
     const reviewed = variances.filter((v: any) => v.status !== 'draft').length
     return {
-      cycleTime: rawMetrics.cycleTime, // keep mock for now - no timestamp data
-      coverage: 100, // all material variances covered
+      cycleTime: rawMetrics.cycleTime,
+      coverage: 100,
       rootCause: Math.round((reviewed / Math.max(total, 1)) * 100),
       commentary: Math.round((withNarrative / Math.max(total, 1)) * 100),
     }
-  }, [variances, rawMetrics])
-
-  const metrics = computedMetrics
+  }, [summary, variances, rawMetrics])
 
   // Filter variances based on persona and heatmap selection (dimension filtering handled by backend)
   const filteredVariances = useMemo(() => {

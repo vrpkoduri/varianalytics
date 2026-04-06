@@ -23,7 +23,7 @@ const cards: Array<{ key: string; label: string; color: string }> = [
 
 export function StatusCounterCards({ counts, activeFilter, onFilterChange }: StatusCounterCardsProps) {
   return (
-    <div className="grid grid-cols-4 gap-2.5 animate-fade-up d2">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 animate-fade-up d2">
       {cards.map(({ key, label, color }) => (
         <GlassCard
           key={key}

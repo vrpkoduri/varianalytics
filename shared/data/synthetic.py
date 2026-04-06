@@ -566,14 +566,17 @@ class SyntheticDataGenerator:
         return pd.DataFrame(columns=[
             "netting_id", "parent_node_id", "parent_dimension", "check_type",
             "net_variance", "gross_variance", "netting_ratio", "child_details",
-            "period_id", "created_at",
+            "period_id", "bu_id", "geo_node_id", "segment_node_id",
+            "lob_node_id", "costcenter_node_id", "created_at",
         ])
 
     def _empty_fact_trend_flags(self) -> pd.DataFrame:
         return pd.DataFrame(columns=[
             "trend_id", "account_id", "dimension_key", "rule_type",
             "consecutive_periods", "cumulative_amount", "direction",
-            "period_details", "created_at",
+            "period_details", "bu_id", "geo_node_id", "segment_node_id",
+            "lob_node_id", "costcenter_node_id", "latest_period_id",
+            "created_at",
         ])
 
     def _empty_fact_correlations(self) -> pd.DataFrame:
