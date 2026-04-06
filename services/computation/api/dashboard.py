@@ -5,7 +5,7 @@ Prefix: /dashboard
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, Query, Request
 
@@ -30,6 +30,10 @@ async def get_summary_cards(
     bu_id: str | None = Query(None, description="Filter to a single business unit"),
     view_id: str = Query("MTD", description="Aggregation view: MTD | QTD | YTD"),
     base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Return summary KPI cards: Revenue, EBITDA, Total Costs, etc.
 
@@ -42,6 +46,10 @@ async def get_summary_cards(
         bu_id=bu_id,
         view_id=view_id,
         base_id=base_id,
+        geo_node_id=geo_node_id,
+        segment_node_id=segment_node_id,
+        lob_node_id=lob_node_id,
+        costcenter_node_id=costcenter_node_id,
     )
     return {
         "cards": cards,
@@ -62,6 +70,10 @@ async def get_waterfall_data(
     bu_id: str | None = Query(None, description="Filter to a single business unit"),
     base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
     view_id: str = Query("MTD", description="View: MTD, QTD, YTD"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Return waterfall chart data bridging comparison to actual.
 
@@ -74,6 +86,10 @@ async def get_waterfall_data(
         bu_id=bu_id,
         base_id=base_id,
         view_id=view_id,
+        geo_node_id=geo_node_id,
+        segment_node_id=segment_node_id,
+        lob_node_id=lob_node_id,
+        costcenter_node_id=costcenter_node_id,
     )
     return {
         "steps": steps,
@@ -93,6 +109,10 @@ async def get_heatmap_data(
     base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
     view_id: str = Query("MTD", description="View: MTD, QTD, YTD"),
     bu_id: str | None = Query(None, description="Business unit filter"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Return variance heatmap: geo rows x BU columns with color-coded variance %.
     """
@@ -102,6 +122,10 @@ async def get_heatmap_data(
         base_id=base_id,
         view_id=view_id,
         bu_id=bu_id,
+        geo_node_id=geo_node_id,
+        segment_node_id=segment_node_id,
+        lob_node_id=lob_node_id,
+        costcenter_node_id=costcenter_node_id,
     )
 
 
@@ -117,6 +141,10 @@ async def get_trend_data(
     base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
     periods: int = Query(12, ge=3, le=36, description="Number of trailing periods"),
     view_id: str = Query("MTD", description="View: MTD, QTD, YTD"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Return time-series trend data for sparklines and trend charts.
 
@@ -130,6 +158,10 @@ async def get_trend_data(
         base_id=base_id,
         periods=periods,
         view_id=view_id,
+        geo_node_id=geo_node_id,
+        segment_node_id=segment_node_id,
+        lob_node_id=lob_node_id,
+        costcenter_node_id=costcenter_node_id,
     )
     return {
         "data": data,
@@ -147,10 +179,21 @@ async def get_netting_alerts(
     request: Request,
     period_id: str = Query(..., description="Period to filter"),
     bu_id: str | None = Query(None, description="Business unit filter"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Get top netting alerts for the dashboard."""
     ds = _get_ds(request)
-    alerts = ds.get_netting_alerts(period_id=period_id, bu_id=bu_id)
+    alerts = ds.get_netting_alerts(
+        period_id=period_id,
+        bu_id=bu_id,
+        geo_node_id=geo_node_id,
+        segment_node_id=segment_node_id,
+        lob_node_id=lob_node_id,
+        costcenter_node_id=costcenter_node_id,
+    )
     return {"alerts": alerts, "count": len(alerts)}
 
 
@@ -163,10 +206,21 @@ async def get_trend_alerts(
     request: Request,
     period_id: str | None = Query(None, description="Period filter"),
     bu_id: str | None = Query(None, description="Business unit filter"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Get top trend alerts for the dashboard."""
     ds = _get_ds(request)
-    alerts = ds.get_trend_alerts(period_id=period_id, bu_id=bu_id)
+    alerts = ds.get_trend_alerts(
+        period_id=period_id,
+        bu_id=bu_id,
+        geo_node_id=geo_node_id,
+        segment_node_id=segment_node_id,
+        lob_node_id=lob_node_id,
+        costcenter_node_id=costcenter_node_id,
+    )
     return {"alerts": alerts, "count": len(alerts)}
 
 
@@ -176,6 +230,11 @@ async def get_section_narratives(
     period_id: str = Query(..., description="Period"),
     base_id: str = Query("BUDGET"),
     view_id: str = Query("MTD"),
+    bu_id: str | None = Query(None, description="Filter to a single business unit"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Return P&L section narratives (Revenue, COGS, OpEx, Non-Op, Profitability)."""
     ds = _get_ds(request)
@@ -189,6 +248,11 @@ async def get_executive_summary(
     period_id: str = Query(..., description="Period"),
     base_id: str = Query("BUDGET"),
     view_id: str = Query("MTD"),
+    bu_id: str | None = Query(None, description="Filter to a single business unit"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Return the CFO-level executive summary with headline, narrative, and risks."""
     ds = _get_ds(request)

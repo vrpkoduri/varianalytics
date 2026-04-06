@@ -5,7 +5,7 @@ Prefix: /variances
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Request
 
@@ -35,6 +35,10 @@ async def list_material_variances(
     page_size: int = Query(20, ge=1, le=500, description="Items per page"),
     sort_by: str = Query("variance_amount", description="Sort field"),
     sort_desc: bool = Query(True, description="Sort descending"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Return paginated list of material variances with filter support.
 
@@ -52,6 +56,10 @@ async def list_material_variances(
         page_size=page_size,
         sort_by=sort_by,
         sort_desc=sort_desc,
+        geo_node_id=geo_node_id,
+        segment_node_id=segment_node_id,
+        lob_node_id=lob_node_id,
+        costcenter_node_id=costcenter_node_id,
     )
 
 
@@ -67,6 +75,10 @@ async def get_variances_by_account(
     bu_id: str | None = Query(None, description="Filter by business unit"),
     view_id: str = Query("MTD", description="MTD | QTD | YTD"),
     base_id: str = Query("BUDGET", description="BUDGET | FORECAST | PY"),
+    geo_node_id: Optional[str] = Query(None, description="Geography hierarchy node ID"),
+    segment_node_id: Optional[str] = Query(None, description="Segment hierarchy node ID"),
+    lob_node_id: Optional[str] = Query(None, description="LOB hierarchy node ID"),
+    costcenter_node_id: Optional[str] = Query(None, description="Cost Center hierarchy node ID"),
 ) -> dict[str, Any]:
     """Return account summary with child variances and decomposition.
 
@@ -79,6 +91,10 @@ async def get_variances_by_account(
         bu_id=bu_id,
         view_id=view_id,
         base_id=base_id,
+        geo_node_id=geo_node_id,
+        segment_node_id=segment_node_id,
+        lob_node_id=lob_node_id,
+        costcenter_node_id=costcenter_node_id,
     )
     if result is None:
         raise HTTPException(status_code=404, detail=f"Account {account_id} not found")

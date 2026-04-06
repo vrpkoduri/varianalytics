@@ -211,6 +211,47 @@ class DataService:
         """Get a table, returning empty DataFrame if not loaded."""
         return self._tables.get(name, pd.DataFrame())
 
+    def _resolve_hierarchy_descendants(
+        self,
+        dimension_name: str,
+        node_id: str,
+    ) -> set[str]:
+        """Resolve a hierarchy node ID plus all its descendants via BFS.
+
+        Args:
+            dimension_name: Dimension name (geography, segment, lob, costcenter).
+            node_id: Root node ID to resolve from.
+
+        Returns:
+            Set of node IDs including the root and all descendants.
+        """
+        dh = self._table("dim_hierarchy")
+        if dh.empty:
+            return {node_id}
+
+        # Filter to the dimension (case-insensitive match)
+        dim_nodes = dh[dh["dimension_name"].str.lower() == dimension_name.lower()]
+        if dim_nodes.empty:
+            return {node_id}
+
+        # BFS traversal from the given node
+        parent_to_children: dict[str, list[str]] = {}
+        for _, row in dim_nodes.iterrows():
+            pid = row.get("parent_id")
+            if pd.notna(pid):
+                parent_to_children.setdefault(str(pid), []).append(str(row["node_id"]))
+
+        result: set[str] = {node_id}
+        queue = [node_id]
+        while queue:
+            current = queue.pop(0)
+            for child in parent_to_children.get(current, []):
+                if child not in result:
+                    result.add(child)
+                    queue.append(child)
+
+        return result
+
     def _filter_variance(
         self,
         df: pd.DataFrame,
@@ -218,13 +259,38 @@ class DataService:
         bu_id: Optional[str] = None,
         view_id: str = "MTD",
         base_id: str = "BUDGET",
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
     ) -> pd.DataFrame:
-        """Apply standard filters to fact_variance_material."""
+        """Apply standard filters to fact_variance_material.
+
+        Supports all filter dimensions: period, BU, view, base, and
+        the 4 hierarchy dimensions (geography, segment, LOB, cost center).
+        Hierarchy filters resolve the selected node + all descendants
+        so selecting 'Americas' includes US, Canada, etc.
+        """
         mask = (df["view_id"] == view_id) & (df["base_id"] == base_id)
         if period_id is not None:
             mask &= df["period_id"] == period_id
         if bu_id is not None:
             mask &= df["bu_id"] == bu_id
+
+        # Dimension hierarchy filters — resolve node + descendants
+        if geo_node_id and "geo_node_id" in df.columns:
+            geo_ids = self._resolve_hierarchy_descendants("geography", geo_node_id)
+            mask &= df["geo_node_id"].isin(geo_ids)
+        if segment_node_id and "segment_node_id" in df.columns:
+            seg_ids = self._resolve_hierarchy_descendants("segment", segment_node_id)
+            mask &= df["segment_node_id"].isin(seg_ids)
+        if lob_node_id and "lob_node_id" in df.columns:
+            lob_ids = self._resolve_hierarchy_descendants("lob", lob_node_id)
+            mask &= df["lob_node_id"].isin(lob_ids)
+        if costcenter_node_id and "costcenter_node_id" in df.columns:
+            cc_ids = self._resolve_hierarchy_descendants("costcenter", costcenter_node_id)
+            mask &= df["costcenter_node_id"].isin(cc_ids)
+
         return df[mask]
 
     @staticmethod
@@ -257,6 +323,10 @@ class DataService:
         bu_id: Optional[str] = None,
         view_id: str = "MTD",
         base_id: str = "BUDGET",
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """Return summary metric cards for dashboard.
 
@@ -273,7 +343,7 @@ class DataService:
         if vm.empty:
             return []
 
-        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id)
+        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id, geo_node_id, segment_node_id, lob_node_id, costcenter_node_id)
         cards: list[dict[str, Any]] = []
 
         for acct_id, metric_name in _SUMMARY_CARD_ACCOUNTS:
@@ -321,6 +391,10 @@ class DataService:
         bu_id: Optional[str] = None,
         base_id: str = "BUDGET",
         view_id: str = "MTD",
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """Return waterfall steps for revenue bridge.
 
@@ -334,7 +408,7 @@ class DataService:
         if vm.empty:
             return []
 
-        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id)
+        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id, geo_node_id, segment_node_id, lob_node_id, costcenter_node_id)
         rev_rows = filtered[filtered["account_id"] == "acct_revenue"]
 
         if rev_rows.empty:
@@ -398,6 +472,10 @@ class DataService:
         base_id: str = "BUDGET",
         view_id: str = "MTD",
         bu_id: Optional[str] = None,
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
     ) -> dict[str, Any]:
         """Return heatmap of revenue variances: geo rows x BU columns.
 
@@ -409,7 +487,7 @@ class DataService:
         if vm.empty:
             return {"rows": [], "columns": [], "cells": []}
 
-        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id)
+        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id, geo_node_id, segment_node_id, lob_node_id, costcenter_node_id)
         # Revenue leaf accounts only (not calculated)
         rev = filtered[
             (filtered["pl_category"] == "Revenue") & (filtered["is_calculated"] == False)
@@ -482,6 +560,10 @@ class DataService:
         base_id: str = "BUDGET",
         periods: int = 12,
         view_id: str = "MTD",
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """Return last N periods of MTD variance data for an account.
 
@@ -495,7 +577,7 @@ class DataService:
         if vm.empty:
             return []
 
-        filtered = self._filter_variance(vm, None, bu_id, view_id, base_id)
+        filtered = self._filter_variance(vm, None, bu_id, view_id, base_id, geo_node_id, segment_node_id, lob_node_id, costcenter_node_id)
         acct_rows = filtered[filtered["account_id"] == account_id]
 
         if acct_rows.empty:
@@ -540,6 +622,10 @@ class DataService:
         page_size: int = 20,
         sort_by: str = "variance_amount",
         sort_desc: bool = True,
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
     ) -> dict[str, Any]:
         """Return paginated list of variances.
 
@@ -554,7 +640,7 @@ class DataService:
         if vm.empty:
             return {"items": [], "total_count": 0, "page": page, "page_size": page_size, "total_pages": 0}
 
-        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id)
+        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id, geo_node_id, segment_node_id, lob_node_id, costcenter_node_id)
 
         # Only leaf accounts (not calculated rollups) for the list
         filtered = filtered[filtered["is_calculated"] == False]
@@ -721,6 +807,10 @@ class DataService:
         bu_id: Optional[str] = None,
         view_id: str = "MTD",
         base_id: str = "BUDGET",
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         """Return nested P&L statement as a tree.
 
@@ -738,7 +828,7 @@ class DataService:
         if vm.empty or accts.empty:
             return []
 
-        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id)
+        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id, geo_node_id, segment_node_id, lob_node_id, costcenter_node_id)
 
         # Aggregate by account_id across cost centers / geos
         agg = filtered.groupby("account_id").agg(
@@ -829,6 +919,10 @@ class DataService:
         bu_id: Optional[str] = None,
         view_id: str = "MTD",
         base_id: str = "BUDGET",
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
     ) -> Optional[dict[str, Any]]:
         """Return account summary + child variances + decomposition.
 
@@ -846,7 +940,7 @@ class DataService:
         if vm.empty:
             return None
 
-        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id)
+        filtered = self._filter_variance(vm, period_id, bu_id, view_id, base_id, geo_node_id, segment_node_id, lob_node_id, costcenter_node_id)
 
         # Account-level aggregate
         acct_rows = filtered[filtered["account_id"] == account_id]
