@@ -46,8 +46,30 @@ function filtersReducer(state: GlobalFilters, action: FilterAction): GlobalFilte
       return { ...state, period: action.payload };
     case 'SET_BUSINESS_UNIT':
       return { ...state, businessUnit: action.payload };
-    case 'SET_VIEW_TYPE':
-      return { ...state, viewType: action.payload };
+    case 'SET_VIEW_TYPE': {
+      const newViewType = action.payload;
+      let snappedPeriod = state.period;
+
+      if (snappedPeriod && newViewType === 'QTD') {
+        // Snap to floor quarter-end month: Aug→Jun, Nov→Sep, Feb→Dec(prev year)
+        const quarterEndMonths = [3, 6, 9, 12];
+        const currentMonth = snappedPeriod.month;
+        // Find the largest quarter-end month <= current month
+        const snappedMonth = quarterEndMonths.filter(m => m <= currentMonth).pop()
+          || 12; // If Jan/Feb, wrap to Dec of previous year
+        const snappedYear = snappedMonth === 12 && currentMonth < 3
+          ? snappedPeriod.year - 1 : snappedPeriod.year;
+        const quarter = Math.ceil(snappedMonth / 3);
+        snappedPeriod = {
+          year: snappedYear,
+          month: snappedMonth,
+          label: `Q${quarter} ${snappedYear}`,
+        };
+      }
+      // YTD keeps the current period as-is (usePeriods handles display)
+
+      return { ...state, viewType: newViewType, period: snappedPeriod };
+    }
     case 'SET_COMPARISON_BASE':
       return { ...state, comparisonBase: action.payload };
     case 'SET_DIMENSION_FILTER':

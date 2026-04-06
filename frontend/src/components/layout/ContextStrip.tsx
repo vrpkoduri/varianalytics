@@ -31,7 +31,7 @@ interface ContextStripProps {
 export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
   const { persona, setPersona } = useUser()
   const { filters, setPeriod, setViewType, setComparisonBase } = useGlobalFilters()
-  const { periods } = usePeriods()
+  const { periods } = usePeriods(filters.viewType)
   const { isDark } = useTheme()
 
   const currentPeriodId = filters.period
