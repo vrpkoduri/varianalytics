@@ -47,31 +47,31 @@ providers:
 
   azure:
     chat_intent:
-      model: "azure/gpt-4o-mini"
+      model: "azure/mmc-tech-gpt-4o-mini-128k-2024-07-18"
       max_tokens: 200
       temperature: 0.1
       cost_input_per_1m: 0.15
       cost_output_per_1m: 0.60
     chat_response:
-      model: "azure/gpt-4o"
+      model: "azure/mmc-tech-gpt-4o-128k-2024-11-20-in-region"
       max_tokens: 3000
       temperature: 0.5
       cost_input_per_1m: 2.50
       cost_output_per_1m: 10.00
     narrative_generation:
-      model: "azure/gpt-4o"
+      model: "azure/mmc-tech-gpt-4o-128k-2024-11-20-in-region"
       max_tokens: 2000
       temperature: 0.4
       cost_input_per_1m: 2.50
       cost_output_per_1m: 10.00
     hypothesis_generation:
-      model: "azure/gpt-4o"
+      model: "azure/mmc-tech-gpt-4o-128k-2024-11-20-in-region"
       max_tokens: 1000
       temperature: 0.3
       cost_input_per_1m: 2.50
       cost_output_per_1m: 10.00
     oneliner_generation:
-      model: "azure/gpt-4o-mini"
+      model: "azure/mmc-tech-gpt-4o-mini-128k-2024-07-18"
       max_tokens: 100
       temperature: 0.2
       cost_input_per_1m: 0.15
@@ -88,7 +88,7 @@ embedding:
       model: "text-embedding-3-small"
       dimensions: 1536
     azure:
-      model: "azure/text-embedding-3-small"
+      model: "azure/mmc-tech-text-embedding-3-small"
       dimensions: 1536
   # Legacy fallback (used if auto-detection fails)
   model: "text-embedding-3-small"
