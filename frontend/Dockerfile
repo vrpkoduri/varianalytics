@@ -9,6 +9,9 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
+# Corporate proxy SSL workaround
+RUN npm config set strict-ssl false
+
 # Copy package files from frontend/ subdirectory
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci
