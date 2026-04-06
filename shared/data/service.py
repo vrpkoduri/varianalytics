@@ -1100,8 +1100,22 @@ class DataService:
     # 13. Netting Alerts
     # ------------------------------------------------------------------
 
-    def get_netting_alerts(self, period_id: str, bu_id: Optional[str] = None, limit: int = 5) -> list[dict]:
-        """Get top netting alerts from fact_netting_flags."""
+    def get_netting_alerts(
+        self,
+        period_id: str,
+        bu_id: Optional[str] = None,
+        limit: int = 5,
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
+    ) -> list[dict]:
+        """Get top netting alerts from fact_netting_flags.
+
+        Note: dimension params (geo/segment/lob/costcenter) are accepted for
+        API consistency but currently ignored — fact_netting_flags does not
+        carry dimension columns yet.
+        """
         import json as _json
 
         df = self._tables.get("fact_netting_flags")
@@ -1159,8 +1173,22 @@ class DataService:
     # 14. Trend Alerts
     # ------------------------------------------------------------------
 
-    def get_trend_alerts(self, period_id: Optional[str] = None, bu_id: Optional[str] = None, limit: int = 5) -> list[dict]:
-        """Get top trend alerts from fact_trend_flags."""
+    def get_trend_alerts(
+        self,
+        period_id: Optional[str] = None,
+        bu_id: Optional[str] = None,
+        limit: int = 5,
+        geo_node_id: Optional[str] = None,
+        segment_node_id: Optional[str] = None,
+        lob_node_id: Optional[str] = None,
+        costcenter_node_id: Optional[str] = None,
+    ) -> list[dict]:
+        """Get top trend alerts from fact_trend_flags.
+
+        Note: dimension params (geo/segment/lob/costcenter) are accepted for
+        API consistency but currently ignored — fact_trend_flags does not
+        carry dimension columns yet.
+        """
         df = self._tables.get("fact_trend_flags")
         if df is None or df.empty:
             return []

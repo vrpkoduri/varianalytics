@@ -31,7 +31,7 @@ export default function AppLayout() {
         className={focusMode ? 'opacity-0 pointer-events-none h-0 overflow-hidden' : 'opacity-100'}
       >
         <IdentityBar />
-        <ContextStrip onFocusToggle={() => setFocusMode(true)} />
+        <ContextStrip onFocusToggle={() => setFocusMode(true)} pathname={location.pathname} />
       </div>
 
       {/* Focus mode: show exit button */}

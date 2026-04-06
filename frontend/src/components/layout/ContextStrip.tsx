@@ -4,6 +4,7 @@ import { useTheme } from '@/context/ThemeContext'
 import { usePeriods } from '@/hooks/usePeriods'
 import { ViewType, ComparisonBase } from '@/types/index'
 import { cn } from '@/utils/theme'
+import { getPageFilterConfig } from '@/utils/filterConfig'
 
 const PERSONAS = [
   { key: 'analyst', icon: '\u25A6', label: 'Analyst' },
@@ -26,13 +27,15 @@ const BASES = [
 
 interface ContextStripProps {
   onFocusToggle: () => void
+  pathname?: string
 }
 
-export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
+export default function ContextStrip({ onFocusToggle, pathname }: ContextStripProps) {
   const { persona, setPersona } = useUser()
   const { filters, setPeriod, setViewType, setComparisonBase } = useGlobalFilters()
   const { periods } = usePeriods(filters.viewType)
   const { isDark } = useTheme()
+  const pageConfig = getPageFilterConfig(pathname || '/')
 
   const currentPeriodId = filters.period
     ? `${filters.period.year}-${String(filters.period.month).padStart(2, '0')}`
@@ -96,7 +99,7 @@ export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
       {/* Center — Time Agg + Base */}
       <div className="flex items-center gap-2 min-w-0 shrink-0">
         {/* Time agg group */}
-        <div className={cn('flex gap-0.5 rounded-[5px] p-[1px] border', groupBg, groupBorder)}>
+        <div className={cn('flex gap-0.5 rounded-[5px] p-[1px] border', groupBg, groupBorder, pageConfig.view === false && 'opacity-30 pointer-events-none')}>
           {TIME_AGGS.map((t) => {
             const isActive = filters.viewType === t.key
             return (
@@ -117,7 +120,7 @@ export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
         <span className={cn('text-[10px] px-0.5', vsColor)}>vs</span>
 
         {/* Comparison base group */}
-        <div className={cn('flex gap-0.5 rounded-[5px] p-[1px] border', groupBg, groupBorder)}>
+        <div className={cn('flex gap-0.5 rounded-[5px] p-[1px] border', groupBg, groupBorder, pageConfig.base === false && 'opacity-30 pointer-events-none')}>
           {BASES.map((b) => {
             const isActive = filters.comparisonBase === b.key
             return (
@@ -136,7 +139,7 @@ export default function ContextStrip({ onFocusToggle }: ContextStripProps) {
         </div>
 
         {/* E3: Period selector */}
-        <div className="flex items-center gap-1 ml-2">
+        <div className={cn('flex items-center gap-1 ml-2', pageConfig.period === false && 'opacity-30 pointer-events-none')}>
           <select
             value={currentPeriodId}
             onChange={(e) => {

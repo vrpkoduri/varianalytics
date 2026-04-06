@@ -7,6 +7,7 @@ import { useGlobalFilters } from '../../context/GlobalFiltersContext'
 import { useVariances } from '@/hooks/useVariances'
 import { MOCK_VARIANCES } from '@/mocks/dashboardData'
 import { cn } from '@/utils/theme'
+import { getPageFilterConfig } from '@/utils/filterConfig'
 
 // Dimension display labels
 const DIMENSION_LABELS: Record<string, string> = {
@@ -140,8 +141,8 @@ export default function Sidebar({ isOpen, pathname }: SidebarProps) {
         onSelect={(buId) => setBusinessUnit(buId)}
       />
 
-      {/* Hierarchy trees — only on data-centric pages */}
-      {(!pathname || ['/', '/pl', '/executive'].includes(pathname)) &&
+      {/* Hierarchy trees — only on pages where dimensions are relevant */}
+      {getPageFilterConfig(pathname || '/').dimensions !== false &&
         Object.entries(hierarchies).map(([dim, tree]) => (
           <HierarchyTree
             key={dim}
