@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vantage | FP&A Variance Analysis & Intelligence Platform</title>
+<style>
+:root{--cobalt:#002C77;--teal:#00A8C7;--dark:#0a0f1e;--card:#111827;--border:#1e293b;--text:#e2e8f0;--muted:#94a3b8;--gold:#D4A843;--emerald:#10b981;--coral:#f87171;--amber:#f59e0b}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--dark);color:var(--text);line-height:1.6}
+header{background:linear-gradient(135deg,var(--cobalt),#001a4a);padding:24px 40px;border-bottom:2px solid var(--teal);position:relative;overflow:hidden}
+header::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cobalt),var(--teal),var(--cobalt));animation:shimmer 3s infinite}
+@keyframes shimmer{0%,100%{opacity:.5}50%{opacity:1}}
+header h1{font-size:28px;font-weight:300;letter-spacing:1px}
+header h1 span{color:var(--teal);font-weight:600}
+header p{color:var(--muted);font-size:14px;margin-top:4px}
+.tabs{display:flex;gap:0;background:var(--card);border-bottom:1px solid var(--border);padding:0 40px}
+.tab{padding:14px 28px;cursor:pointer;color:var(--muted);font-size:14px;font-weight:500;border-bottom:2px solid transparent;transition:all .2s}
+.tab:hover{color:var(--text)}
+.tab.active{color:var(--teal);border-bottom-color:var(--teal)}
+.content{padding:40px;max-width:1400px;margin:0 auto}
+.diagram{display:none}
+.diagram.active{display:block}
+.section-label{font-size:12px;text-transform:uppercase;letter-spacing:2px;color:var(--teal);margin-bottom:12px;font-weight:600}
+.section-title{font-size:20px;margin-bottom:24px;font-weight:300}
+.flow{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch;margin-bottom:32px}
+.box{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 20px;min-width:140px;flex:1;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+.box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cobalt),var(--teal))}
+.box:hover{border-color:var(--teal);transform:translateY(-2px);box-shadow:0 4px 20px rgba(0,168,199,.15)}
+.box h3{font-size:13px;font-weight:600;margin-bottom:4px}
+.box p{font-size:11px;color:var(--muted);line-height:1.4}
+.box .tag{display:inline-block;font-size:10px;padding:2px 8px;border-radius:10px;margin-top:6px;font-weight:600}
+.tag.math{background:rgba(16,185,129,.15);color:var(--emerald)}
+.tag.llm{background:rgba(0,168,199,.15);color:var(--teal)}
+.tag.ml{background:rgba(212,168,67,.15);color:var(--gold)}
+.arrow{display:flex;align-items:center;justify-content:center;color:var(--teal);font-size:20px;min-width:24px;flex:0}
+.layer{margin-bottom:36px}
+.layer-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.layer-badge{font-size:11px;padding:4px 12px;border-radius:4px;font-weight:600;letter-spacing:1px}
+.layer-badge.a{background:rgba(16,185,129,.15);color:var(--emerald);border:1px solid rgba(16,185,129,.3)}
+.layer-badge.b{background:rgba(0,168,199,.15);color:var(--teal);border:1px solid rgba(0,168,199,.3)}
+.layer-badge.app{background:rgba(212,168,67,.15);color:var(--gold);border:1px solid rgba(212,168,67,.3)}
+.layer-badge.data{background:rgba(148,163,184,.15);color:var(--muted);border:1px solid rgba(148,163,184,.3)}
+.layer-desc{font-size:12px;color:var(--muted)}
+.pyramid{display:flex;flex-direction:column;align-items:center;gap:8px;margin:20px 0}
+.pyramid-level{cursor:pointer;text-align:center;padding:18px 24px;border-radius:8px;border:1px solid var(--border);background:var(--card);transition:all .3s;position:relative;overflow:hidden}
+.pyramid-level::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--cobalt),var(--teal))}
+.pyramid-level:hover{border-color:var(--teal);box-shadow:0 4px 20px rgba(0,168,199,.15)}
+.pyramid-level h3{font-size:14px;margin-bottom:4px}
+.pyramid-level p{font-size:11px;color:var(--muted)}
+.pyramid-level .example{display:none;margin-top:10px;padding:10px;background:rgba(0,168,199,.05);border-radius:4px;font-size:11px;color:var(--teal);font-style:italic;text-align:left}
+.pyramid-level.expanded .example{display:block}
+.p1{width:40%}.p2{width:55%}.p3{width:70%}.p4{width:90%}
+.workflow-step{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.step-num{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--cobalt),var(--teal));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0}
+.step-content{flex:1;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px 20px}
+.step-content h3{font-size:14px;margin-bottom:4px}
+.step-content p{font-size:12px;color:var(--muted)}
+.loop-arrow{margin:8px 0 8px 18px;border-left:2px dashed var(--teal);padding-left:20px;font-size:11px;color:var(--teal)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:24px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;text-align:center}
+.stat .num{font-size:24px;font-weight:700;color:var(--teal)}
+.stat .label{font-size:11px;color:var(--muted);margin-top:4px}
+.tooltip{display:none;position:fixed;background:#1a2332;border:1px solid var(--teal);border-radius:8px;padding:12px 16px;font-size:12px;max-width:320px;z-index:100;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+@media print{body{background:#fff;color:#000}.box,.pyramid-level,.step-content,.stat{border-color:#ccc;background:#f9f9f9}header{background:var(--cobalt)}.tabs{display:none}.diagram{display:block!important}.section-label{color:var(--cobalt)}}
+@media(max-width:768px){.flow{flex-direction:column}.arrow{transform:rotate(90deg)}.p1,.p2,.p3,.p4{width:100%}header{padding:16px 20px}.content{padding:20px}.tabs{padding:0 10px}}
+</style>
+</head>
+<body>
+<header>
+<h1><span>Vantage</span> | FP&A Variance Analysis & Intelligence Platform</h1>
+<p>Autonomous variance detection, root cause analysis, and financial narrative generation</p>
+</header>
+<div class="tabs">
+<div class="tab active" onclick="showTab(0)">Architecture</div>
+<div class="tab" onclick="showTab(1)">Engine Pipeline</div>
+<div class="tab" onclick="showTab(2)">Workflow</div>
+<div class="tab" onclick="showTab(3)">Narrative Pyramid</div>
+</div>
+<div class="content">
+
+<!-- TAB 0: Architecture -->
+<div class="diagram active" id="tab0">
+<div class="section-label">System Architecture</div>
+<div class="section-title">Three-Layer Platform Design</div>
+
+<div class="layer">
+<div class="layer-header"><span class="layer-badge app">APPLICATION</span><span class="layer-desc">React 18 + TypeScript + Tailwind | 9 Views | 120+ Components</span></div>
+<div class="flow">
+<div class="box" onclick="tip(this,'Executive dashboard with KPI cards, heatmaps, and variance tables. Persona-filtered: CFO sees approved only.')"><h3>Dashboard</h3><p>KPIs, heatmap, variance table</p></div>
+<div class="box" onclick="tip(this,'Recursive P&L grid with inline variance indicators and margin gauges. Drill-down to any intersection.')"><h3>P&L View</h3><p>Recursive grid + margins</p></div>
+<div class="box" onclick="tip(this,'SSE streaming chat with typed events: tokens, data tables, mini charts, suggestions, confidence scores.')"><h3>Chat</h3><p>SSE streaming + tools</p></div>
+<div class="box" onclick="tip(this,'Analyst landing page. Sort by impact, SLA badges, batch actions. This IS the daily workflow.')"><h3>Review Queue</h3><p>Analyst daily workflow</p></div>
+<div class="box" onclick="tip(this,'Director bulk approve. Report gate: only APPROVED content enters distributed reports.')"><h3>Approval</h3><p>Report gate</p></div>
+<div class="box" onclick="tip(this,'PDF, PPTX, DOCX, XLSX generation from approved narratives. Scheduled distribution via Teams/Slack/Email.')"><h3>Reports</h3><p>PDF/PPTX/DOCX/XLSX</p></div>
+</div>
+</div>
+
+<div class="layer">
+<div class="layer-header"><span class="layer-badge b">SERVICES</span><span class="layer-desc">FastAPI Python 3.11+ | 3 Microservices | ~80 API Endpoints</span></div>
+<div class="flow">
+<div class="box" onclick="tip(this,'Auth (JWT + Azure AD), chat orchestration, dimension APIs, config, review/approval workflow, notifications.')"><h3>Gateway :8000</h3><p>Auth, Chat, Review, Notifications</p></div>
+<div class="box" onclick="tip(this,'5.5-pass engine, dashboard APIs, variance drill-down, decomposition, P&L, section/executive narratives.')"><h3>Computation :8001</h3><p>Engine, Dashboard, Variances</p></div>
+<div class="box" onclick="tip(this,'PDF/PPTX/DOCX/XLSX generators, scheduling, distribution via Teams/Slack/SMTP.')"><h3>Reports :8002</h3><p>Generation, Scheduling</p></div>
+</div>
+</div>
+
+<div class="layer">
+<div class="layer-header"><span class="layer-badge data">DATA & INTELLIGENCE</span><span class="layer-desc">15 Tables | Knowledge Graph | Vector Store | Cache</span></div>
+<div class="flow">
+<div class="box" onclick="tip(this,'49K rows of monthly financial data across 5 ragged-hierarchy dimensions. MTD atomic grain with actual/budget/forecast/PY + FX columns.')"><h3>fact_financials</h3><p>Source financial data</p></div>
+<div class="box" onclick="tip(this,'NetworkX directed graph. ~10,900 nodes, ~40,100 edges per period. 8 node types, 13 edge types. Queries: cascades, peers, ancestors, correlations.')"><h3>Knowledge Graph</h3><p>~10,900 nodes/period</p></div>
+<div class="box" onclick="tip(this,'Qdrant or in-memory vector store for RAG retrieval. 70% semantic + 15% account + 15% magnitude similarity scoring.')"><h3>Vector Store (RAG)</h3><p>Commentary learning</p></div>
+<div class="box" onclick="tip(this,'Redis 7 for hot-reload config, session cache, and engine task queue.')"><h3>Redis Cache</h3><p>Config + sessions</p></div>
+</div>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="num">80+</div><div class="label">API Endpoints</div></div>
+<div class="stat"><div class="num">120+</div><div class="label">React Components</div></div>
+<div class="stat"><div class="num">1,206+</div><div class="label">Automated Tests</div></div>
+<div class="stat"><div class="num">15</div><div class="label">Intelligence Dimensions</div></div>
+<div class="stat"><div class="num">9</div><div class="label">Comparison Views</div></div>
+<div class="stat"><div class="num">7</div><div class="label">Persona Roles</div></div>
+</div>
+</div>
+
+<!-- TAB 1: Engine Pipeline -->
+<div class="diagram" id="tab1">
+<div class="section-label">Computation Engine</div>
+<div class="section-title">5.5-Pass Materiality-First Pipeline</div>
+
+<div class="layer">
+<div class="layer-header"><span class="layer-badge a">PROCESS A</span><span class="layer-desc">Pure Math | ~15 seconds | $0 cost | No LLM</span></div>
+<div class="flow">
+<div class="box" onclick="tip(this,'Compute variance at ALL intersections across 5 dimensions x 38 accounts x 5 BUs x 3 bases x 3 views. Calculated rows (EBITDA, Gross Profit) resolved in dependency order AFTER rollup.')"><h3>Pass 1</h3><p>Raw Variance</p><span class="tag math">MATH</span></div>
+<div class="arrow">&rarr;</div>
+<div class="box" onclick="tip(this,'6 netting checks identifying offsetting variances hidden at parent level. Example: Revenue up $500K in one segment, down $500K in another = $0 at parent, but both are material.')"><h3>Pass 1.5</h3><p>Netting Detection</p><span class="tag math">MATH</span></div>
+<div class="arrow">&rarr;</div>
+<div class="box" onclick="tip(this,'Consecutive-period direction patterns. Rule 1: same sign for 3+ months. Rule 2: individual months below threshold but cumulative YTD exceeds materiality.')"><h3>Pass 2.5</h3><p>Trend Detection</p><span class="tag math">MATH</span></div>
+<div class="arrow">&rarr;</div>
+<div class="box" onclick="tip(this,'OR-logic filter producing 3 categories: material (exceeds threshold), netted (hidden offsets), trending (multi-month patterns). Three types, not just one.')"><h3>Pass 2</h3><p>Materiality Filter</p><span class="tag math">MATH</span></div>
+<div class="arrow">&rarr;</div>
+<div class="box" onclick="tip(this,'Revenue: Volume x Price x Mix x FX. COGS: Rate x Volume x Mix. OpEx: Rate x Volume x Timing x One-Time. Fallback methods when unit data unavailable.')"><h3>Pass 3</h3><p>Decomposition</p><span class="tag math">MATH</span></div>
+</div>
+</div>
+
+<div class="layer">
+<div class="layer-header"><span class="layer-badge b">PROCESS B</span><span class="layer-desc">Intelligence + LLM | ~30 min | Concurrency 25 | Template fallback</span></div>
+<div class="flow">
+<div class="box" onclick="tip(this,'Within-period: pairwise scoring (dimension overlap + direction + magnitude). Cross-period: persistent patterns (2+ month streaks), lead-lag (account A causes B next month), YoY echoes. All 3 comparison bases. Top 20+30 pairs per base, LLM hypothesis generation.')"><h3>Pass 4</h3><p>Correlation + Root Cause</p><span class="tag llm">LLM</span></div>
+<div class="arrow">&rarr;</div>
+<div class="box" onclick="tip(this,'Stage 1: Leaf narratives (4 levels each). Stage 2: Parent narratives (referencing children). Stage 3: Section narratives (Revenue, COGS, OpEx, Profitability) with graph + trend + correlation context. Stage 4: Executive summaries (substantive 2-3 paragraphs for CFO/Board).')"><h3>Pass 5</h3><p>Narrative Generation</p><span class="tag llm">LLM</span></div>
+</div>
+</div>
+
+<div class="layer">
+<div class="layer-header"><span class="layer-badge ml">FUTURE: PHASE 5</span><span class="layer-desc">ML Intelligence | Planned</span></div>
+<div class="flow">
+<div class="box"><h3>Isolation Forest</h3><p>Anomaly detection</p><span class="tag ml">ML</span></div>
+<div class="box"><h3>XGBoost</h3><p>Root cause ranking</p><span class="tag ml">ML</span></div>
+<div class="box"><h3>Random Forest</h3><p>Predictive variance</p><span class="tag ml">ML</span></div>
+<div class="box"><h3>DBSCAN</h3><p>Variance clustering</p><span class="tag ml">ML</span></div>
+<div class="box"><h3>STL</h3><p>Seasonal decomposition</p><span class="tag ml">ML</span></div>
+</div>
+</div>
+
+<div class="stats">
+<div class="stat"><div class="num">~10,700</div><div class="label">Variances / Period</div></div>
+<div class="stat"><div class="num">120</div><div class="label">Correlations / Period</div></div>
+<div class="stat"><div class="num">~90</div><div class="label">Section Narratives</div></div>
+<div class="stat"><div class="num">18</div><div class="label">Executive Summaries</div></div>
+<div class="stat"><div class="num">~30 min</div><div class="label">Full Pipeline Time</div></div>
+<div class="stat"><div class="num">0</div><div class="label">Template Fallbacks</div></div>
+</div>
+</div>
+
+<!-- TAB 2: Workflow -->
+<div class="diagram" id="tab2">
+<div class="section-label">End-to-End Workflow</div>
+<div class="section-title">From Data to Decision</div>
+
+<div class="workflow-step"><div class="step-num">1</div><div class="step-content"><h3>Data Ingestion</h3><p>ERP / GL data loaded into fact_financials. 36 months of history across 5 dimensions, 38 accounts, 5 BUs. MTD atomic grain with actual, budget, forecast, and prior year amounts.</p></div></div>
+
+<div class="workflow-step"><div class="step-num">2</div><div class="step-content"><h3>Engine Run (Process A)</h3><p>Pure math: raw variance at all intersections, netting detection, trend detection, materiality filter, decomposition. ~15 seconds, zero LLM cost. Produces ~10,700 material variances per period.</p></div></div>
+
+<div class="workflow-step"><div class="step-num">3</div><div class="step-content"><h3>Engine Run (Process B)</h3><p>Intelligence + LLM: cross-period correlation analysis (persistent, lead-lag, YoY), then 4-stage narrative generation (leaves &rarr; parents &rarr; sections &rarr; executive). ~30 min with GPT-4.1 Mini at concurrency 25.</p></div></div>
+
+<div class="workflow-step"><div class="step-num">4</div><div class="step-content"><h3>AI Draft Generated</h3><p>Every material variance gets 4 narrative levels: detail (analyst), midlevel (BU leader), summary (CFO), oneliner (dashboard). Status: AI_DRAFT. Each narrative includes decomposition drivers, correlation context, trend patterns, and cross-period intelligence.</p></div></div>
+
+<div class="workflow-step"><div class="step-num">5</div><div class="step-content"><h3>Review Queue (Analyst Workflow)</h3><p>Analysts review AI drafts in their daily landing page. Edit narratives, provide hypothesis feedback (thumbs up/down), add context. SLA tracking: green &lt;12h, amber &lt;24h, red &gt;48h. Batch actions for efficiency. Status: ANALYST_REVIEWED.</p></div></div>
+
+<div class="workflow-step"><div class="step-num">6</div><div class="step-content"><h3>Approval (Director / CFO)</h3><p>Directors bulk-approve reviewed narratives. Report gate: only APPROVED content enters distributed reports. Rejected items return to review queue. Status: APPROVED.</p></div></div>
+
+<div class="loop-arrow">&#8635; RAG Learning Loop: Approved narratives feed the knowledge base. Vector embeddings stored for retrieval. Future AI drafts use 2-3 similar approved commentaries as few-shot examples. Each approval cycle improves quality.</div>
+
+<div class="workflow-step"><div class="step-num">7</div><div class="step-content"><h3>Report Distribution</h3><p>Automated generation of Executive Flash (1-page PDF), Period-End Package (4-page), Board Narrative (letterhead), and XLSX with narrative tabs. Distributed via Teams, Slack, or email on schedule.</p></div></div>
+
+<div class="workflow-step"><div class="step-num">8</div><div class="step-content"><h3>Next Period</h3><p>Engine accumulates history. Cross-period analysis deepens: 3-month persistent streaks become 6-month structural patterns. Lead-lag chains extend. YoY echoes emerge. The system gets smarter with every period processed.</p></div></div>
+</div>
+
+<!-- TAB 3: Narrative Pyramid -->
+<div class="diagram" id="tab3">
+<div class="section-label">Narrative Pyramid</div>
+<div class="section-title">Four Levels of Financial Intelligence</div>
+<p style="color:var(--muted);margin-bottom:24px;font-size:13px">Click each level to see an example narrative. Each level synthesizes from the level below + enriches with cross-cutting intelligence.</p>
+
+<div class="pyramid">
+<div class="pyramid-level p1" onclick="this.classList.toggle('expanded')">
+<h3>Board Level</h3>
+<p>On-demand | Approval-gated | 1-2 sentences</p>
+<div class="example">"Q2 underperformance driven by structural APAC volume softness persisting since March, partially offset by favorable OpEx timing. EBITDA margin compression of 180bps warrants strategic review of Cloud Services pricing model."</div>
+</div>
+<div class="pyramid-level p2" onclick="this.classList.toggle('expanded')">
+<h3>Summary (CFO)</h3>
+<p>Approved narratives only | Key metrics + root cause | 2-3 sentences</p>
+<div class="example">"Revenue $800K below Budget (-5.2%), marking the third consecutive month of underperformance. EBITDA compressed to 18.3% from budgeted 20.1%. Key driver: Cloud Services volume decline in APAC, a year-over-year echo of the June 2025 pattern."</div>
+</div>
+<div class="pyramid-level p3" onclick="this.classList.toggle('expanded')">
+<h3>Midlevel (BU Leader)</h3>
+<p>Own BU only | Reviewed + Approved | Drivers + trends</p>
+<div class="example">"Revenue in BU-East declined 5.2% vs Budget, driven primarily by Cloud Services (-$500K, volume-driven) and Licensing (-$200K, renewal timing). This represents a persistent 4-month pattern with cumulative impact of $2.3M. Travel expense offset partially with $45K favorable. 3 of 8 revenue lines contributed positively."</div>
+</div>
+<div class="pyramid-level p4" onclick="this.classList.toggle('expanded')">
+<h3>Detail (Analyst)</h3>
+<p>Full access | All statuses | Decomposition + correlations + 15 intelligence dimensions</p>
+<div class="example">"Cloud Services Revenue decreased by $500,000 (-8.2%) vs Budget. Unfavorable. Decomposition: Volume -$380K (unit sales 12% below plan), Price +$30K (2% price increase effective Q2), Mix -$120K (shift from Enterprise to SMB), FX -$30K (AUD weakness). Correlated with: APAC headcount increase in May (lead-lag, Confidence: 0.91). Trending unfavorable for 4 consecutive months (cumulative $1.8M). YoY echo: same pattern in June 2025 ($310K unfavorable). Risk: High. Peer comparison: BU-West Cloud Services is +3.2%, suggesting BU-East-specific operational issue. [AI Draft]"</div>
+</div>
+</div>
+
+<div style="margin-top:32px">
+<div class="section-label">Intelligence Inputs Per Narrative</div>
+<div class="flow" style="margin-top:12px">
+<div class="box"><h3>Decomposition</h3><p>Vol/Price/Mix/FX drivers</p></div>
+<div class="box"><h3>Correlations</h3><p>Within-period + cross-period</p></div>
+<div class="box"><h3>Trends</h3><p>Consecutive month patterns</p></div>
+<div class="box"><h3>Netting</h3><p>Hidden offsetting variances</p></div>
+<div class="box"><h3>Graph</h3><p>Peer, cascade, causal chains</p></div>
+<div class="box"><h3>RAG</h3><p>Prior approved commentaries</p></div>
+<div class="box"><h3>Carry-Forward</h3><p>Prior period comparison</p></div>
+<div class="box"><h3>Seasonality</h3><p>Expected patterns</p></div>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+function showTab(n){document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active',i===n)});document.querySelectorAll('.diagram').forEach((d,i)=>{d.classList.toggle('active',i===n)})}
+function tip(el,text){const t=document.getElementById('tooltip'),r=el.getBoundingClientRect();t.textContent=text;t.style.display='block';t.style.left=Math.min(r.left,window.innerWidth-340)+'px';t.style.top=(r.bottom+8)+'px';setTimeout(()=>{t.style.display='none'},4000)}
+document.addEventListener('click',e=>{if(!e.target.closest('.box'))document.getElementById('tooltip').style.display='none'});
+</script>
+</body>
+</html>
