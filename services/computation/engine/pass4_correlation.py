@@ -196,7 +196,7 @@ async def find_correlations(context: dict[str, Any]) -> None:
     # ------------------------------------------------------------------
     llm_client = context.get("llm_client")
     if llm_client and top_pairs:
-        sem = asyncio.Semaphore(5)  # Max 5 concurrent LLM calls
+        sem = asyncio.Semaphore(15)  # Max 15 concurrent LLM calls
 
         async def _gen_with_sem(a: dict, b: dict) -> tuple[str | None, float | None]:
             async with sem:

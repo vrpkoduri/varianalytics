@@ -95,7 +95,7 @@ embedding:
   dimensions: 1536
 
 rate_limits:
-  max_rpm: 500
-  max_tpm: 200000
+  max_rpm: 1000
+  max_tpm: 400000
   retry_attempts: 3
   retry_delay_seconds: 1.0

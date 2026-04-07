@@ -49,7 +49,7 @@ _BASE_LABELS: dict[str, str] = {
 }
 
 # Max concurrent LLM calls
-_CONCURRENCY = 10
+_CONCURRENCY = 25
 
 
 # ======================================================================
