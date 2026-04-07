@@ -152,6 +152,8 @@ class DataService:
             "dim_period",
             "fact_section_narrative",
             "fact_executive_summary",
+            "fact_review_status",
+            "audit_log",
         ]
         for name in table_names:
             if self._loader.table_exists(name):
@@ -451,6 +453,90 @@ class DataService:
             "commentary_pct": commentary_pct,
             "close_pct": close_pct,
             "total_material": total,
+        }
+
+    # ------------------------------------------------------------------
+    # 1c. Narrative Quality (LLM Monitoring)
+    # ------------------------------------------------------------------
+
+    def get_narrative_quality(self, period_id: Optional[str] = None) -> dict[str, Any]:
+        """Compute narrative source breakdown for LLM monitoring dashboard.
+
+        Returns:
+            Dict with total, llm_count, template_count, llm_pct,
+            by_level breakdown, and engine_run_history.
+        """
+        vm = self._table("fact_variance_material")
+        if vm.empty:
+            return {
+                "total": 0, "llm_count": 0, "template_count": 0, "llm_pct": 0,
+                "by_level": {}, "engine_runs": [],
+            }
+
+        # Filter to period if provided
+        df = vm
+        if period_id and "period_id" in df.columns:
+            df = df[df["period_id"] == period_id]
+
+        # Only material non-calculated variances
+        if "is_material" in df.columns:
+            df = df[df["is_material"] == True]
+        if "is_calculated" in df.columns:
+            df = df[df["is_calculated"] == False]
+
+        total = len(df)
+
+        # Source breakdown
+        if "narrative_source" in df.columns:
+            llm_count = int((df["narrative_source"] == "llm").sum())
+        else:
+            llm_count = 0
+        template_count = total - llm_count
+        llm_pct = round(llm_count / total * 100, 1) if total > 0 else 0
+
+        # By narrative level: count populated vs empty
+        by_level: dict[str, dict[str, Any]] = {}
+        for level in ["narrative_detail", "narrative_midlevel", "narrative_summary",
+                       "narrative_oneliner", "narrative_board"]:
+            if level in df.columns:
+                populated = int(df[level].notna().sum() - (df[level] == "").sum())
+                by_level[level.replace("narrative_", "")] = {
+                    "populated": max(populated, 0),
+                    "total": total,
+                    "pct": round(max(populated, 0) / total * 100, 1) if total > 0 else 0,
+                }
+
+        # Engine run history from audit_log
+        engine_runs: list[dict[str, Any]] = []
+        audit = self._tables.get("audit_log")
+        if audit is not None and not audit.empty and "event_type" in audit.columns:
+            runs = audit[audit["event_type"] == "engine_run"].copy()
+            if "details" in runs.columns:
+                for _, row in runs.tail(10).iterrows():
+                    details = row.get("details", {})
+                    if isinstance(details, str):
+                        try:
+                            import json as _json
+                            details = _json.loads(details)
+                        except Exception:
+                            details = {}
+                    if isinstance(details, dict):
+                        engine_runs.append({
+                            "run_id": details.get("engine_run_id", "")[:8],
+                            "period_id": details.get("period_id", ""),
+                            "method": details.get("method", "unknown"),
+                            "llm_generated": details.get("llm_generated", 0),
+                            "template_generated": details.get("template_generated", 0),
+                            "timestamp": str(row.get("timestamp", "")),
+                        })
+
+        return {
+            "total": total,
+            "llm_count": llm_count,
+            "template_count": template_count,
+            "llm_pct": llm_pct,
+            "by_level": by_level,
+            "engine_runs": engine_runs,
         }
 
     # ------------------------------------------------------------------

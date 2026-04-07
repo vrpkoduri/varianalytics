@@ -157,6 +157,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.info("LLM not available — using keyword intent + template responses")
 
+    # LLM Health Checker (AI Monitoring dashboard)
+    from shared.llm.health import LLMHealthChecker
+    app.state.llm_health = LLMHealthChecker(app.state.llm_client)
+
     # Note: Engine task queue lives in computation service (Phase 3D)
     # Frontend calls computation service directly for engine control.
 

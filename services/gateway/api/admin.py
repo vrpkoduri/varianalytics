@@ -367,3 +367,67 @@ async def reload_data(
         "status": "reloaded",
         "tables": table_counts,
     }
+
+
+# ---------------------------------------------------------------------------
+# LLM Monitoring (AI Monitoring Dashboard)
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/llm-health",
+    summary="LLM health status",
+)
+async def get_llm_health(
+    request: Request,
+    admin: UserContext = Depends(require_admin()),
+) -> dict:
+    """Return LLM provider health status, configured models, and endpoint info."""
+    health_checker = getattr(request.app.state, "llm_health", None)
+    if health_checker is None:
+        return {
+            "status": "unavailable",
+            "provider": "none",
+            "endpoint": "",
+            "api_key_configured": False,
+            "models": [],
+        }
+    return health_checker.get_health_status()
+
+
+@router.get(
+    "/narrative-quality",
+    summary="Narrative quality breakdown",
+)
+async def get_narrative_quality(
+    request: Request,
+    admin: UserContext = Depends(require_admin()),
+    period_id: str | None = Query(None, description="Filter to a specific period"),
+) -> dict:
+    """Return LLM vs template narrative breakdown and engine run history."""
+    ds = getattr(request.app.state, "data_service", None)
+    if ds is None:
+        return {"total": 0, "llm_count": 0, "template_count": 0, "llm_pct": 0, "by_level": {}, "engine_runs": []}
+    return ds.get_narrative_quality(period_id=period_id)
+
+
+@router.post(
+    "/llm-test",
+    summary="Test LLM connectivity",
+)
+async def test_llm_connectivity(
+    request: Request,
+    admin: UserContext = Depends(require_admin()),
+) -> dict:
+    """Send a test prompt to the configured LLM and return response + latency."""
+    health_checker = getattr(request.app.state, "llm_health", None)
+    if health_checker is None:
+        return {
+            "success": False,
+            "provider": "none",
+            "model": "none",
+            "response_text": "LLM health checker not initialized",
+            "latency_ms": 0,
+            "tokens": {"prompt": 0, "completion": 0, "total": 0},
+        }
+    return await health_checker.test_connectivity()

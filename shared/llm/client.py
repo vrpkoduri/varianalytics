@@ -169,17 +169,6 @@ class LLMClient:
                 if tool_choice is not None:
                     kwargs["tool_choice"] = tool_choice
 
-                # Pass custom headers for corporate proxies (MMC, etc.)
-                extra_headers = {}
-                app_id = os.environ.get("AZURE_APP_ID")
-                app_secret = os.environ.get("AZURE_APP_SECRET")
-                if app_id:
-                    extra_headers["X-Application-Id"] = app_id
-                if app_secret:
-                    extra_headers["X-Application-Secret"] = app_secret
-                if extra_headers:
-                    kwargs["extra_headers"] = extra_headers
-
                 response = await litellm.acompletion(**kwargs)
 
                 # Log token usage when present

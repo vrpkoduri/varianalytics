@@ -15,11 +15,13 @@ import { AdminThresholdsTab } from '@/components/admin/AdminThresholdsTab'
 import { AdminModelRoutingTab } from '@/components/admin/AdminModelRoutingTab'
 import { AdminUsersTab } from '@/components/admin/AdminUsersTab'
 import { AdminAuditLogTab } from '@/components/admin/AdminAuditLogTab'
+import { AdminLLMMonitoringTab } from '@/components/admin/AdminLLMMonitoringTab'
 
 const TABS = [
   { key: 'engine', label: 'Engine Control' },
   { key: 'thresholds', label: 'Thresholds' },
   { key: 'models', label: 'Model Routing' },
+  { key: 'llm', label: 'AI Monitoring' },
   { key: 'users', label: 'Users & Roles' },
   { key: 'audit', label: 'Audit Log' },
 ] as const
@@ -59,6 +61,7 @@ export default function AdminView() {
         {activeTab === 'engine' && <AdminEngineControlTab />}
         {activeTab === 'thresholds' && <AdminThresholdsTab />}
         {activeTab === 'models' && <AdminModelRoutingTab />}
+        {activeTab === 'llm' && <AdminLLMMonitoringTab />}
         {activeTab === 'users' && <AdminUsersTab />}
         {activeTab === 'audit' && <AdminAuditLogTab />}
       </div>

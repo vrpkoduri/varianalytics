@@ -4,7 +4,7 @@
 # Maps tasks to AI models via LiteLLM. Model-agnostic — change providers
 # by updating model identifiers. Cost fields enable accurate cost estimation.
 
-default_provider: "anthropic"
+default_provider: "azure"
 
 # Per-task provider override (optional). Omit to use default_provider.
 # Example: use cheaper model for intent, premium for narratives.
