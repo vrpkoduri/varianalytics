@@ -30,7 +30,8 @@ export function PLParentRow({ row, isExpanded, onToggle, isEven }: PLParentRowPr
     <div
       className="grid items-center px-3 py-1.5 cursor-pointer transition-colors hover:bg-[rgba(0,168,199,.04)]"
       style={{
-        gridTemplateColumns: 'minmax(180px, 1fr) 70px 70px 70px 60px 45px 50px',
+        gridTemplateColumns: '1fr 70px 70px 70px 60px 45px 50px',
+        minWidth: '620px',
         background: heatBg || (isEven ? 'rgba(0,168,199,.01)' : undefined),
       }}
       onClick={onToggle}

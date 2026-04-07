@@ -119,14 +119,14 @@ export function AdminEngineControlTab() {
 
           {/* Multi-period */}
           <div className="flex items-end">
-            <label className="flex items-center gap-2 text-sm text-tx-secondary cursor-pointer">
+            <label className="flex items-center gap-2 text-[11px] text-tx-secondary cursor-pointer whitespace-nowrap">
               <input
                 type="checkbox"
                 checked={multiPeriod}
                 onChange={(e) => setMultiPeriod(e.target.checked)}
                 className="w-4 h-4 rounded border-border bg-surface text-teal focus:ring-teal"
               />
-              Multi-period (12 months)
+              Multi-period
             </label>
           </div>
         </div>

@@ -109,7 +109,7 @@ export function PLGrid({ rows }: PLGridProps) {
           </button>
         </div>
       </div>
-      <GlassCard className="overflow-hidden">
+      <GlassCard className="overflow-x-auto">
         <PLHeaderRow />
         <div>
           {rows.map((row) => {

@@ -3,7 +3,8 @@ export function PLHeaderRow() {
     <div
       className="grid items-center px-3 py-2 border-b-2 border-border sticky top-0 z-10"
       style={{
-        gridTemplateColumns: 'minmax(180px, 1fr) 70px 70px 70px 60px 45px 50px',
+        gridTemplateColumns: '1fr 70px 70px 70px 60px 45px 50px',
+        minWidth: '620px',
         background: 'var(--card-alt)',
       }}
     >

@@ -37,7 +37,8 @@ export function PLDetailRow({ row, onOpenModal, isEven }: PLDetailRowProps) {
     <div
       className="grid items-center px-3 py-1 cursor-pointer transition-colors hover:bg-[rgba(0,168,199,.05)]"
       style={{
-        gridTemplateColumns: 'minmax(180px, 1fr) 70px 70px 70px 60px 45px 50px',
+        gridTemplateColumns: '1fr 70px 70px 70px 60px 45px 50px',
+        minWidth: '620px',
         background: heatBg || (isEven ? 'rgba(0,168,199,.01)' : undefined),
       }}
       onClick={onOpenModal}

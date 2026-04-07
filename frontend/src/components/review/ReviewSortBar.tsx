@@ -27,14 +27,14 @@ export function ReviewSortBar({ sortBy, searchQuery, onSortChange, onSearchChang
         type="button"
         onClick={onSortChange}
         className={cn(
-          'text-[9px] font-semibold px-2.5 py-1 rounded-button',
-          'border border-border bg-[var(--card)] text-tx-secondary',
-          'hover:border-[var(--border-hover)] hover:text-tx-primary transition-all duration-150',
-          'flex items-center gap-1 whitespace-nowrap',
+          'text-[10px] font-semibold px-3 py-1.5 rounded-lg flex-shrink-0',
+          'border border-teal/30 bg-[rgba(0,168,199,0.06)] text-teal',
+          'hover:bg-[rgba(0,168,199,0.12)] hover:text-tx-primary transition-all duration-150',
+          'flex items-center gap-1.5 whitespace-nowrap',
         )}
       >
         {sortLabels[sortBy] ?? sortBy}
-        <span className="text-[8px] text-tx-tertiary">{'\u21C5'}</span>
+        <span className="text-[9px]">{'\u21C5'}</span>
       </button>
     </div>
   )
