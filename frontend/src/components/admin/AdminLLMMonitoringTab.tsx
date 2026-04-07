@@ -222,8 +222,8 @@ export function AdminLLMMonitoringTab() {
                   <td className="py-1.5 font-mono text-[9px] text-teal">
                     {m.model.split('/').pop()}
                   </td>
-                  <td className="py-1.5 text-right">${m.costInputPer1m.toFixed(2)}</td>
-                  <td className="py-1.5 text-right">${m.costOutputPer1m.toFixed(2)}</td>
+                  <td className="py-1.5 text-right">${(m.costInputPer1m ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 text-right">${(m.costOutputPer1m ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
