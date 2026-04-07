@@ -53,29 +53,29 @@ providers:
       cost_input_per_1m: 0.15
       cost_output_per_1m: 0.60
     chat_response:
-      model: "azure/mmc-tech-gpt-5-mini-272k-2025-08-07"
+      model: "azure/mmc-tech-gpt-41-mini-1m-2025-04-14"
       max_tokens: 3000
       temperature: 0.5
-      cost_input_per_1m: 0.75
-      cost_output_per_1m: 3.00
-    narrative_generation:
-      model: "azure/mmc-tech-gpt-5-mini-272k-2025-08-07"
-      max_tokens: 2000
-      temperature: 0.4
-      cost_input_per_1m: 0.75
-      cost_output_per_1m: 3.00
-    hypothesis_generation:
-      model: "azure/mmc-tech-gpt-5-mini-272k-2025-08-07"
-      max_tokens: 1000
-      temperature: 0.3
-      cost_input_per_1m: 0.75
-      cost_output_per_1m: 3.00
-    oneliner_generation:
-      model: "azure/mmc-tech-gpt-41-mini-1m-2025-04-14"
-      max_tokens: 500
-      temperature: 0.2
       cost_input_per_1m: 0.40
       cost_output_per_1m: 1.60
+    narrative_generation:
+      model: "azure/mmc-tech-gpt-41-mini-1m-2025-04-14"
+      max_tokens: 2000
+      temperature: 0.4
+      cost_input_per_1m: 0.40
+      cost_output_per_1m: 1.60
+    hypothesis_generation:
+      model: "azure/mmc-tech-gpt-41-mini-1m-2025-04-14"
+      max_tokens: 1000
+      temperature: 0.3
+      cost_input_per_1m: 0.40
+      cost_output_per_1m: 1.60
+    oneliner_generation:
+      model: "azure/mmc-tech-gpt-4o-mini-128k-2024-07-18"
+      max_tokens: 100
+      temperature: 0.2
+      cost_input_per_1m: 0.15
+      cost_output_per_1m: 0.60
 
 embedding:
   # Auto-detected from available API keys. Override with 'provider' to force one.
