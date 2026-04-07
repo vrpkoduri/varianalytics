@@ -39,7 +39,7 @@ _PROVIDERS = [
     {
         "name": "azure",
         "env_key": "AZURE_OPENAI_API_KEY",
-        "model": "azure/text-embedding-3-small",
+        "model": "azure/mmc-tech-text-embedding-3-small",
         "dimensions": 1536,
         "extra_check": "AZURE_API_BASE",  # Also requires API base
     },
@@ -157,6 +157,17 @@ class EmbeddingService:
         """Model identifier for the active provider."""
         return self._model
 
+    def _get_extra_kwargs(self) -> dict[str, Any]:
+        """Return extra kwargs for litellm embedding calls (e.g., api_base for Azure)."""
+        kwargs: dict[str, Any] = {}
+        if self._provider_name == "azure":
+            api_base = os.environ.get("AZURE_API_BASE") or os.environ.get("AZURE_OPENAI_ENDPOINT")
+            if api_base:
+                kwargs["api_base"] = api_base
+            api_version = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-02-01")
+            kwargs["api_version"] = api_version
+        return kwargs
+
     async def embed(self, text: str) -> Optional[list[float]]:
         """Generate embedding for a single text string.
 
@@ -170,6 +181,7 @@ class EmbeddingService:
             response = await litellm.aembedding(
                 model=self._model,
                 input=[text],
+                **self._get_extra_kwargs(),
             )
             return response.data[0]["embedding"]
         except Exception as exc:
@@ -187,12 +199,14 @@ class EmbeddingService:
         try:
             import litellm
 
+            extra = self._get_extra_kwargs()
             results: list[Optional[list[float]]] = []
             for i in range(0, len(texts), 100):
                 chunk = texts[i : i + 100]
                 response = await litellm.aembedding(
                     model=self._model,
                     input=chunk,
+                    **extra,
                 )
                 for item in response.data:
                     results.append(item["embedding"])
