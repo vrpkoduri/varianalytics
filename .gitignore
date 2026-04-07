@@ -56,3 +56,7 @@ data/output/fact_*.csv
 data/output/audit_log.*
 data/output/knowledge_commentary_history.*
 data/output/reports/
+
+# Exception: fact_financials is source data (input to engine), keep tracked
+!data/output/fact_financials.parquet
+!data/output/fact_financials.csv
