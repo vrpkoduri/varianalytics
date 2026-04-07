@@ -246,10 +246,11 @@ def main() -> None:
     # Print timings from last run
     _print_timings(runner)
 
-    # Concatenate and save
+    # Concatenate and save (merge with existing data for single-period runs)
     _save_all_outputs(args.data_dir, all_material, all_decomposition, all_netting,
                       all_trend, all_correlations, all_review,
-                      all_section_narratives, all_executive_summaries)
+                      all_section_narratives, all_executive_summaries,
+                      periods_processed=periods)
 
     print("\nEngine run complete.")
 
@@ -355,8 +356,21 @@ def _print_timings(runner):
 
 def _save_all_outputs(data_dir, all_material, all_decomposition, all_netting,
                       all_trend, all_correlations, all_review,
-                      all_section_narratives, all_executive_summaries):
-    """Concatenate and save all collected outputs."""
+                      all_section_narratives, all_executive_summaries,
+                      periods_processed=None):
+    """Concatenate and save all collected outputs, merging with existing data.
+
+    When running single periods, this merges new period data with existing
+    data on disk — replacing rows for the processed period(s) while keeping
+    all other periods intact. This enables running periods individually
+    (oldest → newest) with proper accumulation for cross-period analysis.
+
+    Args:
+        data_dir: Output directory.
+        all_*: Lists of DataFrames from the current run.
+        periods_processed: List of period_ids processed in this run.
+            Used to replace only those periods in existing data.
+    """
     import pandas as pd
     out = Path(data_dir)
 
@@ -372,22 +386,57 @@ def _save_all_outputs(data_dir, all_material, all_decomposition, all_netting,
     for name, frames in concat_tables.items():
         if not frames:
             continue
-        combined = pd.concat(frames, ignore_index=True)
+        new_data = pd.concat(frames, ignore_index=True)
+
+        # Merge with existing data on disk (keep other periods, replace current)
+        existing_path = out / f"{name}.parquet"
+        if periods_processed and existing_path.exists():
+            try:
+                existing = pd.read_parquet(existing_path)
+                if "period_id" in existing.columns:
+                    # Remove rows for periods we just processed
+                    keep = existing[~existing["period_id"].isin(periods_processed)]
+                    combined = pd.concat([keep, new_data], ignore_index=True)
+                    # Sort by period for clean output
+                    combined = combined.sort_values("period_id").reset_index(drop=True)
+                else:
+                    combined = new_data
+            except Exception:
+                combined = new_data
+        else:
+            combined = new_data
+
         combined.to_parquet(out / f"{name}.parquet", index=False)
         combined.to_csv(out / f"{name}.csv", index=False)
         print(f"  Saved {name}: {len(combined):,} rows")
 
-    if all_section_narratives:
-        sn_df = pd.DataFrame(all_section_narratives)
-        sn_df.to_parquet(out / "fact_section_narrative.parquet", index=False)
-        sn_df.to_csv(out / "fact_section_narrative.csv", index=False)
-        print(f"  Saved fact_section_narrative: {len(sn_df):,} rows")
+    # Section narratives and executive summaries (same merge logic)
+    for label, raw_data, filename in [
+        ("fact_section_narrative", all_section_narratives, "fact_section_narrative"),
+        ("fact_executive_summary", all_executive_summaries, "fact_executive_summary"),
+    ]:
+        if not raw_data:
+            continue
+        new_df = pd.DataFrame(raw_data) if isinstance(raw_data[0], dict) else pd.concat(raw_data, ignore_index=True)
 
-    if all_executive_summaries:
-        es_df = pd.DataFrame(all_executive_summaries)
-        es_df.to_parquet(out / "fact_executive_summary.parquet", index=False)
-        es_df.to_csv(out / "fact_executive_summary.csv", index=False)
-        print(f"  Saved fact_executive_summary: {len(es_df):,} rows")
+        existing_path = out / f"{filename}.parquet"
+        if periods_processed and existing_path.exists():
+            try:
+                existing = pd.read_parquet(existing_path)
+                if "period_id" in existing.columns:
+                    keep = existing[~existing["period_id"].isin(periods_processed)]
+                    combined = pd.concat([keep, new_df], ignore_index=True)
+                    combined = combined.sort_values("period_id").reset_index(drop=True)
+                else:
+                    combined = new_df
+            except Exception:
+                combined = new_df
+        else:
+            combined = new_df
+
+        combined.to_parquet(out / f"{filename}.parquet", index=False)
+        combined.to_csv(out / f"{filename}.csv", index=False)
+        print(f"  Saved {label}: {len(combined):,} rows")
 
 
 if __name__ == "__main__":
