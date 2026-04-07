@@ -108,14 +108,23 @@ class LLMClient:
         return f"{task_provider}/default"
 
     def get_params(self, task: str) -> dict[str, Any]:
-        """Return ``{max_tokens, temperature}`` for the given *task*."""
+        """Return completion params for the given *task*.
+
+        Handles GPT-5/o-series models that use ``max_completion_tokens``
+        instead of ``max_tokens``, and don't support ``temperature``.
+        """
         task_provider = self._get_provider_for_task(task)
         provider_cfg = self._routing.get("providers", {}).get(task_provider, {})
         task_cfg = provider_cfg.get(task, {})
-        return {
-            "max_tokens": task_cfg.get("max_tokens", 1000),
-            "temperature": task_cfg.get("temperature", 0.5),
-        }
+        model = task_cfg.get("model", "")
+        max_tok = task_cfg.get("max_tokens", 1000)
+        temp = task_cfg.get("temperature", 0.5)
+
+        # GPT-5 and o-series reasoning models use max_completion_tokens
+        is_reasoning = any(tag in model for tag in ["gpt-5", "gpt5", "/o1", "/o3", "/o4"])
+        if is_reasoning:
+            return {"max_completion_tokens": max_tok}
+        return {"max_tokens": max_tok, "temperature": temp}
 
     def get_cost(self, task: str) -> dict[str, float]:
         """Return cost per million tokens for the active model on *task*.
