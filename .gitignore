@@ -49,5 +49,10 @@ htmlcov/
 *.log
 logs/
 
-# Data output (tracked, but ignore temp files)
+# Data output — engine-generated files (regenerated each run)
 data/output/*.tmp
+data/output/fact_*.parquet
+data/output/fact_*.csv
+data/output/audit_log.*
+data/output/knowledge_commentary_history.*
+data/output/reports/
