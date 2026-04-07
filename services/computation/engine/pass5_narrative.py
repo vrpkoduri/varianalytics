@@ -854,7 +854,8 @@ def _generate_parent_template_narrative(
         trend_note = f" Trending {trend_data.get('direction', '?')} for {trend_data.get('consecutive_periods', '?')} consecutive months."
 
     detail = (
-        f"{account_name} {direction} by ${abs(variance):,.0f} ({sign}{pct:.1f}%) vs Budget. {fav}. "
+        f"{account_name} {direction} by ${abs(variance):,.0f} ({sign}{pct:.1f}%) vs "
+        f"{_BASE_LABELS.get(str(row_dict.get('base_id', 'BUDGET')), 'Budget')}. {fav}. "
         f"Driven by {drivers_text}{remaining_note}. "
         f"{pos_count} of {len(children)} components contributed positively.{trend_note} [AI Draft]"
     )
@@ -937,6 +938,257 @@ def _compute_narrative_confidence(var_dict: dict[str, Any], context_maps: dict[s
         return 0.3  # High residual — largely unexplained
     else:
         return 0.6  # Fallback but reasonable
+
+
+# ======================================================================
+# ======================================================================
+# Section & Executive LLM Helpers
+# ======================================================================
+
+
+def _gather_section_intelligence(
+    section_name: str,
+    section_acct_ids: set[str],
+    bu_id: str | None,
+    base_id: str,
+    correlations: pd.DataFrame,
+    trend_flags: pd.DataFrame,
+    netting_flags: pd.DataFrame,
+    knowledge_graph: Any,
+    per_variance_narratives: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Gather intelligence context for a section narrative LLM prompt.
+
+    Collects: child narratives (pyramid), correlations, trends, netting,
+    and graph neighbors relevant to this section.
+    """
+    intel: dict[str, Any] = {"trends": [], "correlations": [], "netting": [], "child_narratives": [], "graph_insights": []}
+
+    # Child narratives from per-variance results (pyramid input)
+    for nr in per_variance_narratives:
+        if nr.get("account_id") in section_acct_ids and nr.get("base_id") == base_id:
+            if bu_id is None or nr.get("bu_id") == bu_id:
+                detail = nr.get("detail", "")
+                if detail and len(intel["child_narratives"]) < 5:
+                    intel["child_narratives"].append(detail[:200])
+
+    # Trends for section accounts
+    if isinstance(trend_flags, pd.DataFrame) and not trend_flags.empty and "account_id" in trend_flags.columns:
+        sec_trends = trend_flags[trend_flags["account_id"].isin(section_acct_ids)]
+        if bu_id and "bu_id" in sec_trends.columns:
+            sec_trends = sec_trends[sec_trends["bu_id"] == bu_id]
+        for _, t in sec_trends.head(3).iterrows():
+            intel["trends"].append(
+                f"{t.get('account_id', '?')} trending {t.get('direction', '?')} "
+                f"for {t.get('consecutive_periods', '?')} months"
+            )
+
+    # Correlations involving section accounts
+    if isinstance(correlations, pd.DataFrame) and not correlations.empty:
+        corr_filter = correlations[correlations.get("base_id", pd.Series(dtype=str)) == base_id] if "base_id" in correlations.columns else correlations
+        for _, c in corr_filter.head(20).iterrows():
+            hyp = c.get("hypothesis")
+            if hyp and isinstance(hyp, str) and len(intel["correlations"]) < 3:
+                intel["correlations"].append(hyp[:150])
+
+    # Netting
+    if isinstance(netting_flags, pd.DataFrame) and not netting_flags.empty and "account_id" in netting_flags.columns:
+        sec_netting = netting_flags[netting_flags["account_id"].isin(section_acct_ids)]
+        if not sec_netting.empty:
+            intel["netting"].append(f"{len(sec_netting)} netting offsets in this section")
+
+    return intel
+
+
+def _gather_executive_intelligence(
+    bu_id: str | None,
+    base_id: str,
+    correlations: pd.DataFrame,
+    trend_flags: pd.DataFrame,
+    knowledge_graph: Any,
+) -> dict[str, Any]:
+    """Gather intelligence context for executive summary LLM prompt.
+
+    Collects: persistent patterns, YoY echoes, graph hubs, cross-period themes.
+    """
+    intel: dict[str, Any] = {"persistent_patterns": [], "yoy_echoes": [], "graph_hubs": [], "trend_summary": ""}
+
+    if isinstance(correlations, pd.DataFrame) and not correlations.empty:
+        base_corr = correlations[correlations["base_id"] == base_id] if "base_id" in correlations.columns else correlations
+
+        # Persistent patterns
+        persistent = base_corr[base_corr["correlation_type"] == "persistent"] if "correlation_type" in base_corr.columns else pd.DataFrame()
+        for _, p in persistent.head(5).iterrows():
+            hyp = p.get("hypothesis")
+            if hyp and isinstance(hyp, str):
+                intel["persistent_patterns"].append(hyp[:200])
+
+        # YoY echoes
+        yoy = base_corr[base_corr["correlation_type"] == "yoy_echo"] if "correlation_type" in base_corr.columns else pd.DataFrame()
+        for _, y in yoy.head(3).iterrows():
+            hyp = y.get("hypothesis")
+            if hyp and isinstance(hyp, str):
+                intel["yoy_echoes"].append(hyp[:200])
+
+    # Trend summary
+    if isinstance(trend_flags, pd.DataFrame) and not trend_flags.empty:
+        if bu_id and "bu_id" in trend_flags.columns:
+            bu_trends = trend_flags[trend_flags["bu_id"] == bu_id]
+        else:
+            bu_trends = trend_flags
+        intel["trend_summary"] = f"{len(bu_trends)} variances showing multi-month trends"
+
+    # Graph hubs (top connected variance clusters)
+    if knowledge_graph and hasattr(knowledge_graph, "get_variance_hubs"):
+        try:
+            hubs = knowledge_graph.get_variance_hubs(top_n=3)
+            for h in hubs[:3]:
+                intel["graph_hubs"].append(str(h)[:150])
+        except Exception:
+            pass
+
+    return intel
+
+
+async def _generate_section_llm_narrative(
+    llm_client: Any, task: dict,
+) -> tuple[int, str | None]:
+    """Generate an LLM-enhanced section narrative using pyramid + intelligence context."""
+    try:
+        intel = task["intel_context"]
+
+        # Build context block
+        context_parts = []
+        if intel.get("child_narratives"):
+            context_parts.append("CHILD VARIANCE NARRATIVES (detail level):\n" + "\n".join(f"- {n}" for n in intel["child_narratives"]))
+        if intel.get("trends"):
+            context_parts.append("TREND PATTERNS:\n" + "\n".join(f"- {t}" for t in intel["trends"]))
+        if intel.get("correlations"):
+            context_parts.append("CORRELATED DRIVERS:\n" + "\n".join(f"- {c}" for c in intel["correlations"]))
+        if intel.get("netting"):
+            context_parts.append("NETTING OFFSETS:\n" + "\n".join(f"- {n}" for n in intel["netting"]))
+
+        context_block = "\n\n".join(context_parts) if context_parts else "No additional intelligence available."
+
+        prompt = (
+            f"Write a section narrative for {task['section_name']} for "
+            f"{'company-wide' if task['bu_label'] == 'ALL' else task['bu_label']} "
+            f"vs {task['base_label']}.\n\n"
+            f"KEY METRICS:\n"
+            f"- Total variance: ${abs(task['total_var']):,.0f} {task['direction']} ({'+' if task['total_var']>0 else ''}{task['total_pct']:.1f}%)\n"
+            f"- Key drivers: {task['driver_text']}\n"
+            f"- {task['pos_count']} of {task['total_count']} line items contributed positively\n\n"
+            f"INTELLIGENCE CONTEXT:\n{context_block}\n\n"
+            f"Write 3-5 sentences. Start with the headline number, then explain drivers, "
+            f"then note any trends or cross-period patterns if relevant. "
+            f"Use specific numbers. Do not use bullet points."
+        )
+
+        response = await llm_client.complete(
+            task="narrative_generation",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an FP&A analyst writing section-level variance narratives for BU leaders. "
+                        "Synthesize the child variance details and intelligence context into a cohesive "
+                        "section narrative. Be specific with numbers. Note trends and cross-period patterns "
+                        "when available. Write in professional financial reporting style."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+        )
+        if isinstance(response, dict) and response.get("fallback"):
+            return task["entry_idx"], None
+        content = response.choices[0].message.content.strip()
+        if len(content) > 1000:
+            content = content[:1000]
+        return task["entry_idx"], content
+    except Exception:
+        return task["entry_idx"], None
+
+
+async def _generate_executive_llm_narrative(
+    llm_client: Any, task: dict,
+) -> tuple[int, str | None, str | None]:
+    """Generate a substantive LLM executive summary using section narratives + intelligence."""
+    try:
+        intel = task["exec_intel"]
+
+        # Build section context
+        section_block = ""
+        for sec_name in ["Revenue", "COGS", "OpEx", "Non-Operating", "Profitability"]:
+            narrative = task["section_refs"].get(sec_name, "")
+            if narrative:
+                section_block += f"\n{sec_name}: {narrative}"
+
+        # Build intelligence context
+        intel_parts = []
+        if intel.get("persistent_patterns"):
+            intel_parts.append("PERSISTENT PATTERNS (multi-month):\n" + "\n".join(f"- {p}" for p in intel["persistent_patterns"]))
+        if intel.get("yoy_echoes"):
+            intel_parts.append("YEAR-OVER-YEAR ECHOES:\n" + "\n".join(f"- {y}" for y in intel["yoy_echoes"]))
+        if intel.get("trend_summary"):
+            intel_parts.append(f"TRENDS: {intel['trend_summary']}")
+        if intel.get("graph_hubs"):
+            intel_parts.append("KEY VARIANCE CLUSTERS:\n" + "\n".join(f"- {h}" for h in intel["graph_hubs"]))
+
+        intel_block = "\n\n".join(intel_parts) if intel_parts else "No cross-period intelligence available."
+
+        risk_text = "\n".join(f"- {r['risk']} ({r['severity']})" for r in task["risks"]) if task["risks"] else "No significant risks."
+
+        prompt = (
+            f"Write a substantive executive summary for "
+            f"{'company-wide' if task['bu_label'] == 'ALL' else task['bu_label']} "
+            f"{task['month_name']} {task['year']} close vs {task['base_label']}.\n\n"
+            f"KEY METRICS:\n"
+            f"- Revenue: ${abs(task['rev_total']):,.0f} {'above' if task['rev_total']>0 else 'below'} "
+            f"target ({'+' if task['rev_total']>0 else ''}{task['rev_pct']:.1f}%)\n"
+            f"- EBITDA: ${abs(task['ebitda_total']):,.0f} {'above' if task['ebitda_total']>0 else 'below'} "
+            f"target ({'+' if task['ebitda_total']>0 else ''}{task['ebitda_pct']:.1f}%)\n"
+            f"- Cross-BU: {task['cross_bu']}\n\n"
+            f"SECTION NARRATIVES:{section_block}\n\n"
+            f"CROSS-PERIOD INTELLIGENCE:\n{intel_block}\n\n"
+            f"RISK ITEMS:\n{risk_text}\n\n"
+            f"Write 2-3 substantive paragraphs suitable for CFO/Board review:\n"
+            f"1. Financial performance headline with root causes\n"
+            f"2. Cost and profitability analysis with structural insights\n"
+            f"3. Risk outlook and forward-looking observations\n"
+            f"Use specific numbers throughout. Reference cross-period patterns and structural "
+            f"themes when available. Do not use bullet points or headers."
+        )
+
+        response = await llm_client.complete(
+            task="narrative_generation",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a senior FP&A director writing executive summaries for the CFO and Board. "
+                        "Synthesize section-level narratives, cross-period intelligence, and risk signals "
+                        "into a cohesive executive narrative. Be substantive — reference specific numbers, "
+                        "structural patterns, and year-over-year comparisons. Write in professional "
+                        "board-ready financial language. Each paragraph should be 3-5 sentences."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+        )
+        if isinstance(response, dict) and response.get("fallback"):
+            return task["entry_idx"], None, None
+
+        content = response.choices[0].message.content.strip()
+        if len(content) > 2000:
+            content = content[:2000]
+
+        # Extract headline (first sentence) and full narrative
+        sentences = content.split(". ")
+        headline = sentences[0] + "." if sentences else None
+
+        return task["entry_idx"], headline, content
+    except Exception:
+        return task["entry_idx"], None, None
 
 
 # ======================================================================
@@ -1289,239 +1541,467 @@ async def generate_narratives(context: dict[str, Any]) -> None:
     context["audit_entries"] = [audit_entry]
 
     # ------------------------------------------------------------------
-    # Stage 3 (Pass 5C): Section Narratives
+    # Stage 3 (Pass 5C): Section Narratives — LLM-powered, multi-base
     # ------------------------------------------------------------------
     period_id = context.get("period_id", "")
-    base_id = context.get("comparison_base", "BUDGET")
-    # Normalize base_id to uppercase key
     _BASE_NORM = {"Budget": "BUDGET", "Forecast": "FORECAST", "PY": "PRIOR_YEAR", "Prior Year": "PRIOR_YEAR"}
-    base_id = _BASE_NORM.get(base_id, base_id)
-    view_id = context.get("view", "MTD")
-
-    _BASE_LABELS = {"BUDGET": "Budget", "FORECAST": "Forecast", "PRIOR_YEAR": "Prior Year"}
-    base_label = _BASE_LABELS.get(base_id, base_id)
 
     MONTH_NAMES = ["", "January", "February", "March", "April", "May", "June",
                    "July", "August", "September", "October", "November", "December"]
+    month_num = int(period_id.split("-")[1]) if "-" in period_id else 1
+    month_name = MONTH_NAMES[month_num]
+    year = period_id.split("-")[0] if "-" in period_id else "2026"
 
-    section_narratives: list[dict[str, Any]] = []
-    # Sections and their parent accounts
     SECTION_MAP = {
         "Revenue": ["acct_revenue", "acct_gross_revenue"],
         "COGS": ["acct_cor", "acct_total_cor"],
         "OpEx": ["acct_opex", "acct_total_opex"],
         "Non-Operating": ["acct_non_op", "acct_total_nonop"],
     }
+    PROFIT_ACCOUNTS = {"acct_gross_profit": "Gross Profit", "acct_ebitda": "EBITDA",
+                       "acct_operating_income": "Operating Income", "acct_net_income": "Net Income"}
 
-    mtd_rows = material[(material["view_id"] == "MTD") & (material["base_id"] == base_id)] if "base_id" in material.columns else material[material["view_id"] == "MTD"]
+    # Intelligence inputs for LLM context
+    correlations = context.get("correlations", pd.DataFrame())
+    trend_flags = context.get("trend_flags", pd.DataFrame())
+    netting_flags = context.get("netting_flags", pd.DataFrame())
+    knowledge_graph = context.get("knowledge_graph")
 
-    # Generate per-BU + company-wide section narratives
-    # bu_id=None means company-wide (aggregate all BUs)
-    bu_ids_in_data = sorted(mtd_rows["bu_id"].dropna().unique().tolist()) if "bu_id" in mtd_rows.columns else []
-    bu_loop = [None] + bu_ids_in_data  # None = company-wide first
+    # Identify all bases present in MTD data
+    if "base_id" in material.columns and "view_id" in material.columns:
+        all_bases = sorted(material[material["view_id"] == "MTD"]["base_id"].unique().tolist())
+    else:
+        default_base = context.get("comparison_base", "BUDGET")
+        all_bases = [_BASE_NORM.get(default_base, default_base)]
 
-    for bu_id_iter in bu_loop:
-        if bu_id_iter is not None:
-            bu_mtd = mtd_rows[mtd_rows["bu_id"] == bu_id_iter]
+    section_narratives: list[dict[str, Any]] = []
+    section_llm_tasks: list[dict[str, Any]] = []  # For parallel LLM calls
+
+    for base_id in all_bases:
+        base_label = _BASE_LABELS.get(base_id, base_id)
+
+        if "base_id" in material.columns:
+            mtd_rows = material[(material["view_id"] == "MTD") & (material["base_id"] == base_id)]
         else:
-            bu_mtd = mtd_rows  # company-wide
+            mtd_rows = material[material["view_id"] == "MTD"] if "view_id" in material.columns else material
 
-        bu_label = bu_id_iter if bu_id_iter else "ALL"
+        bu_ids_in_data = sorted(mtd_rows["bu_id"].dropna().unique().tolist()) if "bu_id" in mtd_rows.columns else []
+        bu_loop = [None] + bu_ids_in_data
 
-        for section_name, section_accounts in SECTION_MAP.items():
-            # Collect narratives for this section (parent + leaves)
-            section_rows = bu_mtd[bu_mtd["account_id"].isin(section_accounts)]
-            # Also get leaf children
-            leaf_ids = [aid for aid, meta in acct_meta.items() if meta.get("parent_id") in section_accounts and not meta.get("is_calculated", False)]
-            leaf_rows = bu_mtd[bu_mtd["account_id"].isin(leaf_ids)]
+        for bu_id_iter in bu_loop:
+            bu_mtd = mtd_rows[mtd_rows["bu_id"] == bu_id_iter] if bu_id_iter is not None else mtd_rows
+            bu_label = bu_id_iter if bu_id_iter else "ALL"
 
-            # Aggregate variance for this section within BU scope
-            parent_row = section_rows.groupby("account_id").agg({"variance_amount": "sum", "actual_amount": "sum", "comparator_amount": "sum"}).reset_index()
-            leaf_agg = leaf_rows.groupby("account_id").agg({"variance_amount": "sum", "variance_pct": "mean"}).reset_index()
+            for section_name, section_accounts in SECTION_MAP.items():
+                section_rows = bu_mtd[bu_mtd["account_id"].isin(section_accounts)]
+                leaf_ids = [aid for aid, meta in acct_meta.items()
+                            if meta.get("parent_id") in section_accounts and not meta.get("is_calculated", False)]
+                leaf_rows = bu_mtd[bu_mtd["account_id"].isin(leaf_ids)]
 
-            total_var = parent_row["variance_amount"].sum() if not parent_row.empty else 0
-            total_pct = (total_var / parent_row["comparator_amount"].sum() * 100) if not parent_row.empty and parent_row["comparator_amount"].sum() != 0 else 0
-            direction = "increased" if total_var > 0 else "decreased"
-            sign = "+" if total_var > 0 else ""
+                parent_row = section_rows.groupby("account_id").agg(
+                    {"variance_amount": "sum", "actual_amount": "sum", "comparator_amount": "sum"}
+                ).reset_index()
+                leaf_agg = leaf_rows.groupby("account_id").agg(
+                    {"variance_amount": "sum", "variance_pct": "mean"}
+                ).reset_index()
 
-            # Top drivers from leaves
-            if not leaf_agg.empty:
-                leaf_agg["abs_var"] = leaf_agg["variance_amount"].abs()
-                top_leaves = leaf_agg.nlargest(3, "abs_var")
+                total_var = parent_row["variance_amount"].sum() if not parent_row.empty else 0
+                total_comp = parent_row["comparator_amount"].sum() if not parent_row.empty else 0
+                total_pct = (total_var / total_comp * 100) if total_comp != 0 else 0
+                direction = "increased" if total_var > 0 else "decreased"
+                sign = "+" if total_var > 0 else ""
+
+                # Top drivers
                 drivers = []
-                for _, lr in top_leaves.iterrows():
-                    lname = acct_meta.get(lr["account_id"], {}).get("account_name", lr["account_id"])
-                    lvar = lr["variance_amount"]
-                    drivers.append({"account_name": lname, "amount": round(float(lvar), 0), "direction": "favorable" if lvar > 0 else "unfavorable"})
-            else:
-                drivers = []
+                if not leaf_agg.empty:
+                    leaf_agg["abs_var"] = leaf_agg["variance_amount"].abs()
+                    for _, lr in leaf_agg.nlargest(3, "abs_var").iterrows():
+                        lname = acct_meta.get(lr["account_id"], {}).get("account_name", lr["account_id"])
+                        drivers.append({"account_name": lname, "amount": round(float(lr["variance_amount"]), 0),
+                                        "direction": "favorable" if lr["variance_amount"] > 0 else "unfavorable"})
 
-            driver_text = ", ".join(f"{d['account_name']} ({'+' if d['amount']>0 else ''}{d['amount']:,.0f})" for d in drivers[:3]) if drivers else "underlying account movements"
+                driver_text = ", ".join(f"{d['account_name']} ({'+' if d['amount']>0 else ''}{d['amount']:,.0f})"
+                                        for d in drivers[:3]) if drivers else "underlying account movements"
+                pos_count = len(leaf_agg[leaf_agg["variance_amount"] > 0]) if not leaf_agg.empty else 0
+                total_count = len(leaf_agg) if not leaf_agg.empty else 0
 
-            pos_count = len(leaf_agg[leaf_agg["variance_amount"] > 0]) if not leaf_agg.empty else 0
-            total_count = len(leaf_agg) if not leaf_agg.empty else 0
+                # Gather intelligence context for this section
+                section_acct_ids = set(section_accounts + leaf_ids)
+                intel_context = _gather_section_intelligence(
+                    section_name, section_acct_ids, bu_id_iter, base_id,
+                    correlations, trend_flags, netting_flags, knowledge_graph, results,
+                )
 
-            section_id = hashlib.sha256(f"{period_id}|{section_name}|{base_id}|{view_id}|{bu_label}".encode()).hexdigest()[:16]
-            narrative = (
-                f"{section_name} {direction} by ${abs(total_var):,.0f} ({sign}{total_pct:.1f}%) vs {base_label}. "
-                f"Key drivers: {driver_text}. "
-                f"{pos_count} of {total_count} lines contributed positively."
-            )
+                # Template narrative (always generated as fallback)
+                template_narrative = (
+                    f"{section_name} {direction} by ${abs(total_var):,.0f} ({sign}{total_pct:.1f}%) vs {base_label}. "
+                    f"Key drivers: {driver_text}. "
+                    f"{pos_count} of {total_count} lines contributed positively."
+                )
 
+                section_id = hashlib.sha256(
+                    f"{period_id}|{section_name}|{base_id}|MTD|{bu_label}".encode()
+                ).hexdigest()[:16]
+
+                entry = {
+                    "section_id": section_id,
+                    "period_id": period_id,
+                    "section_name": section_name,
+                    "base_id": base_id,
+                    "view_id": "MTD",
+                    "bu_id": bu_id_iter,
+                    "narrative": template_narrative,
+                    "key_drivers": drivers,
+                    "narrative_confidence": 0.7,
+                    "status": "AI_DRAFT",
+                }
+                section_narratives.append(entry)
+
+                # Queue LLM task if available
+                if llm_client:
+                    section_llm_tasks.append({
+                        "entry_idx": len(section_narratives) - 1,
+                        "section_name": section_name,
+                        "base_label": base_label,
+                        "bu_label": bu_label,
+                        "total_var": total_var,
+                        "total_pct": total_pct,
+                        "direction": direction,
+                        "driver_text": driver_text,
+                        "pos_count": pos_count,
+                        "total_count": total_count,
+                        "intel_context": intel_context,
+                    })
+
+            # Profitability section
+            profit_parts = []
+            for pid, pname in PROFIT_ACCOUNTS.items():
+                prows = bu_mtd[bu_mtd["account_id"] == pid]
+                if not prows.empty:
+                    pvar = prows["variance_amount"].sum()
+                    pact = prows["actual_amount"].sum()
+                    pcomp = prows["comparator_amount"].sum()
+                    ppct = (pvar / pcomp * 100) if pcomp != 0 else 0
+                    rev_rows = bu_mtd[bu_mtd["account_id"] == "acct_revenue"]
+                    rev_sum = rev_rows["actual_amount"].sum() if not rev_rows.empty else 0
+                    margin = (pact / rev_sum * 100) if rev_sum != 0 else 0
+                    profit_parts.append(f"{pname} {'increased' if pvar>0 else 'decreased'} by "
+                                        f"${abs(pvar):,.0f} ({'+' if pvar>0 else ''}{ppct:.1f}%), margin {margin:.1f}%")
+
+            profit_id = hashlib.sha256(f"{period_id}|Profitability|{base_id}|MTD|{bu_label}".encode()).hexdigest()[:16]
             section_narratives.append({
-                "section_id": section_id,
+                "section_id": profit_id,
                 "period_id": period_id,
-                "section_name": section_name,
+                "section_name": "Profitability",
                 "base_id": base_id,
-                "view_id": view_id,
-                "bu_id": bu_id_iter,  # None for company-wide
-                "narrative": narrative,
-                "key_drivers": drivers,
+                "view_id": "MTD",
+                "bu_id": bu_id_iter,
+                "narrative": ". ".join(profit_parts[:3]) + "." if profit_parts else "Profitability metrics not available.",
+                "key_drivers": [{"account_name": k, "amount": 0, "direction": ""} for k in PROFIT_ACCOUNTS.values()],
                 "narrative_confidence": 0.7,
                 "status": "AI_DRAFT",
             })
 
-        # Profitability section (derived from calculated rows)
-        profit_accounts = {"acct_gross_profit": "Gross Profit", "acct_ebitda": "EBITDA", "acct_operating_income": "Operating Income", "acct_net_income": "Net Income"}
-        profit_parts = []
-        for pid, pname in profit_accounts.items():
-            prows = bu_mtd[bu_mtd["account_id"] == pid]
-            if not prows.empty:
-                pvar = prows["variance_amount"].sum()
-                pact = prows["actual_amount"].sum()
-                pcomp = prows["comparator_amount"].sum()
-                ppct = (pvar / pcomp * 100) if pcomp != 0 else 0
-                rev_rows = bu_mtd[bu_mtd["account_id"] == "acct_revenue"]
-                rev_sum = rev_rows["actual_amount"].sum() if not rev_rows.empty else 0
-                margin = (pact / rev_sum * 100) if rev_sum != 0 else 0
-                profit_parts.append(f"{pname} {'increased' if pvar>0 else 'decreased'} by ${abs(pvar):,.0f} ({'+' if pvar>0 else ''}{ppct:.1f}%), margin {margin:.1f}%")
+    # Run LLM for section narratives in parallel
+    if llm_client and section_llm_tasks:
+        sem = asyncio.Semaphore(_CONCURRENCY)
 
-        profit_id = hashlib.sha256(f"{period_id}|Profitability|{base_id}|{view_id}|{bu_label}".encode()).hexdigest()[:16]
-        profit_narrative = ". ".join(profit_parts[:3]) + "." if profit_parts else "Profitability metrics not available."
-        section_narratives.append({
-            "section_id": profit_id,
-            "period_id": period_id,
-            "section_name": "Profitability",
-            "base_id": base_id,
-            "view_id": view_id,
-            "bu_id": bu_id_iter,
-            "narrative": profit_narrative,
-            "key_drivers": [{"account_name": k, "amount": 0, "direction": ""} for k in profit_accounts.values()],
-            "narrative_confidence": 0.7,
-            "status": "AI_DRAFT",
-        })
+        async def _gen_section_llm(task: dict) -> tuple[int, str | None]:
+            async with sem:
+                return await _generate_section_llm_narrative(llm_client, task)
+
+        llm_results = await asyncio.gather(
+            *[_gen_section_llm(t) for t in section_llm_tasks],
+            return_exceptions=True,
+        )
+        section_llm_count = 0
+        for result in llm_results:
+            if isinstance(result, Exception):
+                continue
+            idx, narrative = result
+            if narrative:
+                section_narratives[idx]["narrative"] = narrative
+                section_narratives[idx]["narrative_confidence"] = 0.85
+                section_llm_count += 1
+        logger.info("Pass 5C: Enhanced %d/%d section narratives with LLM", section_llm_count, len(section_llm_tasks))
+
+    # Generate QTD/YTD section narratives from MTD (template-based, referencing MTD narrative)
+    mtd_section_map: dict[tuple, str] = {}
+    for sn in section_narratives:
+        key = (sn["section_name"], sn["base_id"], sn.get("bu_id"))
+        mtd_section_map[key] = sn["narrative"]
+
+    for base_id in all_bases:
+        base_label = _BASE_LABELS.get(base_id, base_id)
+        for view_id in ["QTD", "YTD"]:
+            view_label = "Quarter-to-date" if view_id == "QTD" else "Year-to-date"
+            if "view_id" in material.columns and "base_id" in material.columns:
+                view_rows = material[(material["view_id"] == view_id) & (material["base_id"] == base_id)]
+            else:
+                continue
+            if view_rows.empty:
+                continue
+
+            vbu_ids = sorted(view_rows["bu_id"].dropna().unique().tolist()) if "bu_id" in view_rows.columns else []
+            for bu_id_iter in [None] + vbu_ids:
+                bu_view = view_rows[view_rows["bu_id"] == bu_id_iter] if bu_id_iter is not None else view_rows
+                bu_label = bu_id_iter if bu_id_iter else "ALL"
+
+                for section_name, section_accounts in SECTION_MAP.items():
+                    sec_rows = bu_view[bu_view["account_id"].isin(section_accounts)]
+                    total_var = sec_rows["variance_amount"].sum() if not sec_rows.empty else 0
+                    total_comp = sec_rows["comparator_amount"].sum() if not sec_rows.empty and "comparator_amount" in sec_rows.columns else 0
+                    total_pct = (total_var / total_comp * 100) if total_comp != 0 else 0
+                    direction = "increased" if total_var > 0 else "decreased"
+                    sign = "+" if total_var > 0 else ""
+
+                    mtd_ref = mtd_section_map.get((section_name, base_id, bu_id_iter), "")
+                    # Extract driver info from MTD narrative
+                    mtd_driver_ref = ""
+                    if "Key drivers:" in mtd_ref:
+                        mtd_driver_ref = mtd_ref.split("Key drivers:")[1].split(".")[0].strip()
+
+                    narrative = (
+                        f"{view_label}, {section_name} {direction} by ${abs(total_var):,.0f} "
+                        f"({sign}{total_pct:.1f}%) vs {base_label}. "
+                    )
+                    if mtd_driver_ref:
+                        narrative += f"Monthly analysis identifies key drivers: {mtd_driver_ref}."
+                    else:
+                        narrative += "See monthly analysis for driver details."
+
+                    sec_id = hashlib.sha256(
+                        f"{period_id}|{section_name}|{base_id}|{view_id}|{bu_label}".encode()
+                    ).hexdigest()[:16]
+                    section_narratives.append({
+                        "section_id": sec_id,
+                        "period_id": period_id,
+                        "section_name": section_name,
+                        "base_id": base_id,
+                        "view_id": view_id,
+                        "bu_id": bu_id_iter,
+                        "narrative": narrative,
+                        "key_drivers": [],
+                        "narrative_confidence": 0.6,
+                        "status": "AI_DRAFT",
+                    })
 
     context["section_narratives"] = section_narratives
-    logger.info("Pass 5C: Generated %d section narratives (%d BUs + company-wide)", len(section_narratives), len(bu_ids_in_data))
+    logger.info("Pass 5C: Generated %d section narratives (MTD LLM + QTD/YTD template)", len(section_narratives))
 
     # ------------------------------------------------------------------
-    # Stage 4 (Pass 5D): Executive Summary (per-BU + company-wide)
+    # Stage 4 (Pass 5D): Executive Summaries — LLM-powered, multi-base
     # ------------------------------------------------------------------
-    # Parse month from period_id
-    month_num = int(period_id.split("-")[1]) if "-" in period_id else 1
-    month_name = MONTH_NAMES[month_num]
-    year = period_id.split("-")[0] if "-" in period_id else "2026"
-
-    # Risks from trends + netting (global — used for company-wide summary)
-    trend_flags = context.get("trend_flags", pd.DataFrame())
-    netting_flags = context.get("netting_flags", pd.DataFrame())
-
     executive_summaries: list[dict[str, Any]] = []
+    exec_llm_tasks: list[dict[str, Any]] = []
 
-    for bu_id_iter in bu_loop:
-        if bu_id_iter is not None:
-            bu_mtd = mtd_rows[mtd_rows["bu_id"] == bu_id_iter]
+    for base_id in all_bases:
+        base_label = _BASE_LABELS.get(base_id, base_id)
+
+        if "base_id" in material.columns:
+            mtd_rows = material[(material["view_id"] == "MTD") & (material["base_id"] == base_id)]
         else:
-            bu_mtd = mtd_rows
+            mtd_rows = material[material["view_id"] == "MTD"] if "view_id" in material.columns else material
 
-        bu_label = bu_id_iter if bu_id_iter else "ALL"
+        bu_ids_in_data = sorted(mtd_rows["bu_id"].dropna().unique().tolist()) if "bu_id" in mtd_rows.columns else []
+        bu_loop = [None] + bu_ids_in_data
 
-        # Aggregate KPIs for this BU scope
-        rev_rows = bu_mtd[bu_mtd["account_id"] == "acct_revenue"]
-        rev_total = rev_rows["variance_amount"].sum() if not rev_rows.empty else 0
-        rev_comp = rev_rows["comparator_amount"].sum() if not rev_rows.empty else 0
-        rev_pct = (rev_total / rev_comp * 100) if rev_comp != 0 else 0
+        for bu_id_iter in bu_loop:
+            bu_mtd = mtd_rows[mtd_rows["bu_id"] == bu_id_iter] if bu_id_iter is not None else mtd_rows
+            bu_label = bu_id_iter if bu_id_iter else "ALL"
 
-        ebitda_rows = bu_mtd[bu_mtd["account_id"] == "acct_ebitda"]
-        ebitda_total = ebitda_rows["variance_amount"].sum() if not ebitda_rows.empty else 0
-        ebitda_comp = ebitda_rows["comparator_amount"].sum() if not ebitda_rows.empty else 0
-        ebitda_pct = (ebitda_total / ebitda_comp * 100) if ebitda_comp != 0 else 0
+            # KPIs
+            rev_rows = bu_mtd[bu_mtd["account_id"] == "acct_revenue"]
+            rev_total = rev_rows["variance_amount"].sum() if not rev_rows.empty else 0
+            rev_comp = rev_rows["comparator_amount"].sum() if not rev_rows.empty else 0
+            rev_pct = (rev_total / rev_comp * 100) if rev_comp != 0 else 0
 
-        # Cross-BU themes (only for company-wide)
-        if bu_id_iter is None:
-            bu_rev = bu_mtd[(bu_mtd["account_id"] == "acct_revenue")].groupby("bu_id")["variance_amount"].sum()
-            pos_bus = [bu for bu, v in bu_rev.items() if v > 0]
-            neg_bus = [bu for bu, v in bu_rev.items() if v < 0]
-            total_bus = len(bu_rev)
-            cross_bu = f"{len(pos_bus)} of {total_bus} BUs exceeded revenue targets" if pos_bus else f"All {total_bus} BUs fell short of revenue targets"
-            cross_bu_themes = [{"theme": cross_bu, "bus_affected": pos_bus + neg_bus}]
-        else:
-            cross_bu = f"{bu_id_iter.title()} performance"
-            cross_bu_themes = []
+            ebitda_rows = bu_mtd[bu_mtd["account_id"] == "acct_ebitda"]
+            ebitda_total = ebitda_rows["variance_amount"].sum() if not ebitda_rows.empty else 0
+            ebitda_comp = ebitda_rows["comparator_amount"].sum() if not ebitda_rows.empty else 0
+            ebitda_pct = (ebitda_total / ebitda_comp * 100) if ebitda_comp != 0 else 0
 
-        # Risks (scope to BU if possible)
-        risks = []
-        if not isinstance(trend_flags, pd.DataFrame) or not trend_flags.empty:
-            if bu_id_iter and "bu_id" in trend_flags.columns:
-                bu_trends = trend_flags[trend_flags["bu_id"] == bu_id_iter]
-                if not bu_trends.empty:
-                    risks.append({"risk": f"{len(bu_trends)} trending variances identified", "severity": "medium"})
+            # Cross-BU themes
+            if bu_id_iter is None:
+                bu_rev = bu_mtd[bu_mtd["account_id"] == "acct_revenue"].groupby("bu_id")["variance_amount"].sum()
+                pos_bus = [bu for bu, v in bu_rev.items() if v > 0]
+                neg_bus = [bu for bu, v in bu_rev.items() if v < 0]
+                total_bus = len(bu_rev)
+                cross_bu = (f"{len(pos_bus)} of {total_bus} BUs exceeded revenue targets"
+                            if pos_bus else f"All {total_bus} BUs fell short of revenue targets")
+                cross_bu_themes = [{"theme": cross_bu, "bus_affected": pos_bus + neg_bus}]
             else:
-                risks.append({"risk": f"{len(trend_flags)} trending variances identified", "severity": "medium"})
-        if not isinstance(netting_flags, pd.DataFrame) or not netting_flags.empty:
-            if bu_id_iter and "bu_id" in netting_flags.columns:
-                bu_netting = netting_flags[netting_flags["bu_id"] == bu_id_iter]
-                if not bu_netting.empty:
-                    risks.append({"risk": f"{len(bu_netting)} netting offsets detected", "severity": "medium"})
-            else:
-                risks.append({"risk": f"{len(netting_flags)} netting offsets detected", "severity": "medium"})
+                cross_bu = f"{bu_id_iter.title()} performance"
+                cross_bu_themes = []
 
-        # Build section narrative references for this BU
-        section_refs = {s["section_name"]: s["narrative"] for s in section_narratives if s.get("bu_id") == bu_id_iter}
+            # Risks
+            risks = []
+            if isinstance(trend_flags, pd.DataFrame) and not trend_flags.empty:
+                if bu_id_iter and "bu_id" in trend_flags.columns:
+                    bu_trends = trend_flags[trend_flags["bu_id"] == bu_id_iter]
+                    if not bu_trends.empty:
+                        risks.append({"risk": f"{len(bu_trends)} trending variances identified", "severity": "medium"})
+                else:
+                    risks.append({"risk": f"{len(trend_flags)} trending variances identified", "severity": "medium"})
+            if isinstance(netting_flags, pd.DataFrame) and not netting_flags.empty:
+                if bu_id_iter and "bu_id" in netting_flags.columns:
+                    bu_netting = netting_flags[netting_flags["bu_id"] == bu_id_iter]
+                    if not bu_netting.empty:
+                        risks.append({"risk": f"{len(bu_netting)} netting offsets detected", "severity": "medium"})
+                else:
+                    risks.append({"risk": f"{len(netting_flags)} netting offsets detected", "severity": "medium"})
 
-        headline = (
-            f"{month_name} {year} close: Revenue {'up' if rev_total>0 else 'down'} {abs(rev_pct):.1f}%, "
-            f"EBITDA {'up' if ebitda_total>0 else 'down'} {abs(ebitda_pct):.1f}%. "
-            f"{cross_bu}."
+            # Gather section narratives for this BU + base
+            section_refs = {s["section_name"]: s["narrative"]
+                           for s in section_narratives
+                           if s.get("bu_id") == bu_id_iter and s.get("base_id") == base_id and s.get("view_id") == "MTD"}
+
+            # Cross-period intelligence for executive context
+            exec_intel = _gather_executive_intelligence(
+                bu_id_iter, base_id, correlations, trend_flags, knowledge_graph,
+            )
+
+            # Template headline and narrative (fallback)
+            headline = (
+                f"{month_name} {year} close vs {base_label}: "
+                f"Revenue {'up' if rev_total>0 else 'down'} {abs(rev_pct):.1f}%, "
+                f"EBITDA {'up' if ebitda_total>0 else 'down'} {abs(ebitda_pct):.1f}%. "
+                f"{cross_bu}."
+            )
+            p1 = f"{month_name} {year} financial performance vs {base_label}: {section_refs.get('Revenue', 'Revenue data not available.')}"
+            p2 = f"Cost management: {section_refs.get('COGS', '')} {section_refs.get('OpEx', '')} {section_refs.get('Profitability', '')}"
+            p3 = (f"{len(risks)} risk items identified. " + " ".join(r["risk"] + "." for r in risks)) if risks else "No significant risk items identified."
+            template_narrative = f"{p1}\n\n{p2}\n\n{p3}"
+
+            summary_id = hashlib.sha256(f"{period_id}|{base_id}|MTD|{bu_label}".encode()).hexdigest()[:16]
+            entry = {
+                "summary_id": summary_id,
+                "period_id": period_id,
+                "base_id": base_id,
+                "view_id": "MTD",
+                "bu_id": bu_id_iter,
+                "headline": headline,
+                "full_narrative": template_narrative,
+                "carry_forward_note": None,
+                "key_risks": risks,
+                "cross_bu_themes": cross_bu_themes,
+                "narrative_confidence": 0.7,
+                "status": "AI_DRAFT",
+            }
+            executive_summaries.append(entry)
+
+            # Queue LLM task
+            if llm_client:
+                exec_llm_tasks.append({
+                    "entry_idx": len(executive_summaries) - 1,
+                    "month_name": month_name,
+                    "year": year,
+                    "base_label": base_label,
+                    "bu_label": bu_label,
+                    "bu_id": bu_id_iter,
+                    "rev_total": rev_total,
+                    "rev_pct": rev_pct,
+                    "ebitda_total": ebitda_total,
+                    "ebitda_pct": ebitda_pct,
+                    "section_refs": section_refs,
+                    "risks": risks,
+                    "cross_bu_themes": cross_bu_themes,
+                    "cross_bu": cross_bu,
+                    "exec_intel": exec_intel,
+                })
+
+    # Run LLM for executive summaries in parallel
+    if llm_client and exec_llm_tasks:
+        sem = asyncio.Semaphore(_CONCURRENCY)
+
+        async def _gen_exec_llm(task: dict) -> tuple[int, str | None, str | None]:
+            async with sem:
+                return await _generate_executive_llm_narrative(llm_client, task)
+
+        llm_results = await asyncio.gather(
+            *[_gen_exec_llm(t) for t in exec_llm_tasks],
+            return_exceptions=True,
         )
+        exec_llm_count = 0
+        for result in llm_results:
+            if isinstance(result, Exception):
+                continue
+            idx, headline, narrative = result
+            if narrative:
+                executive_summaries[idx]["full_narrative"] = narrative
+                if headline:
+                    executive_summaries[idx]["headline"] = headline
+                executive_summaries[idx]["narrative_confidence"] = 0.9
+                exec_llm_count += 1
+        logger.info("Pass 5D: Enhanced %d/%d executive summaries with LLM", exec_llm_count, len(exec_llm_tasks))
 
-        p1 = (
-            f"{month_name} {year} financial performance vs {base_label}: "
-            f"{section_refs.get('Revenue', 'Revenue data not available.')}"
-        )
-        p2 = (
-            f"Cost management: {section_refs.get('COGS', '')} "
-            f"{section_refs.get('OpEx', '')} "
-            f"{section_refs.get('Profitability', '')}"
-        )
-        p3 = (
-            f"{len(risks)} risk items identified. "
-            + " ".join(r["risk"] + "." for r in risks)
-        ) if risks else "No significant risk items identified."
+    # QTD/YTD executive summaries (template referencing MTD)
+    mtd_exec_map: dict[tuple, dict] = {}
+    for es in executive_summaries:
+        key = (es["base_id"], es.get("bu_id"))
+        mtd_exec_map[key] = es
 
-        full_narrative = f"{p1}\n\n{p2}\n\n{p3}"
+    for base_id in all_bases:
+        base_label = _BASE_LABELS.get(base_id, base_id)
+        for view_id in ["QTD", "YTD"]:
+            view_label = "Quarter-to-date" if view_id == "QTD" else "Year-to-date"
+            if "view_id" not in material.columns or "base_id" not in material.columns:
+                continue
+            view_rows = material[(material["view_id"] == view_id) & (material["base_id"] == base_id)]
+            if view_rows.empty:
+                continue
 
-        summary_id = hashlib.sha256(f"{period_id}|{base_id}|{view_id}|{bu_label}".encode()).hexdigest()[:16]
-        executive_summaries.append({
-            "summary_id": summary_id,
-            "period_id": period_id,
-            "base_id": base_id,
-            "view_id": view_id,
-            "bu_id": bu_id_iter,  # None for company-wide
-            "headline": headline,
-            "full_narrative": full_narrative,
-            "carry_forward_note": None,
-            "key_risks": risks,
-            "cross_bu_themes": cross_bu_themes,
-            "narrative_confidence": 0.7,
-            "status": "AI_DRAFT",
-        })
+            vbu_ids = sorted(view_rows["bu_id"].dropna().unique().tolist()) if "bu_id" in view_rows.columns else []
+            for bu_id_iter in [None] + vbu_ids:
+                bu_view = view_rows[view_rows["bu_id"] == bu_id_iter] if bu_id_iter is not None else view_rows
+                bu_label = bu_id_iter if bu_id_iter else "ALL"
 
-    # Store all summaries; backward-compat: context["executive_summary"] = company-wide one
+                rev_rows = bu_view[bu_view["account_id"] == "acct_revenue"]
+                rev_total = rev_rows["variance_amount"].sum() if not rev_rows.empty else 0
+                rev_comp = rev_rows["comparator_amount"].sum() if not rev_rows.empty else 0
+                rev_pct = (rev_total / rev_comp * 100) if rev_comp != 0 else 0
+
+                ebitda_rows = bu_view[bu_view["account_id"] == "acct_ebitda"]
+                ebitda_total = ebitda_rows["variance_amount"].sum() if not ebitda_rows.empty else 0
+                ebitda_comp = ebitda_rows["comparator_amount"].sum() if not ebitda_rows.empty else 0
+                ebitda_pct = (ebitda_total / ebitda_comp * 100) if ebitda_comp != 0 else 0
+
+                mtd_ref = mtd_exec_map.get((base_id, bu_id_iter), {})
+                mtd_narrative = mtd_ref.get("full_narrative", "")
+
+                headline = (
+                    f"{view_label} vs {base_label}: "
+                    f"Revenue {'up' if rev_total>0 else 'down'} {abs(rev_pct):.1f}%, "
+                    f"EBITDA {'up' if ebitda_total>0 else 'down'} {abs(ebitda_pct):.1f}%."
+                )
+                narrative = (
+                    f"{view_label} performance vs {base_label}: Revenue {abs(rev_pct):.1f}% "
+                    f"{'above' if rev_total>0 else 'below'} target (${abs(rev_total):,.0f}), "
+                    f"EBITDA {abs(ebitda_pct):.1f}% {'above' if ebitda_total>0 else 'below'} "
+                    f"target (${abs(ebitda_total):,.0f}).\n\n"
+                    f"Monthly analysis: {mtd_narrative[:500] if mtd_narrative else 'See monthly executive summary for details.'}"
+                )
+
+                summary_id = hashlib.sha256(f"{period_id}|{base_id}|{view_id}|{bu_label}".encode()).hexdigest()[:16]
+                executive_summaries.append({
+                    "summary_id": summary_id,
+                    "period_id": period_id,
+                    "base_id": base_id,
+                    "view_id": view_id,
+                    "bu_id": bu_id_iter,
+                    "headline": headline,
+                    "full_narrative": narrative,
+                    "carry_forward_note": None,
+                    "key_risks": mtd_ref.get("key_risks", []),
+                    "cross_bu_themes": mtd_ref.get("cross_bu_themes", []),
+                    "narrative_confidence": 0.6,
+                    "status": "AI_DRAFT",
+                })
+
     context["executive_summaries"] = executive_summaries
-    company_wide = [s for s in executive_summaries if s["bu_id"] is None]
+    company_wide = [s for s in executive_summaries if s["bu_id"] is None and s.get("view_id") == "MTD"]
     context["executive_summary"] = company_wide[0] if company_wide else (executive_summaries[0] if executive_summaries else {})
-    logger.info("Pass 5D: Generated %d executive summaries (%d BUs + company-wide)", len(executive_summaries), len(bu_ids_in_data))
+    logger.info("Pass 5D: Generated %d executive summaries (MTD LLM + QTD/YTD template)", len(executive_summaries))
 
     logger.info(
         "Pass 5: Generated %d narratives (llm=%d, template=%d), "

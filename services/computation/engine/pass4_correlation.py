@@ -1,25 +1,25 @@
-"""Pass 4 — Correlation & Root Cause Analysis (Cross-Period Enhanced).
+"""Pass 4 — Correlation & Root Cause Analysis (Multi-Base, Cross-Period).
 
 Performs pairwise correlation scans across material variances to
-identify potential causal relationships. Enhanced with cross-period
-analysis for period-over-period and year-over-year causal patterns.
+identify potential causal relationships. Runs for each comparison base
+(Budget, Forecast, Prior Year) independently at MTD level.
 
 **Within-Period Scoring** (combined score for each pair):
     0.4 * dimension_overlap  +  0.3 * direction_match  +  0.3 * magnitude_similarity
 
-**Cross-Period Analysis** (3 types):
+**Cross-Period Analysis** (3 types, per base):
     1. Persistent variances — same account+BU unfavorable across consecutive periods
     2. Lead-lag patterns — variance A in period T precedes correlated variance B in T+1
     3. Year-over-year echoes — same variance recurred vs prior year same month
 
 Filters:
-- Within-period: Only MTD / BUDGET rows. Pairs score >= 0.3. Top 20 kept.
-- Cross-period: Uses existing_material from prior periods. Top 10 persistent,
-  top 10 lead-lag, top 10 YoY echoes.
+- MTD only (QTD/YTD are derived from MTD — same pairs, inflated amounts).
+- All 3 bases processed independently.
+- Within-period: pairs score >= 0.3, top 20 per base.
+- Cross-period: top 10 per type per base.
 
-Output: populates context["correlations"] as a DataFrame matching
-the fact_correlations schema, with a ``correlation_type`` column
-distinguishing within_period / persistent / lead_lag / yoy_echo.
+Output: populates context["correlations"] as a DataFrame with
+``correlation_type`` and ``base_id`` columns.
 """
 
 from __future__ import annotations
@@ -43,8 +43,8 @@ _W_MAGNITUDE = 0.3
 
 # Thresholds
 _MIN_SCORE = 0.3
-_MAX_PAIRS = 20
-_MAX_CROSS_PERIOD_PAIRS = 10  # Per cross-period type
+_MAX_PAIRS = 20  # Per base
+_MAX_CROSS_PERIOD_PAIRS = 10  # Per cross-period type per base
 
 # Dimension columns used for overlap scoring
 _DIM_COLS = [
@@ -59,12 +59,13 @@ _DIM_COLS = [
 # Grouping columns for cross-period matching (account + BU grain)
 _CROSS_PERIOD_KEY_COLS = ["account_id", "bu_id"]
 
-# Finer grain for lead-lag (includes cost center and geo)
-_LEAD_LAG_KEY_COLS = ["account_id", "bu_id", "costcenter_node_id", "geo_node_id"]
+# Base labels for logging and LLM prompts
+_BASE_LABELS = {"BUDGET": "Budget", "FORECAST": "Forecast", "PRIOR_YEAR": "Prior Year"}
 
 
 async def _generate_hypothesis(
-    llm_client: Any, row_a: dict, row_b: dict, correlation_type: str = "within_period"
+    llm_client: Any, row_a: dict, row_b: dict,
+    correlation_type: str = "within_period", base_label: str = "Budget",
 ) -> tuple[str | None, float | None]:
     """Generate a root cause hypothesis for a correlated variance pair."""
     if (
@@ -82,7 +83,8 @@ async def _generate_hypothesis(
         }
 
         prompt = (
-            f"These two variances are correlated ({type_context.get(correlation_type, 'related')}):\n"
+            f"These two variances vs {base_label} are correlated "
+            f"({type_context.get(correlation_type, 'related')}):\n"
             f"1. {row_a.get('account_id', '?')} ({row_a.get('period_id', '?')}): "
             f"${row_a.get('variance_amount', 0):,.0f} "
             f"({row_a.get('variance_pct', 0):.1f}%)\n"
@@ -90,6 +92,7 @@ async def _generate_hypothesis(
             f"${row_b.get('variance_amount', 0):,.0f} "
             f"({row_b.get('variance_pct', 0):.1f}%)\n"
             f"Shared dimensions: {row_a.get('bu_id', '?')}\n"
+            f"Comparison base: {base_label}\n"
             f"Correlation type: {correlation_type}\n"
             f"In 1-2 sentences, what is the most likely root cause?"
         )
@@ -127,9 +130,8 @@ async def _generate_hypothesis(
 async def find_correlations(context: dict[str, Any]) -> None:
     """Scan material variances for within-period and cross-period correlations.
 
-    Takes material variances filtered to MTD + BUDGET. For within-period:
-    computes pairwise scores. For cross-period: analyzes persistent patterns,
-    lead-lag relationships, and year-over-year echoes using existing_material.
+    Processes each comparison base (Budget, Forecast, PY) independently
+    at MTD level. QTD/YTD are skipped (derived from MTD — same pairs).
 
     Args:
         context: Pipeline context dict. Must contain ``material_variances``.
@@ -143,144 +145,157 @@ async def find_correlations(context: dict[str, Any]) -> None:
         return
 
     period_id = context.get("period_id", "")
+    existing_material: pd.DataFrame | None = context.get("existing_material")
 
-    # ------------------------------------------------------------------
-    # 1. Within-Period Correlations (original logic)
-    # ------------------------------------------------------------------
-    mask = (material["view_id"] == "MTD") & (material["base_id"] == "BUDGET")
-    mtd_budget = material[mask].copy()
+    # Identify all bases present in MTD data
+    mtd_data = material[material["view_id"] == "MTD"] if "view_id" in material.columns else material
+    if "base_id" in mtd_data.columns:
+        bases = sorted(mtd_data["base_id"].unique().tolist())
+    else:
+        bases = ["BUDGET"]
 
-    within_pairs: list[dict[str, Any]] = []
-    within_pair_rows: list[tuple[dict, dict]] = []
+    all_pairs: list[dict[str, Any]] = []
+    all_pair_rows: list[tuple[dict, dict]] = []
 
-    if len(mtd_budget) >= 2:
+    for base_id in bases:
+        base_label = _BASE_LABELS.get(base_id, base_id)
+
+        # ------------------------------------------------------------------
+        # 1. Within-Period Correlations for this base
+        # ------------------------------------------------------------------
+        if "base_id" in material.columns:
+            mask = (material["view_id"] == "MTD") & (material["base_id"] == base_id)
+        else:
+            mask = material["view_id"] == "MTD" if "view_id" in material.columns else pd.Series(True, index=material.index)
+        mtd_base = material[mask].copy()
+
+        within_pairs: list[dict[str, Any]] = []
+        within_pair_rows: list[tuple[dict, dict]] = []
+
+        if len(mtd_base) >= 2:
+            logger.info(
+                "Pass 4: Scanning %d MTD/%s variances for within-period correlations",
+                len(mtd_base), base_id,
+            )
+            rows = mtd_base.to_dict("records")
+            n = len(rows)
+
+            for i in range(n):
+                for j in range(i + 1, n):
+                    row_a = rows[i]
+                    row_b = rows[j]
+
+                    overlap_score, shared_dims = _dimension_overlap(row_a, row_b)
+                    direction_score = _direction_match(row_a, row_b)
+                    magnitude_score = _magnitude_similarity(row_a, row_b)
+
+                    combined = (
+                        _W_OVERLAP * overlap_score
+                        + _W_DIRECTION * direction_score
+                        + _W_MAGNITUDE * magnitude_score
+                    )
+
+                    if combined >= _MIN_SCORE:
+                        within_pairs.append(
+                            {
+                                "correlation_id": str(uuid4()),
+                                "variance_id_a": row_a["variance_id"],
+                                "variance_id_b": row_b["variance_id"],
+                                "base_id": base_id,
+                                "correlation_score": round(combined, 4),
+                                "correlation_type": "within_period",
+                                "dimension_overlap": shared_dims,
+                                "directional_match": direction_score == 1.0,
+                                "hypothesis": None,
+                                "confidence": None,
+                                "created_at": datetime.now(timezone.utc),
+                            }
+                        )
+                        within_pair_rows.append((row_a, row_b))
+
+        # Sort and keep top N within-period for this base
+        indexed = list(enumerate(within_pairs))
+        indexed.sort(key=lambda x: x[1]["correlation_score"], reverse=True)
+        top_indexed = indexed[:_MAX_PAIRS]
+
+        top_within = [p for _, p in top_indexed]
+        top_within_rows = [within_pair_rows[i] for i, _ in top_indexed]
+
+        all_pairs.extend(top_within)
+        all_pair_rows.extend(top_within_rows)
+
         logger.info(
-            "Pass 4: Scanning %d MTD/BUDGET variances for within-period correlations",
-            len(mtd_budget),
+            "Pass 4: [%s] Found %d within-period pairs, kept top %d",
+            base_id, len(within_pairs), len(top_within),
         )
-        rows = mtd_budget.to_dict("records")
-        n = len(rows)
 
-        for i in range(n):
-            for j in range(i + 1, n):
-                row_a = rows[i]
-                row_b = rows[j]
+        # ------------------------------------------------------------------
+        # 2. Cross-Period Correlations for this base
+        # ------------------------------------------------------------------
+        if existing_material is not None and not existing_material.empty and period_id:
+            if "base_id" in existing_material.columns:
+                em_mask = (
+                    (existing_material["view_id"] == "MTD")
+                    & (existing_material["base_id"] == base_id)
+                )
+            else:
+                em_mask = existing_material["view_id"] == "MTD" if "view_id" in existing_material.columns else pd.Series(True, index=existing_material.index)
+            prior_mtd = existing_material[em_mask].copy()
 
-                overlap_score, shared_dims = _dimension_overlap(row_a, row_b)
-                direction_score = _direction_match(row_a, row_b)
-                magnitude_score = _magnitude_similarity(row_a, row_b)
+            if not prior_mtd.empty:
+                # --- 2a. Persistent Variances ---
+                persistent = _find_persistent_variances(
+                    current=mtd_base, prior=prior_mtd, period_id=period_id,
+                    base_id=base_id,
+                )
+                all_pairs.extend(persistent["pairs"])
+                all_pair_rows.extend(persistent["rows"])
 
-                combined = (
-                    _W_OVERLAP * overlap_score
-                    + _W_DIRECTION * direction_score
-                    + _W_MAGNITUDE * magnitude_score
+                # --- 2b. Lead-Lag Patterns ---
+                lead_lag = _find_lead_lag_patterns(
+                    current=mtd_base, prior=prior_mtd, period_id=period_id,
+                    base_id=base_id,
+                )
+                all_pairs.extend(lead_lag["pairs"])
+                all_pair_rows.extend(lead_lag["rows"])
+
+                # --- 2c. Year-over-Year Echoes ---
+                yoy = _find_yoy_echoes(
+                    current=mtd_base, prior=prior_mtd, period_id=period_id,
+                    base_id=base_id,
+                )
+                all_pairs.extend(yoy["pairs"])
+                all_pair_rows.extend(yoy["rows"])
+
+                logger.info(
+                    "Pass 4: [%s] Cross-period: %d persistent, %d lead-lag, %d YoY",
+                    base_id, len(persistent["pairs"]),
+                    len(lead_lag["pairs"]), len(yoy["pairs"]),
+                )
+        else:
+            if base_id == bases[0]:  # Log once, not per base
+                logger.info(
+                    "Pass 4: No prior period data — skipping cross-period analysis"
                 )
 
-                if combined >= _MIN_SCORE:
-                    within_pairs.append(
-                        {
-                            "correlation_id": str(uuid4()),
-                            "variance_id_a": row_a["variance_id"],
-                            "variance_id_b": row_b["variance_id"],
-                            "correlation_score": round(combined, 4),
-                            "correlation_type": "within_period",
-                            "dimension_overlap": shared_dims,
-                            "directional_match": direction_score == 1.0,
-                            "hypothesis": None,
-                            "confidence": None,
-                            "created_at": datetime.now(timezone.utc),
-                        }
-                    )
-                    within_pair_rows.append((row_a, row_b))
-
-    # Sort and keep top N within-period
-    indexed = list(enumerate(within_pairs))
-    indexed.sort(key=lambda x: x[1]["correlation_score"], reverse=True)
-    top_indexed = indexed[:_MAX_PAIRS]
-
-    top_within = [p for _, p in top_indexed]
-    top_within_rows = [within_pair_rows[i] for i, _ in top_indexed]
-
-    logger.info(
-        "Pass 4: Found %d within-period pairs, kept top %d",
-        len(within_pairs),
-        len(top_within),
-    )
-
     # ------------------------------------------------------------------
-    # 2. Cross-Period Correlations
-    # ------------------------------------------------------------------
-    existing_material: pd.DataFrame | None = context.get("existing_material")
-    cross_period_pairs: list[dict[str, Any]] = []
-    cross_period_rows: list[tuple[dict, dict]] = []
-
-    if existing_material is not None and not existing_material.empty and period_id:
-        # Filter existing to MTD/BUDGET only
-        em_mask = (
-            (existing_material["view_id"] == "MTD")
-            & (existing_material["base_id"] == "BUDGET")
-        )
-        prior_mtd = existing_material[em_mask].copy()
-
-        if not prior_mtd.empty:
-            # --- 2a. Persistent Variances ---
-            persistent = _find_persistent_variances(
-                current=mtd_budget, prior=prior_mtd, period_id=period_id
-            )
-            cross_period_pairs.extend(persistent["pairs"])
-            cross_period_rows.extend(persistent["rows"])
-            logger.info(
-                "Pass 4: Found %d persistent cross-period correlations",
-                len(persistent["pairs"]),
-            )
-
-            # --- 2b. Lead-Lag Patterns ---
-            lead_lag = _find_lead_lag_patterns(
-                current=mtd_budget, prior=prior_mtd, period_id=period_id
-            )
-            cross_period_pairs.extend(lead_lag["pairs"])
-            cross_period_rows.extend(lead_lag["rows"])
-            logger.info(
-                "Pass 4: Found %d lead-lag cross-period correlations",
-                len(lead_lag["pairs"]),
-            )
-
-            # --- 2c. Year-over-Year Echoes ---
-            yoy = _find_yoy_echoes(
-                current=mtd_budget, prior=prior_mtd, period_id=period_id
-            )
-            cross_period_pairs.extend(yoy["pairs"])
-            cross_period_rows.extend(yoy["rows"])
-            logger.info(
-                "Pass 4: Found %d year-over-year echo correlations",
-                len(yoy["pairs"]),
-            )
-    else:
-        logger.info(
-            "Pass 4: No prior period data — skipping cross-period analysis"
-        )
-
-    # ------------------------------------------------------------------
-    # 3. Combine all pairs
-    # ------------------------------------------------------------------
-    all_pairs = top_within + cross_period_pairs
-    all_pair_rows = top_within_rows + cross_period_rows
-
-    # ------------------------------------------------------------------
-    # 4. LLM hypothesis generation for all top pairs
+    # 3. LLM hypothesis generation for all top pairs (across all bases)
     # ------------------------------------------------------------------
     llm_client = context.get("llm_client")
     if llm_client and all_pairs:
         sem = asyncio.Semaphore(15)  # Max 15 concurrent LLM calls
 
         async def _gen_with_sem(
-            a: dict, b: dict, ctype: str
+            a: dict, b: dict, ctype: str, blabel: str,
         ) -> tuple[str | None, float | None]:
             async with sem:
-                return await _generate_hypothesis(llm_client, a, b, ctype)
+                return await _generate_hypothesis(llm_client, a, b, ctype, blabel)
 
         tasks = [
-            _gen_with_sem(a, b, pair["correlation_type"])
+            _gen_with_sem(
+                a, b, pair["correlation_type"],
+                _BASE_LABELS.get(pair.get("base_id", "BUDGET"), "Budget"),
+            )
             for (a, b), pair in zip(all_pair_rows, all_pairs)
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -301,16 +316,17 @@ async def find_correlations(context: dict[str, Any]) -> None:
     corr_df = pd.DataFrame(all_pairs) if all_pairs else pd.DataFrame()
     context["correlations"] = corr_df
 
-    # Summary
-    type_counts = {}
+    # Summary by type and base
+    type_base_counts: dict[str, int] = {}
     for p in all_pairs:
-        t = p.get("correlation_type", "unknown")
-        type_counts[t] = type_counts.get(t, 0) + 1
+        key = f"{p.get('base_id', '?')}/{p.get('correlation_type', '?')}"
+        type_base_counts[key] = type_base_counts.get(key, 0) + 1
 
     logger.info(
-        "Pass 4: Total %d correlations — %s",
+        "Pass 4: Total %d correlations across %d bases — %s",
         len(all_pairs),
-        ", ".join(f"{k}={v}" for k, v in sorted(type_counts.items())),
+        len(bases),
+        ", ".join(f"{k}={v}" for k, v in sorted(type_base_counts.items())),
     )
 
 
@@ -323,6 +339,7 @@ def _find_persistent_variances(
     current: pd.DataFrame,
     prior: pd.DataFrame,
     period_id: str,
+    base_id: str = "BUDGET",
 ) -> dict[str, list]:
     """Find account+BU combinations that are unfavorable across consecutive periods.
 
@@ -337,6 +354,8 @@ def _find_persistent_variances(
 
     if current.empty or prior.empty:
         return {"pairs": pairs, "rows": rows}
+
+    base_label = _BASE_LABELS.get(base_id, base_id)
 
     # Group current period variances by account+BU
     current_keys = {}
@@ -364,7 +383,6 @@ def _find_persistent_variances(
         curr_sign = 1 if curr_amount > 0 else -1
 
         # Count consecutive prior periods with same sign
-        # Sort prior rows by period descending (most recent first)
         sorted_prior = sorted(
             prior_rows,
             key=lambda r: r.get("period_id", ""),
@@ -388,8 +406,7 @@ def _find_persistent_variances(
                 break
 
         if consecutive >= 2 and earliest_row is not None:
-            # Score: more consecutive periods + larger magnitude = higher score
-            persistence_score = min(1.0, consecutive / 6.0)  # 6+ months = 1.0
+            persistence_score = min(1.0, consecutive / 6.0)
             mag_score = _magnitude_similarity(curr_row, earliest_row)
             combined = 0.5 * persistence_score + 0.3 * mag_score + 0.2
 
@@ -397,12 +414,13 @@ def _find_persistent_variances(
                 "correlation_id": str(uuid4()),
                 "variance_id_a": earliest_row.get("variance_id", str(uuid4())),
                 "variance_id_b": curr_row.get("variance_id", str(uuid4())),
+                "base_id": base_id,
                 "correlation_score": round(combined, 4),
                 "correlation_type": "persistent",
                 "dimension_overlap": list(_CROSS_PERIOD_KEY_COLS),
                 "directional_match": True,
                 "hypothesis": (
-                    f"Persistent {consecutive + 1}-month pattern: "
+                    f"Persistent {consecutive + 1}-month pattern vs {base_label}: "
                     f"{curr_row.get('account_id', '?')} in {curr_row.get('bu_id', '?')} "
                     f"has been {'unfavorable' if curr_sign < 0 else 'favorable'} "
                     f"for {consecutive + 1} consecutive months "
@@ -413,7 +431,6 @@ def _find_persistent_variances(
             }
             scored.append((combined, pair_data, earliest_row, curr_row, consecutive))
 
-    # Keep top N by score
     scored.sort(key=lambda x: x[0], reverse=True)
     for _, pair_data, prior_row, curr_row, _ in scored[:_MAX_CROSS_PERIOD_PAIRS]:
         pairs.append(pair_data)
@@ -431,13 +448,13 @@ def _find_lead_lag_patterns(
     current: pd.DataFrame,
     prior: pd.DataFrame,
     period_id: str,
+    base_id: str = "BUDGET",
 ) -> dict[str, list]:
     """Find lead-lag: variance in account A last period → account B this period.
 
     Looks for DIFFERENT accounts within the same BU where a variance in
     the immediately prior period is followed by a related variance in the
-    current period. Classic examples: Revenue drop → COGS mismatch,
-    Headcount increase → salary overspend.
+    current period.
 
     Returns:
         Dict with 'pairs' and 'rows'.
@@ -452,12 +469,10 @@ def _find_lead_lag_patterns(
     if not prior_period:
         return {"pairs": pairs, "rows": rows}
 
-    # Filter prior to immediately preceding period only
     prior_prev = prior[prior["period_id"] == prior_period]
     if prior_prev.empty:
         return {"pairs": pairs, "rows": rows}
 
-    # Group by BU for cross-account matching
     current_by_bu: dict[str, list[dict]] = {}
     for _, row in current.iterrows():
         bu = str(row.get("bu_id", ""))
@@ -476,7 +491,6 @@ def _find_lead_lag_patterns(
 
         pr_rows = prior_by_bu[bu_id]
 
-        # Cross-account pairs within same BU
         for pr in pr_rows:
             pr_acct = pr.get("account_id", "")
             pr_amount = pr.get("variance_amount", 0)
@@ -485,7 +499,6 @@ def _find_lead_lag_patterns(
 
             for cr in curr_rows:
                 cr_acct = cr.get("account_id", "")
-                # Skip same account (that's persistence, not lead-lag)
                 if cr_acct == pr_acct:
                     continue
 
@@ -493,10 +506,8 @@ def _find_lead_lag_patterns(
                 if cr_amount == 0:
                     continue
 
-                # Score: direction match + magnitude similarity + dimension overlap
                 direction = _direction_match(pr, cr)
                 magnitude = _magnitude_similarity(pr, cr)
-                # Partial dimension overlap (same BU = 1/6 baseline)
                 overlap, shared = _dimension_overlap(pr, cr)
 
                 combined = (
@@ -510,6 +521,7 @@ def _find_lead_lag_patterns(
                         "correlation_id": str(uuid4()),
                         "variance_id_a": pr.get("variance_id", str(uuid4())),
                         "variance_id_b": cr.get("variance_id", str(uuid4())),
+                        "base_id": base_id,
                         "correlation_score": round(combined, 4),
                         "correlation_type": "lead_lag",
                         "dimension_overlap": shared,
@@ -519,7 +531,6 @@ def _find_lead_lag_patterns(
                         "created_at": datetime.now(timezone.utc),
                     }))
 
-    # Keep top N
     scored.sort(key=lambda x: x[0], reverse=True)
     for _, pr_row, cr_row, pair_data in scored[:_MAX_CROSS_PERIOD_PAIRS]:
         pairs.append(pair_data)
@@ -537,6 +548,7 @@ def _find_yoy_echoes(
     current: pd.DataFrame,
     prior: pd.DataFrame,
     period_id: str,
+    base_id: str = "BUDGET",
 ) -> dict[str, list]:
     """Find YoY echoes: same variance occurred in the same month last year.
 
@@ -557,12 +569,12 @@ def _find_yoy_echoes(
     if not yoy_period:
         return {"pairs": pairs, "rows": rows}
 
-    # Filter prior to same-month-last-year
+    base_label = _BASE_LABELS.get(base_id, base_id)
+
     prior_yoy = prior[prior["period_id"] == yoy_period]
     if prior_yoy.empty:
         return {"pairs": pairs, "rows": rows}
 
-    # Index prior by account+BU
     prior_key_map: dict[tuple, dict] = {}
     for _, row in prior_yoy.iterrows():
         key = tuple(str(row.get(c, "")) for c in _CROSS_PERIOD_KEY_COLS)
@@ -587,7 +599,6 @@ def _find_yoy_echoes(
         direction = _direction_match(curr_row, pr_row)
         magnitude = _magnitude_similarity(curr_row, pr_row)
 
-        # YoY echo score: higher if same direction + similar magnitude
         combined = 0.4 * direction + 0.4 * magnitude + 0.2
 
         if combined >= _MIN_SCORE:
@@ -596,12 +607,13 @@ def _find_yoy_echoes(
                 "correlation_id": str(uuid4()),
                 "variance_id_a": pr_row.get("variance_id", str(uuid4())),
                 "variance_id_b": curr_row.get("variance_id", str(uuid4())),
+                "base_id": base_id,
                 "correlation_score": round(combined, 4),
                 "correlation_type": "yoy_echo",
                 "dimension_overlap": list(_CROSS_PERIOD_KEY_COLS),
                 "directional_match": direction == 1.0,
                 "hypothesis": (
-                    f"YoY echo: {curr_row.get('account_id', '?')} in "
+                    f"YoY echo vs {base_label}: {curr_row.get('account_id', '?')} in "
                     f"{curr_row.get('bu_id', '?')} was also {curr_sign} "
                     f"in {yoy_period} (${pr_amount:,.0f} then vs "
                     f"${curr_amount:,.0f} now) — potential seasonal/structural pattern"
@@ -610,7 +622,6 @@ def _find_yoy_echoes(
                 "created_at": datetime.now(timezone.utc),
             }))
 
-    # Keep top N
     scored.sort(key=lambda x: x[0], reverse=True)
     for _, pr_row, cr_row, pair_data in scored[:_MAX_CROSS_PERIOD_PAIRS]:
         pairs.append(pair_data)
@@ -657,11 +668,7 @@ def _dimension_overlap(
     row_a: dict[str, Any],
     row_b: dict[str, Any],
 ) -> tuple[float, list[str]]:
-    """Compute dimension overlap score and list of shared dimension values.
-
-    Returns:
-        Tuple of (overlap_score 0-1, list of shared dimension column names).
-    """
+    """Compute dimension overlap score and list of shared dimension values."""
     shared: list[str] = []
     for col in _DIM_COLS:
         val_a = row_a.get(col)
@@ -687,10 +694,7 @@ def _direction_match(row_a: dict[str, Any], row_b: dict[str, Any]) -> float:
 
 
 def _magnitude_similarity(row_a: dict[str, Any], row_b: dict[str, Any]) -> float:
-    """Compute magnitude similarity: 1 - abs(log(abs(a)/abs(b))), clamped to [0, 1].
-
-    When one value is zero, returns 0.0 (no similarity).
-    """
+    """Compute magnitude similarity: 1 - abs(log(abs(a)/abs(b))), clamped to [0, 1]."""
     va = abs(row_a.get("variance_amount", 0.0))
     vb = abs(row_b.get("variance_amount", 0.0))
 
@@ -702,5 +706,4 @@ def _magnitude_similarity(row_a: dict[str, Any], row_b: dict[str, Any]) -> float
     except (ValueError, ZeroDivisionError):
         return 0.0
 
-    # Clamp to [0, 1]
     return max(0.0, min(1.0, 1.0 - log_ratio))
